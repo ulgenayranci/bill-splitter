@@ -59,15 +59,15 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| PEOPLE-01 | TBD | pending |
-| ITEMS-01 | TBD | pending |
-| ITEMS-02 | TBD | pending |
-| ITEMS-03 | TBD | pending |
-| ITEMS-04 | TBD | pending |
-| OCR-01 | TBD | pending |
-| OCR-02 | TBD | pending |
-| OCR-03 | TBD | pending |
-| OCR-04 | TBD | pending |
-| TIP-01 | TBD | pending |
-| RESULTS-01 | TBD | pending |
-| RESULTS-02 | TBD | pending |
+| PEOPLE-01 | Phase 1 | pending |
+| ITEMS-01 | Phase 1 | pending |
+| ITEMS-02 | Phase 1 | pending |
+| ITEMS-03 | Phase 1 | pending |
+| TIP-01 | Phase 1 | pending |
+| RESULTS-01 | Phase 1 | pending |
+| OCR-01 | Phase 2 | pending |
+| OCR-03 | Phase 2 | pending |
+| OCR-02 | Phase 3 | pending |
+| OCR-04 | Phase 3 | pending |
+| RESULTS-02 | Phase 4 | pending |
+| ITEMS-04 | Phase 5 | pending |
