@@ -1,10 +1,11 @@
 ---
 phase: 1
 slug: manual-bill-splitter
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-08
+reviewed_at: 2026-05-08
 ---
 
 # Phase 1 — UI Design Contract
@@ -71,9 +72,9 @@ Exceptions:
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 16px | 400 (regular) | 1.5 |
-| Label | 14px | 500 (medium) | 1.4 |
+| Label | 14px | 400 (regular) | 1.4 |
 | Heading | 20px | 600 (semibold) | 1.2 |
-| Display | 28px | 700 (bold) | 1.1 |
+| Display | 28px | 600 (semibold) | 1.1 |
 
 **Usage guidance:**
 - Display: per-person totals on the Results screen only. Large enough to read at arm's length across a table.
@@ -136,7 +137,7 @@ No third-party registry blocks. No additional registries. All components are fro
 - Type name → tap "Add Person" or press Return → person appears in list with a colored avatar circle
 - Avatar colors assigned deterministically: cycle through 6 preset colors (`amber-400, sky-400, emerald-400, violet-400, rose-400, orange-400`) in insertion order — never random
 - Tap person row → no action (non-interactive in Phase 1)
-- Tap trash icon on person row → Dialog confirmation: "Remove [Name]? Any items assigned to them will be unassigned." → Confirm removes person; Cancel dismisses
+- Tap trash icon on person row → Dialog confirmation: "Remove [Name]? Any items assigned to them will be unassigned." → Confirm removes person; Cancel dismisses. **Trash icon must carry `aria-label="Remove [Name]"` (where [Name] is the actual person's name) — it is icon-only with no visible text label.**
 - Minimum 1 person required before CTA is enabled
 - CTA: "Continue to items" (disabled / `opacity-50 cursor-not-allowed` until ≥1 person added)
 - Empty state: heading "Who's at the table?", body "Add each person's name. You'll assign items to them next." — full viewport centered
@@ -151,9 +152,9 @@ No third-party registry blocks. No additional registries. All components are fro
 - Tap "Add item" → a new inline row appears with name field focused, price field to the right
 - Name field: free text. Price field: numeric keyboard (`inputMode="decimal"`), no currency symbol in the field — formatted with "$" prefix in display-only view after committing
 - Commit item: tap away, press Return on price field, or tap checkmark button — item enters list
-- Item in list shows: item name (body, 16px), price right-aligned (label, 14px, semibold)
+- Item in list shows: item name (body, 16px), price right-aligned (label, 14px)
 - Tap item row → enter inline edit mode for that row
-- Tap trash on item → Dialog: "Remove [item name]? It will be unassigned." → Confirm
+- Tap trash on item → Dialog: "Remove [item name]? It will be unassigned." → Confirm. **Trash icon must carry `aria-label="Remove [item name]"` (where [item name] is the actual item name) — it is icon-only with no visible text label.**
 - Minimum 1 item required before CTA is enabled
 - CTA: "Assign items" (disabled until ≥1 item)
 - Empty state: heading "What did everyone order?", body "Add each item from the bill. You'll split them next."
@@ -205,7 +206,7 @@ No third-party registry blocks. No additional registries. All components are fro
 **Layout:** List of person result cards, each collapsible. Fixed bottom strip showing total bill amount.
 
 **Interactions:**
-- Each card shows: person avatar + name (heading, 20px), total owed in Display type (28px, bold, amber-600)
+- Each card shows: person avatar + name (heading, 20px), total owed in Display type (28px, weight 600, amber-600)
 - Tap card → expands below the total to reveal: itemized list (item name + their share amount, both 14px), then tip share ("Tip: $X.XX"), then a line total
 - Expanded state: chevron rotates 180°; card grows in-place, pushing cards below down (no modal/sheet)
 - Only one card can be expanded at a time (collapse previous on new tap) — reduces cognitive load
