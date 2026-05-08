@@ -32,7 +32,10 @@
   3. User can assign each item to one person or mark it as shared and pick which people shared it
   4. User can enter a tip as a preset percentage (15%, 18%, 20%) or a custom value
   5. App shows a final breakdown listing what every person at the table owes, reflecting proportional tip
-**Plans**: TBD
+**Plans:** 3 plans
+  - [ ] 01-PLAN-01.md — Walking skeleton + AddPeople (PEOPLE-01)
+  - [ ] 01-PLAN-02.md — AddItems + AssignItems (ITEMS-01, ITEMS-02, ITEMS-03)
+  - [ ] 01-PLAN-03.md — SetTip + Results (TIP-01, RESULTS-01)
 **UI hint**: yes
 
 ### Phase 2: OCR Pipeline
