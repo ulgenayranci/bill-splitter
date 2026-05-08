@@ -1,11 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { AddPeopleStep } from '@/components/wizard/AddPeopleStep'
 import { useBillStore } from '@/stores/useBillStore'
 
 describe('AddPeopleStep', () => {
   beforeEach(() => {
     useBillStore.getState().reset()
+  })
+
+  afterEach(() => {
+    cleanup()
   })
 
   it('renders empty state heading when no people', () => {
