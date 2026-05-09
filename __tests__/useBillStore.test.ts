@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useBillStore } from '@/stores/useBillStore'
 
 describe('useBillStore', () => {
@@ -108,5 +108,58 @@ describe('useBillStore', () => {
     expect(state.items).toEqual([])
     expect(state.assignments).toEqual({})
     expect(state.tipPercent).toBe(18)
+  })
+
+  // ----- Phase 2 additions -----
+
+  it('billImageUrl initial value is null', () => {
+    expect(useBillStore.getState().billImageUrl).toBeNull()
+  })
+
+  it('ocrStatus initial value is "idle"', () => {
+    expect(useBillStore.getState().ocrStatus).toBe('idle')
+  })
+
+  it('setBillImage("blob:abc") sets billImageUrl to "blob:abc"', () => {
+    useBillStore.getState().setBillImage('blob:abc')
+    expect(useBillStore.getState().billImageUrl).toBe('blob:abc')
+  })
+
+  it('setBillImage(null) clears billImageUrl to null', () => {
+    useBillStore.getState().setBillImage('blob:abc')
+    useBillStore.getState().setBillImage(null)
+    expect(useBillStore.getState().billImageUrl).toBeNull()
+  })
+
+  it('setOcrStatus transitions through idle -> loading -> done', () => {
+    useBillStore.getState().setOcrStatus('loading')
+    expect(useBillStore.getState().ocrStatus).toBe('loading')
+    useBillStore.getState().setOcrStatus('done')
+    expect(useBillStore.getState().ocrStatus).toBe('done')
+  })
+
+  it('setOcrStatus("error") sets ocrStatus to "error"', () => {
+    useBillStore.getState().setOcrStatus('error')
+    expect(useBillStore.getState().ocrStatus).toBe('error')
+  })
+
+  it('reset revokes the existing blob URL exactly once when billImageUrl is set', () => {
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+    revokeSpy.mockClear()
+    useBillStore.getState().setBillImage('blob:will-be-revoked')
+    useBillStore.getState().reset()
+    expect(revokeSpy).toHaveBeenCalledTimes(1)
+    expect(revokeSpy).toHaveBeenCalledWith('blob:will-be-revoked')
+    expect(useBillStore.getState().billImageUrl).toBeNull()
+    expect(useBillStore.getState().ocrStatus).toBe('idle')
+    revokeSpy.mockRestore()
+  })
+
+  it('reset does NOT call revokeObjectURL when billImageUrl is null', () => {
+    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL')
+    revokeSpy.mockClear()
+    useBillStore.getState().reset()
+    expect(revokeSpy).not.toHaveBeenCalled()
+    revokeSpy.mockRestore()
   })
 })

@@ -31,6 +31,10 @@ interface BillState {
   assignments: Record<ItemId, PersonId[]>
   tipPercent: number
   nextColorIndex: number
+  billImageUrl: string | null
+  ocrStatus: 'idle' | 'loading' | 'done' | 'error'
+  setBillImage: (url: string | null) => void
+  setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setStep: (step: BillState['step']) => void
   addPerson: (name: string) => void
   removePerson: (id: PersonId) => void
@@ -49,6 +53,8 @@ const INITIAL_STATE = {
   assignments: {},
   tipPercent: 18,
   nextColorIndex: 0,
+  billImageUrl: null,
+  ocrStatus: 'idle' as const,
 }
 
 export const useBillStore = create<BillState>()((set) => ({
@@ -90,5 +96,11 @@ export const useBillStore = create<BillState>()((set) => ({
       assignments: { ...s.assignments, [itemId]: personIds },
     })),
   setTipPercent: (percent) => set({ tipPercent: percent }),
-  reset: () => set({ ...INITIAL_STATE }),
+  setBillImage: (url) => set({ billImageUrl: url }),
+  setOcrStatus: (status) => set({ ocrStatus: status }),
+  reset: () =>
+    set((s) => {
+      if (s.billImageUrl) URL.revokeObjectURL(s.billImageUrl)
+      return { ...INITIAL_STATE }
+    }),
 }))
