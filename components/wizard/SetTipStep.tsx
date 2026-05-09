@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore } from '@/stores/useBillStore'
@@ -25,6 +25,16 @@ export function SetTipStep() {
     PRESETS.includes(tipPercent as Preset) ? 'preset' : 'custom'
   )
 
+  // Controlled value for the custom input
+  const [customValue, setCustomValue] = useState(String(tipPercent))
+
+  // When switching to custom mode, reset the displayed value to match the store
+  useEffect(() => {
+    if (mode === 'custom') {
+      setCustomValue(String(tipPercent))
+    }
+  }, [mode]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const subtotalCents = computeSubtotalCents(items)
   const tipCents = computeTipCents(subtotalCents, tipPercent)
 
@@ -37,14 +47,12 @@ export function SetTipStep() {
   }
 
   const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    // Accept only digits and at most one decimal point with 1-2 decimal places
-    if (/^\d+(\.\d{1,2})?$/.test(value) && parseFloat(value) <= 999) {
-      setTipPercent(parseFloat(value))
-    } else if (value === '') {
-      // Empty field — keep current tipPercent
+    const raw = e.target.value
+    setCustomValue(raw)
+    if (/^\d+(\.\d{1,2})?$/.test(raw) && parseFloat(raw) <= 999) {
+      setTipPercent(parseFloat(raw))
     }
-    // If invalid (non-numeric, etc.), do not update store
+    // If invalid (non-numeric, empty, etc.), do not update store
   }
 
   return (
@@ -104,7 +112,7 @@ export function SetTipStep() {
           <Input
             inputMode="decimal"
             placeholder="Enter percent"
-            defaultValue={tipPercent}
+            value={customValue}
             onChange={handleCustomChange}
             maxLength={6}
             className="h-12 pr-8 text-base"
