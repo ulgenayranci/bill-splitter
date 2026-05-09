@@ -31,7 +31,8 @@ export async function POST(request: Request) {
       ? (body as { image: unknown }).image
       : undefined
 
-  if (typeof image !== 'string' || image.length === 0) {
+  const DATA_URI_RE = /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/]+=*$/
+  if (typeof image !== 'string' || image.length > 10_000_000 || !DATA_URI_RE.test(image)) {
     return NextResponse.json({ error: 'No image provided' }, { status: 400 })
   }
 
@@ -81,11 +82,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
     }
 
-    const parsed = JSON.parse(content) as {
-      items: { name: string; priceCents: number }[]
+    const parsed = JSON.parse(content) as unknown
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !Array.isArray((parsed as Record<string, unknown>).items)
+    ) {
+      console.error('OCR error: response did not match expected schema')
+      return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
     }
-
-    return NextResponse.json(parsed)
+    const items = ((parsed as { items: unknown[] }).items).filter(
+      (i): i is { name: string; priceCents: number } =>
+        typeof (i as Record<string, unknown>).name === 'string' &&
+        Number.isInteger((i as Record<string, unknown>).priceCents) &&
+        (i as { priceCents: number }).priceCents > 0,
+    )
+    return NextResponse.json({ items })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.
     console.error('OCR error:', err)
