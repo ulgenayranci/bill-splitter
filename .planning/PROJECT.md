@@ -52,18 +52,21 @@ Mobile-friendly web app. Works on any phone via browser, no install needed. Can 
 
 ## Requirements
 
+### Validated
+
+- [x] User can add people to the bill — Validated in Phase 01: manual-bill-splitter (PEOPLE-01)
+- [x] User can mark items as shared and select who shared them — Validated in Phase 01: manual-bill-splitter (ITEMS-02, ITEMS-03)
+- [x] Each person can select what they ordered — Validated in Phase 01: manual-bill-splitter (ITEMS-01)
+- [x] Tip calculation with percentage options (15%, 18%, 20%, custom) — Validated in Phase 01: manual-bill-splitter (TIP-01)
+- [x] Final breakdown showing what each person owes — Validated in Phase 01: manual-bill-splitter (RESULTS-01)
+
 ### Active
 
-- [ ] User can add people to the bill
 - [ ] User can take a photo of the bill for OCR extraction
 - [ ] AI expands abbreviated item names into readable names
 - [ ] Ambiguous items prompt: take menu photo OR enter manually
-- [ ] User can mark items as shared and select who shared them
-- [ ] Each person can select what they ordered
-- [ ] Tip calculation with percentage options (15%, 18%, 20%, custom)
 - [ ] Tax calculation (amount or percentage)
 - [ ] Tip and tax split proportionally to each person's subtotal
-- [ ] Final breakdown showing what each person owes
 - [ ] Shareable link so each person selects their own items
 
 ### Out of Scope (v1)
@@ -101,4 +104,8 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-08 after initialization*
+## Current State
+
+Phase 01 (manual-bill-splitter) complete — full 5-step wizard implemented with 85 passing tests, integer-cent arithmetic, and largest-remainder tip distribution. Manual bill splitting is fully functional end-to-end.
+
+*Last updated: 2026-05-09 after Phase 01 completion*
