@@ -69,7 +69,13 @@
   2. Low-confidence expansions are visually flagged so the user knows which items to review
   3. For items that remain ambiguous, user is offered the choice to take a photo of the menu or enter the correct name manually
   4. The app handles LLM timeout gracefully by falling back to the raw abbreviated name (still editable) rather than blocking
-**Plans**: TBD
+**Plans:** 3 plans
+  **Wave 0**
+  - [ ] 03-01-PLAN.md — Foundation: extend useBillStore (Item.confidence, expandStatus, setItems), OcrLoadingOverlay message prop, failing test scaffolds for /api/expand + /api/clarify + AddItemsStep Phase 3 behaviors (OCR-02, OCR-04)
+  **Wave 1**
+  - [ ] 03-02-PLAN.md — Server + UI vertical slice for OCR-02: /api/expand route, two-step OCR→Expand fetch chain in AddItemsStep, dual loading overlay, orange Review badges on low/ambiguous rows, expansion-failure toast fallback (OCR-02)
+  **Wave 2**
+  - [ ] 03-03-PLAN.md — Server + UI vertical slice for OCR-04: /api/clarify route, DisambiguationDialog component (choices/editing/clarifying/clarify-done state machine), Review-row click routing in AddItemsStep, menu-photo-to-clarify flow with D-09 fallback, badge dismissal on save (OCR-04)
 **UI hint**: yes
 
 ### Phase 4: Shareable Links
