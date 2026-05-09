@@ -25,11 +25,11 @@
 
 ### Tip
 
-- [ ] **TIP-01**: User can select tip percentage (15%, 18%, 20%, or custom) to be added to the bill
+- [x] **TIP-01**: User can select tip percentage (15%, 18%, 20%, or custom) to be added to the bill
 
 ### Results
 
-- [ ] **RESULTS-01**: App shows final breakdown of what each person owes
+- [x] **RESULTS-01**: App shows final breakdown of what each person owes
 - [ ] **RESULTS-02**: User can share a link so each person claims their own items on their own phone
 
 ---
@@ -63,8 +63,8 @@
 | ITEMS-01 | Phase 1 | pending |
 | ITEMS-02 | Phase 1 | pending |
 | ITEMS-03 | Phase 1 | pending |
-| TIP-01 | Phase 1 | pending |
-| RESULTS-01 | Phase 1 | pending |
+| TIP-01 | Phase 1 | Complete |
+| RESULTS-01 | Phase 1 | Complete |
 | OCR-01 | Phase 2 | pending |
 | OCR-03 | Phase 2 | pending |
 | OCR-02 | Phase 3 | pending |
