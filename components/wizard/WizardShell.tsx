@@ -25,7 +25,12 @@ export function WizardShell({ children }: WizardShellProps) {
     if (typeof window === 'undefined') return
     const handleHashChange = () => {
       const match = window.location.hash.match(/#step-([1-5])/)
-      if (match) setStep(Number(match[1]) as 1 | 2 | 3 | 4 | 5)
+      if (match) {
+        const num = Number(match[1])
+        if (num >= 1 && num <= 5) {
+          setStep(num as 1 | 2 | 3 | 4 | 5)
+        }
+      }
     }
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
