@@ -30,6 +30,7 @@ interface BillState {
   items: Item[]
   assignments: Record<ItemId, PersonId[]>
   tipPercent: number
+  nextColorIndex: number
   setStep: (step: BillState['step']) => void
   addPerson: (name: string) => void
   removePerson: (id: PersonId) => void
@@ -47,6 +48,7 @@ const INITIAL_STATE = {
   items: [],
   assignments: {},
   tipPercent: 18,
+  nextColorIndex: 0,
 }
 
 export const useBillStore = create<BillState>()((set) => ({
@@ -56,8 +58,9 @@ export const useBillStore = create<BillState>()((set) => ({
     set((s) => ({
       people: [
         ...s.people,
-        { id: crypto.randomUUID(), name, colorIndex: s.people.length % 6 },
+        { id: crypto.randomUUID(), name, colorIndex: s.nextColorIndex % 6 },
       ],
+      nextColorIndex: s.nextColorIndex + 1,
     })),
   removePerson: (id) =>
     set((s) => ({
