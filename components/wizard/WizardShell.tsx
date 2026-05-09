@@ -16,7 +16,7 @@ export function WizardShell({ children }: WizardShellProps) {
   // Sync step → URL hash on step change
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', `#step-${step}`)
+      window.history.replaceState(null, '', `#step-${step}`)
     }
   }, [step])
 
