@@ -30,21 +30,25 @@ describe('SetTipStep', () => {
 
   it('Test 3: tip dollar line shows "$1.80" by default ($10 × 18%)', () => {
     render(<SetTipStep />)
-    expect(screen.getByText(/\$1\.80/)).toBeDefined()
+    // The "Tip:" line should contain $1.80 — find the paragraph containing "Tip:"
+    const tipLine = screen.getByText(/^Tip:/)
+    expect(tipLine.textContent).toContain('$1.80')
   })
 
   it('Test 4: clicking "20%" sets tipPercent to 20 and tip line shows "$2.00"', () => {
     render(<SetTipStep />)
     fireEvent.click(screen.getByRole('button', { name: /^20%$/ }))
     expect(useBillStore.getState().tipPercent).toBe(20)
-    expect(screen.getByText(/\$2\.00/)).toBeDefined()
+    const tipLine = screen.getByText(/^Tip:/)
+    expect(tipLine.textContent).toContain('$2.00')
   })
 
   it('Test 5: clicking "15%" sets tipPercent to 15 and tip line shows "$1.50"', () => {
     render(<SetTipStep />)
     fireEvent.click(screen.getByRole('button', { name: /^15%$/ }))
     expect(useBillStore.getState().tipPercent).toBe(15)
-    expect(screen.getByText(/\$1\.50/)).toBeDefined()
+    const tipLine = screen.getByText(/^Tip:/)
+    expect(tipLine.textContent).toContain('$1.50')
   })
 
   it('Test 6: clicking "Custom" reveals an Input field; hidden when not on custom', () => {
@@ -63,7 +67,8 @@ describe('SetTipStep', () => {
     const input = screen.getByPlaceholderText(/enter percent/i)
     fireEvent.change(input, { target: { value: '25' } })
     expect(useBillStore.getState().tipPercent).toBe(25)
-    expect(screen.getByText(/\$2\.50/)).toBeDefined()
+    const tipLine = screen.getByText(/^Tip:/)
+    expect(tipLine.textContent).toContain('$2.50')
   })
 
   it('Test 8: typing "0" into custom input sets tipPercent to 0 and tip line shows "$0.00"', () => {
@@ -72,7 +77,8 @@ describe('SetTipStep', () => {
     const input = screen.getByPlaceholderText(/enter percent/i)
     fireEvent.change(input, { target: { value: '0' } })
     expect(useBillStore.getState().tipPercent).toBe(0)
-    expect(screen.getByText(/\$0\.00/)).toBeDefined()
+    const tipLine = screen.getByText(/^Tip:/)
+    expect(tipLine.textContent).toContain('$0.00')
   })
 
   it('Test 9: typing non-numeric "abc" into custom input does not crash and valid number remains in store', () => {
