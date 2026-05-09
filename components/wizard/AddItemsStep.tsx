@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { Trash2, Check, Plus } from 'lucide-react'
+import { useState, useRef, useCallback } from 'react'
+import { Trash2, Check, Plus, Camera } from 'lucide-react'
+import { Toast } from '@base-ui/react/toast'
+import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -16,6 +18,7 @@ import {
 import { useBillStore } from '@/stores/useBillStore'
 import { parseCents, formatCents } from '@/lib/billMath'
 import type { ItemId } from '@/stores/useBillStore'
+import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 
 function parsePriceWithError(raw: string): { cents: number } | { error: string } {
   const trimmed = raw.trim()
@@ -40,9 +43,15 @@ export function AddItemsStep() {
   const updateItem = useBillStore((s) => s.updateItem)
   const removeItem = useBillStore((s) => s.removeItem)
   const setStep = useBillStore((s) => s.setStep)
+  const billImageUrl = useBillStore((s) => s.billImageUrl)
+  const ocrStatus = useBillStore((s) => s.ocrStatus)
+  const setBillImage = useBillStore((s) => s.setBillImage)
+  const setOcrStatus = useBillStore((s) => s.setOcrStatus)
 
   const [editState, setEditState] = useState<EditState | null>(null)
   const [pendingRemove, setPendingRemove] = useState<{ id: ItemId; name: string } | null>(null)
+  const toastManager = Toast.useToastManager()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isAdding = editState !== null && editState.id === null
   const editingId = editState?.id ?? null
@@ -88,6 +97,54 @@ export function AddItemsStep() {
     }
   }
 
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      e.target.value = ''
+
+      const blobUrl = URL.createObjectURL(file)
+      setBillImage(blobUrl)
+      setOcrStatus('loading')
+
+      try {
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/jpeg',
+        })
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error('FileReader failed'))
+          reader.readAsDataURL(compressed)
+        })
+        const res = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 }),
+        })
+        if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
+        const data = (await res.json()) as {
+          items: { name: string; priceCents: number }[]
+        }
+        for (const item of data.items) {
+          addItem(item.name, item.priceCents)
+        }
+        setOcrStatus('done')
+      } catch (err) {
+        console.error(err)
+        setOcrStatus('error')
+        toastManager.add({
+          description: "Couldn't read the bill — try again or enter manually",
+          timeout: 4000,
+        })
+      }
+    },
+    [setBillImage, setOcrStatus, addItem, toastManager],
+  )
+
   return (
     <div className="flex flex-col gap-6">
       {/* Heading region */}
@@ -101,6 +158,42 @@ export function AddItemsStep() {
       ) : (
         <h1 className="text-[20px] font-semibold leading-[1.2]">Items</h1>
       )}
+
+      {billImageUrl && (
+        <Card className="p-2">
+          <img
+            src={billImageUrl}
+            alt="Captured bill photo"
+            className="w-full max-h-48 rounded-lg object-cover"
+          />
+          <span className="block px-2 pt-2 text-[14px] text-zinc-500">Bill photo</span>
+        </Card>
+      )}
+
+      {ocrStatus !== 'loading' && ocrStatus !== 'done' && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          className="h-12 w-full gap-2 border-dashed border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+          aria-label="Scan bill"
+        >
+          <Camera size={20} />
+          Scan bill
+        </Button>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={handleFileChange}
+        aria-hidden="true"
+        tabIndex={-1}
+        data-testid="ocr-file-input"
+      />
 
       {/* Items list */}
       <ul className="flex flex-col gap-2">
@@ -256,6 +349,8 @@ export function AddItemsStep() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <OcrLoadingOverlay visible={ocrStatus === 'loading'} />
     </div>
   )
 }
