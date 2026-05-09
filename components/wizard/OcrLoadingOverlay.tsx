@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { LoaderCircle } from 'lucide-react'
 
@@ -8,7 +9,10 @@ export interface OcrLoadingOverlayProps {
 }
 
 export function OcrLoadingOverlay({ visible }: OcrLoadingOverlayProps) {
-  if (!visible || typeof document === 'undefined') return null
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!mounted || !visible) return null
   return createPortal(
     <div
       role="status"
