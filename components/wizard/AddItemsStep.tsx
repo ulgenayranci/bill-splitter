@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { Trash2, Check, Plus, Camera } from 'lucide-react'
 import { Toast } from '@base-ui/react/toast'
 import imageCompression from 'browser-image-compression'
@@ -52,6 +52,11 @@ export function AddItemsStep() {
   const [pendingRemove, setPendingRemove] = useState<{ id: ItemId; name: string } | null>(null)
   const toastManager = Toast.useToastManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
 
   const isAdding = editState !== null && editState.id === null
   const editingId = editState?.id ?? null
@@ -120,10 +125,13 @@ export function AddItemsStep() {
           reader.onerror = () => reject(new Error('FileReader failed'))
           reader.readAsDataURL(compressed)
         })
+        abortRef.current?.abort()
+        abortRef.current = new AbortController()
         const res = await fetch('/api/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: base64 }),
+          signal: abortRef.current.signal,
         })
         if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
         const data = (await res.json()) as {
@@ -219,9 +227,10 @@ export function AddItemsStep() {
                     className="h-10 text-base"
                     maxLength={9}
                     aria-invalid={editState!.priceError ? true : undefined}
+                    aria-describedby={editState!.priceError ? 'edit-price-error' : undefined}
                   />
                   {editState!.priceError && (
-                    <span className="text-red-600 text-sm">{editState!.priceError}</span>
+                    <span id="edit-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
                   )}
                 </div>
                 <button
@@ -283,9 +292,10 @@ export function AddItemsStep() {
                   className="h-10 text-base"
                   maxLength={9}
                   aria-invalid={editState!.priceError ? true : undefined}
+                  aria-describedby={editState!.priceError ? 'add-price-error' : undefined}
                 />
                 {editState!.priceError && (
-                  <span className="text-red-600 text-sm">{editState!.priceError}</span>
+                  <span id="add-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
                 )}
               </div>
               <button
