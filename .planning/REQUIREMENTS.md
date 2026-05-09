@@ -20,7 +20,7 @@
 
 - [x] **OCR-01**: User can take a photo of the bill to extract items automatically
 - [ ] **OCR-02**: AI expands abbreviated item names into readable names (e.g. "CHKN SAND" → "Chicken Sandwich")
-- [ ] **OCR-03**: User can review and edit extracted items before assigning
+- [x] **OCR-03**: User can review and edit extracted items before assigning
 - [ ] **OCR-04**: When items are ambiguous, user can take a menu photo OR enter the name manually
 
 ### Tip
@@ -66,7 +66,7 @@
 | TIP-01 | Phase 1 | Complete |
 | RESULTS-01 | Phase 1 | Complete |
 | OCR-01 | Phase 2 | Complete |
-| OCR-03 | Phase 2 | pending |
+| OCR-03 | Phase 2 | Complete |
 | OCR-02 | Phase 3 | pending |
 | OCR-04 | Phase 3 | pending |
 | RESULTS-02 | Phase 4 | pending |
