@@ -104,7 +104,7 @@ export function AddItemsStep() {
 
       {/* Items list */}
       <ul className="flex flex-col gap-2">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li key={item.id}>
             {editingId === item.id ? (
               /* Inline edit mode */
@@ -148,7 +148,7 @@ export function AddItemsStep() {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleEditItemClick(item) }}
-                data-testid={`item-row-${items.indexOf(item)}`}
+                data-testid={`item-row-${index}`}
               >
                 <span className="flex-1 text-[16px]">{item.name}</span>
                 <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents)}</span>
