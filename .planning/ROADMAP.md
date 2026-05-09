@@ -11,7 +11,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Manual Bill Splitter** - People, items, assignment, tip, and final totals — fully working without OCR
+- [x] **Phase 1: Manual Bill Splitter** - People, items, assignment, tip, and final totals — fully working without OCR
 - [ ] **Phase 2: OCR Pipeline** - Photo capture, GPT-4o-mini extraction, and editable item confirmation
 - [ ] **Phase 3: AI Expansion + Disambiguation** - Abbreviation expansion, confidence display, and menu photo / manual fallback
 - [ ] **Phase 4: Shareable Links** - Session API, Upstash Redis, and per-person item claiming via shared URL
@@ -33,9 +33,9 @@
   4. User can enter a tip as a preset percentage (15%, 18%, 20%) or a custom value
   5. App shows a final breakdown listing what every person at the table owes, reflecting proportional tip
 **Plans:** 3 plans
-  - [ ] 01-PLAN-01.md — Walking skeleton + AddPeople (PEOPLE-01)
-  - [ ] 01-PLAN-02.md — AddItems + AssignItems (ITEMS-01, ITEMS-02, ITEMS-03)
-  - [ ] 01-PLAN-03.md — SetTip + Results (TIP-01, RESULTS-01)
+  - [x] 01-PLAN-01.md — Walking skeleton + AddPeople (PEOPLE-01)
+  - [x] 01-PLAN-02.md — AddItems + AssignItems (ITEMS-01, ITEMS-02, ITEMS-03)
+  - [x] 01-PLAN-03.md — SetTip + Results (TIP-01, RESULTS-01)
 **UI hint**: yes
 
 ### Phase 2: OCR Pipeline
@@ -93,7 +93,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Manual Bill Splitter | 0/3 | Not started | - |
+| 1. Manual Bill Splitter | 3/3 | Complete | 2026-05-09 |
 | 2. OCR Pipeline | 0/3 | Not started | - |
 | 3. AI Expansion + Disambiguation | 0/3 | Not started | - |
 | 4. Shareable Links | 0/3 | Not started | - |
