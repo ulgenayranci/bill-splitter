@@ -12,7 +12,7 @@
 ## Phases
 
 - [x] **Phase 1: Manual Bill Splitter** - People, items, assignment, tip, and final totals — fully working without OCR
-- [ ] **Phase 2: OCR Pipeline** - Photo capture, GPT-4o-mini extraction, and editable item confirmation
+- [x] **Phase 2: OCR Pipeline** - Photo capture, GPT-4o-mini extraction, and editable item confirmation *(completed 2026-05-09)*
 - [ ] **Phase 3: AI Expansion + Disambiguation** - Abbreviation expansion, confidence display, and menu photo / manual fallback
 - [ ] **Phase 4: Shareable Links** - Session API, Upstash Redis, and per-person item claiming via shared URL
 - [ ] **Phase 5: Polish & Hardening** - Unassigned-item warnings, mobile UX, error handling, and copy summary
