@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md — OCR UI integration (OcrLoadingOverlay, OcrErrorToast, AddItemsStep scan button + OCR handler) + 111 tests passing
-last_updated: "2026-05-09T19:30:00.000Z"
+stopped_at: Completed discuss-phase 3 — 03-CONTEXT.md written. Two-step expansion (OCR then /api/expand), inline Review badges, disambiguation dialog (type or menu photo), /api/clarify for menu photo resolution.
+last_updated: "2026-05-10T00:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 2
@@ -30,9 +30,9 @@ progress:
 
 ## Current Position
 
-Phase: 02 (ocr-pipeline) — Complete
-Plan: 3 of 3 (02-03 complete)
-**Status:** Phase 2 complete — Ready for Phase 3
+Phase: 03 (ai-expansion-disambiguation) — Context ready
+Plan: 0 of 3 (planning not started)
+**Status:** Phase 3 discuss complete — Ready for /gsd-plan-phase 3
 
 ```
 Progress: [████████  ] 60%
@@ -103,7 +103,7 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-05-09T19:30:00.000Z
-**Stopped at:** Completed 02-03-PLAN.md — OCR UI integration complete. 111 tests passing.
-**Next action:** Phase 3 — AI Expansion + Disambiguation (abbreviation expansion, confidence display, menu photo fallback)
-**Context notes:** Phase 2 complete. Full OCR vertical slice working end-to-end. Scan button → camera → overlay → GPT-4o-mini vision → addItem batch insert → thumbnail. Error path triggers 4s toast. Toast.Provider in app/providers.tsx. app/layout.tsx stays a Server Component. OPENAI_API_KEY server-side only. Known limitation: re-scan requires session reset (Pitfall 7 — Phase 5 polish task).
+**Last session:** 2026-05-10T00:00:00.000Z
+**Stopped at:** discuss-phase 3 complete — 03-CONTEXT.md written with all product decisions.
+**Next action:** /gsd-plan-phase 3
+**Context notes:** Phase 3 key decisions: two-step expansion (OCR unchanged → /api/expand second call), inline orange "Review" badges for low/ambiguous confidence, disambiguation dialog per item (type name OR take menu photo), /api/clarify route takes rawName + menu photo data URI → returns displayName, fallback is AI's best guess pre-filling edit field. No menu photos stored in state.
