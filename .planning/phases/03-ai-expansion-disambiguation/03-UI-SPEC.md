@@ -145,7 +145,7 @@ The two loading phases (OCR → Expand) must feel like a single coherent flow. T
 - Both use `variant="outline"` shadcn Button
 - Both height: `h-14` (56px) — larger than the standard h-12, communicates "primary choice" within the dialog
 - Both width: `w-full`
-- Stack vertically with `gap-3` between them
+- Stack vertically with `gap-4` between them
 - Positioned between the `DialogHeader` and `DialogFooter`
 
 Button 1 — "Type name":
@@ -154,7 +154,7 @@ Button 1 — "Type name":
 - On tap: replaces the two-button view with the edit field view within the dialog (no dialog close/reopen — swap internal state)
 
 Button 2 — "Take menu photo":
-- Icon: `Camera` (lucide-react), 20px, `gap-2`, left of label  
+- Icon: `Camera` (lucide-react), 20px, `gap-2`, left of label
 - Label: "Take menu photo"
 - On tap: triggers hidden `<input type="file" accept="image/*" capture="environment">` — same pattern as the bill scan input
 - While `/api/clarify` is running: show a loading state within the dialog (see Surface H)
@@ -164,24 +164,24 @@ Button 2 — "Take menu photo":
 | State | What the user sees |
 |-------|--------------------|
 | `choices` (initial) | Two buttons: "Type name" / "Take menu photo" |
-| `editing` | Edit field pre-filled with AI's best guess + Save button |
+| `editing` | Edit field pre-filled with AI's best guess + Save name button |
 | `clarifying` | Spinner + "Checking the menu…" — camera taken, waiting for /api/clarify |
-| `clarify-done` | Edit field pre-filled with clarify result + Save button |
+| `clarify-done` | Edit field pre-filled with clarify result + Save name button |
 
 Transition rules:
 - `choices` → `editing`: user taps "Type name"
 - `choices` → `clarifying`: user selects a menu photo
 - `clarifying` → `clarify-done`: /api/clarify resolves (success or failure — always populate field)
 - `clarifying` → `clarify-done`: /api/clarify fails — field populated with AI's best guess from expansion (D-09)
-- `editing` or `clarify-done` → dialog closes: user taps Save → `updateItem()` called → badge dismissed
+- `editing` or `clarify-done` → dialog closes: user taps Save name → `updateItem()` called → badge dismissed
 
 **Back navigation:** When in `editing` state, show a plain text link "← Back" above the edit field (`text-sm text-zinc-500`, no button variant) that returns to the `choices` state. The dialog remains open.
 
-**Save button (in `editing` and `clarify-done` states):**
+**Save name button (in `editing` and `clarify-done` states):**
 - `variant="default"` (primary fill — amber-600 via CSS variables)
 - Height: `h-12`
 - Width: `w-full`
-- Label: "Save"
+- Label: "Save name"
 - Placed in `DialogFooter` area or directly beneath the edit field (use `DialogFooter` with `showCloseButton={false}`)
 - On tap: calls `updateItem(item.id, editedName, item.priceCents)`, closes dialog, badge dismissed
 
@@ -192,6 +192,11 @@ Transition rules:
 - `h-12` height (not h-10 — larger touch-friendly within dialog)
 - `text-base` (16px)
 - `maxLength={100}` — same as inline edit constraint
+
+**Edit field hint text (below input):**
+- Uses the shadcn Input description slot (`text-xs text-zinc-400`) — not a type scale entry
+- Copy: "AI suggested a name — edit if needed"
+- Renders at 12px via Tailwind `text-xs` utility in a subordinate role; not declared as a scale value
 
 **Accessibility:**
 - `DialogTitle` is the accessible name for the dialog — correct by default
@@ -222,13 +227,13 @@ Transition rules:
   align-items: center;
   justify-content: center;
   min-height: 96px; /* same height as the two-button stack — prevents dialog resize jump */
-  gap: 12px;
+  gap: 16px;
 }
 ```
 
-Tailwind equivalent: `flex flex-col items-center justify-center min-h-24 gap-3`
+Tailwind equivalent: `flex flex-col items-center justify-center min-h-24 gap-4`
 
-**No separate toast or error on clarify failure** — failure silently falls through to `clarify-done` state with the field pre-filled with the AI expansion best guess (D-09). The user sees the edit field and can correct manually. The copy below the field ("AI suggested a name — edit as needed") covers this case.
+**No separate toast or error on clarify failure** — failure silently falls through to `clarify-done` state with the field pre-filled with the AI expansion best guess (D-09). The user sees the edit field and can correct manually. The hint text below the field ("AI suggested a name — edit if needed") covers this case.
 
 ---
 
@@ -247,7 +252,7 @@ This section extends the Phase 2 Step 2 interaction contract.
 | Tap "Type name" in dialog | Dialog switches to `editing` state; Input auto-focuses with AI's best guess pre-filled |
 | Tap "Take menu photo" in dialog | Camera input triggered; photo taken; dialog switches to `clarifying` state (Surface H) |
 | `/api/clarify` resolves | Dialog switches to `clarify-done` state; Input pre-filled with clarify result (or best guess on failure) |
-| Tap "Save" in dialog | `updateItem()` called; dialog closes; badge dismissed on that item |
+| Tap "Save name" in dialog | `updateItem()` called; dialog closes; badge dismissed on that item |
 | Tap X on disambiguation dialog | Dialog closes; badge remains (user chose not to resolve) |
 | Tap "Review" item row (no dialog open) | Dialog opens fresh in `choices` state — prior `editing` local state is reset |
 
@@ -288,10 +293,10 @@ This section extends the Phase 2 Step 2 interaction contract.
 | Disambiguation dialog description | {AI's best guess, e.g. "Chicken Sandwich (Large)"} | Dynamic. If empty: "Unknown item". No prefix like "AI thinks this is:" — just the name. |
 | "Type name" button label | "Type name" | Verb + noun. Communicates the action, not the modality. |
 | "Take menu photo" button label | "Take menu photo" | Verb + object. Parallel to "Scan bill" established in Phase 2. |
-| Edit field hint (below input, 12px zinc-400) | "AI suggested a name — edit if needed" | Explains why the field is pre-filled. Gives user permission to change it. 12px is below the declared type scale; acceptable for hint text beneath a field (same pattern used by shadcn Input description). |
+| Edit field hint (below input) | "AI suggested a name — edit if needed" | Uses shadcn Input description slot (`text-xs`) — not a type scale entry. Explains why the field is pre-filled; gives user permission to change it. |
 | Within-dialog loading message | "Checking the menu…" | Present progressive. Distinct from "Expanding names…" so user knows this is a different, focused action. |
 | "Back" link in dialog (editing state) | "← Back" | Plain text navigation. Unicode arrow avoids icon dependency for a non-button element. |
-| Save button label | "Save" | Single imperative. Unambiguous. |
+| Save name button label | "Save name" | Verb + noun. Unambiguous. Matches verb+noun pattern of sibling buttons. |
 | No success state copy | (none) | Badge dismissal + dialog close is the confirmation — no toast needed. The result is self-evident. |
 
 ### Destructive actions in Phase 3
@@ -309,7 +314,7 @@ No new shadcn components need to be installed. All Phase 3 surfaces use componen
 | `OcrLoadingOverlay` (extended) | `components/wizard/OcrLoadingOverlay.tsx` | Yes | Expansion loading overlay (add `message` prop) |
 | `Badge` | shadcn (`components/ui/badge.tsx`) | Yes | "Review" badge on item rows |
 | `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter` | shadcn (`components/ui/dialog.tsx`) | Yes | Disambiguation dialog |
-| `Button` | shadcn | Yes | "Type name" button, "Take menu photo" button, "Save" button |
+| `Button` | shadcn | Yes | "Type name" button, "Take menu photo" button, "Save name" button |
 | `Input` | shadcn | Yes | Edit field in dialog |
 | `LoaderCircle` icon | lucide-react | Yes | Expansion overlay spinner; within-dialog clarify spinner |
 | `Pencil` icon | lucide-react | Yes | "Type name" button icon |
@@ -341,13 +346,13 @@ Inherited from Phases 1 & 2 — no changes.
 |-------|-------|---------------|
 | xs | 4px | Badge `px-2` (2×4px); icon-to-label gap in choice buttons |
 | sm | 8px | Dialog internal padding; back link margin |
-| md | 16px | Dialog section spacing; toast horizontal padding |
+| md | 16px | Dialog section spacing; toast horizontal padding; gap between choice buttons (`gap-4`) |
 | lg | 24px | — |
 | xl | 32px | — |
 | 2xl | 48px | — |
 | 3xl | 64px | — |
 
-New exception: Within-dialog clarify loading zone uses `min-h-24` (96px) to prevent dialog resize jump when switching from the two-button layout (2 × 56px buttons + 12px gap = 124px) to the spinner layout. This is not a spacing token — it is a minimum height constraint.
+New exception: Within-dialog clarify loading zone uses `min-h-24` (96px) to prevent dialog resize jump when switching from the two-button layout (2 × 56px buttons + 16px gap = 128px) to the spinner layout. This is not a spacing token — it is a minimum height constraint.
 
 ---
 
@@ -362,7 +367,7 @@ Inherited from Phases 1 & 2 — no new sizes or weights.
 | Heading | 20px | 600 | 1.2 | (unchanged — step heading) |
 | Display | 28px | 600 | 1.1 | (unchanged — Results step only) |
 
-One below-scale value used: Edit field hint text "AI suggested a name — edit if needed" at 12px / weight 400. This is hint text beneath an input field — an established shadcn pattern for Input descriptions. It is not a new type scale entry; it uses Tailwind's `text-xs` utility in a subordinate role. Keep it non-bold to maintain visual subordination.
+Edit field hint text ("AI suggested a name — edit if needed") renders via the shadcn Input description slot using Tailwind's `text-xs` utility. It is not a type scale entry — it is a subordinate UI affordance handled by the component system, not the declared scale.
 
 ---
 
@@ -374,7 +379,7 @@ Inherited from Phases 1 & 2 with one new semantic role.
 |------|-------|---------------|
 | Dominant (60%) | `#ffffff` / `#09090b` zinc-950 | Page background; expansion overlay backdrop (`zinc-950/80`) |
 | Secondary (30%) | `#f4f4f5` zinc-100 / `#18181b` zinc-900 | Dialog background (`bg-popover`); expansion error toast (`bg-zinc-900`) |
-| Accent (10%) | `#d97706` amber-600 | "Assign items" CTA (unchanged); "Save" button in dialog (via CSS variable `--primary`) |
+| Accent (10%) | `#d97706` amber-600 | "Assign items" CTA (unchanged); "Save name" button in dialog (via CSS variable `--primary`) |
 | Destructive | `#dc2626` red-600 | Remove item Dialog (unchanged from Phase 1) |
 | Review (new) | `bg-amber-100`, `text-amber-700`, `border-amber-300` | "Review" badge on low/ambiguous confidence item rows — ONLY |
 
@@ -417,7 +422,9 @@ No third-party registries declared for Phase 3. No `npx shadcn view` vetting nee
 | Within-dialog spinner (not full-screen overlay) for clarify | Claude's discretion — keeps context clear ("I took a photo, waiting for result on this item"); full-screen overlay would lose the dialog context |
 | `min-h-24` on clarify loading zone | Claude's discretion — prevents dialog resize jump between button layout and spinner layout |
 | "← Back" plain text link (not Button) for dialog back nav | Claude's discretion — low visual weight appropriate for a navigation escape, not an action |
-| Edit field hint text at 12px | Claude's discretion — subordinate position beneath input, consistent with shadcn Input description pattern |
+| Edit field hint text via shadcn Input description slot (`text-xs`) | Claude's discretion — subordinate position beneath input, consistent with shadcn Input description pattern; not a declared type scale entry |
+| `gap-4` (16px) between choice buttons | Claude's discretion — on declared spacing token (md=16px); replaces prior `gap-3` which fell off-scale |
+| "Save name" label (verb + noun) | Claude's discretion — adds noun to match verb+noun pattern of sibling buttons ("Type name", "Take menu photo") |
 | Expansion error toast copy | Claude's discretion — mirrors OCR error toast pattern ("Couldn't… — you can…") |
 
 ---
