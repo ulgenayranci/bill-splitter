@@ -37,9 +37,8 @@ export function AssignItemsStep() {
         {items.map((item) => {
           const assignedIds = assignments[item.id] ?? []
           const isShared = assignedIds.length >= 2
-          const perPersonCents = isShared
-            ? Math.floor(item.priceCents / assignedIds.length)
-            : null
+          const base = isShared ? Math.floor(item.priceCents / assignedIds.length) : null
+          const remainder = isShared ? item.priceCents % assignedIds.length : 0
 
           return (
             <li key={item.id}>
@@ -86,9 +85,11 @@ export function AssignItemsStep() {
                 )}
 
                 {/* Shared split display */}
-                {isShared && perPersonCents !== null && (
+                {isShared && base !== null && (
                   <p className="text-[14px] text-zinc-500">
-                    Split equally &mdash; {formatCents(perPersonCents)} each
+                    {remainder === 0
+                      ? `Split equally — ${formatCents(base)} each`
+                      : `Split equally — ${formatCents(base)}–${formatCents(base + 1)} each`}
                   </p>
                 )}
               </Card>
