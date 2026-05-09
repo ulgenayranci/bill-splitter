@@ -1,7 +1,7 @@
 ---
 phase: 2
 slug: ocr-pipeline
-status: draft
+status: approved
 shadcn_initialized: true
 preset: base-nova / neutral / css-variables
 created: 2026-05-09
@@ -331,11 +331,11 @@ No third-party registries declared for Phase 2. No `npx shadcn view` vetting nee
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS (FLAG: `py-3`=12px in toast is a multiple of 4 but outside declared token set — non-blocking; consider `py-2` or `py-4` to stay on declared tokens)
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-05-09
