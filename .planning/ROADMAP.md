@@ -47,11 +47,11 @@
   1. User can take a photo of the bill using their phone camera directly in the browser (works on iOS Safari and Android Chrome)
   2. App extracts line items and prices from the photo and displays them as an editable list alongside a thumbnail of the captured image
   3. User can correct any misread item name or price before proceeding to assignment
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
   **Wave 0**
   - [x] 02-01-PLAN.md — Foundation: install openai + browser-image-compression, jsdom URL mocks, useBillStore extension (billImageUrl + ocrStatus), stub test files (OCR-01)
-  **Wave 1** *(blocked on Wave 0 completion)*
-  - [ ] 02-02-PLAN.md — Server slice: app/api/ocr/route.ts with GPT-4o-mini vision + json_schema strict output + unit tests with mocked openai (OCR-01)
+  **Wave 1**
+  - [x] 02-02-PLAN.md — Server slice: app/api/ocr/route.ts with GPT-4o-mini vision + json_schema strict output + unit tests with mocked openai (OCR-01)
   **Wave 2** *(blocked on Wave 1 completion)*
   - [ ] 02-03-PLAN.md — Client slice: Toast.Provider wrapper, OcrLoadingOverlay portal, OcrErrorToast, AddItemsStep scan button + thumbnail + OCR handler (OCR-01, OCR-03)
   **Cross-cutting constraints:**
@@ -103,7 +103,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Manual Bill Splitter | 3/3 | Complete | 2026-05-09 |
-| 2. OCR Pipeline | 1/3 | In Progress|  |
+| 2. OCR Pipeline | 2/3 | In Progress|  |
 | 3. AI Expansion + Disambiguation | 0/3 | Not started | - |
 | 4. Shareable Links | 0/3 | Not started | - |
 | 5. Polish & Hardening | 0/2 | Not started | - |
