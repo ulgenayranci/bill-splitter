@@ -1,11 +1,122 @@
-import { describe, it } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// Stub file created in Phase 2 Plan 01 (Wave 0).
-// Plan 02 (Wave 1) implements the OCR Route Handler at app/api/ocr/route.ts
-// and replaces these skipped tests with real assertions that mock the openai
-// module via vi.mock('openai', ...) and exercise the parsing/validation
-// paths, the 400 (no image), and the 500 (OpenAI error / parse failure) flows.
+// vi.mock MUST be set up before the route module is imported. Vitest hoists
+// vi.mock factory calls above all imports, but we still call POST through a
+// dynamic import inside each test so the mock applies before module init.
+const createMock = vi.fn()
+
+vi.mock('openai', () => {
+  return {
+    default: class MockOpenAI {
+      chat = { completions: { create: createMock } }
+      constructor() {}
+    },
+  }
+})
+
+beforeEach(() => {
+  createMock.mockReset()
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+})
+
+async function callPOST(body: unknown): Promise<{ status: number; json: unknown }> {
+  const { POST } = await import('@/app/api/ocr/route')
+  const init: RequestInit = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: typeof body === 'string' ? body : JSON.stringify(body),
+  }
+  const req = new Request('http://localhost/api/ocr', init)
+  const res = await POST(req)
+  const json = await res.json()
+  return { status: res.status, json }
+}
 
 describe('app/api/ocr/route.ts (POST handler)', () => {
-  it.skip('placeholder — implemented in Plan 02', () => {})
+  it('returns 200 with parsed items on a successful gpt-4o-mini call', async () => {
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              items: [
+                { name: 'Burger', priceCents: 1299 },
+                { name: 'Fries', priceCents: 499 },
+              ],
+            }),
+          },
+        },
+      ],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(200)
+    expect(json).toEqual({
+      items: [
+        { name: 'Burger', priceCents: 1299 },
+        { name: 'Fries', priceCents: 499 },
+      ],
+    })
+    expect(createMock).toHaveBeenCalledTimes(1)
+    const callArgs = createMock.mock.calls[0][0]
+    expect(callArgs.model).toBe('gpt-4o-mini')
+    expect(callArgs.response_format.type).toBe('json_schema')
+    expect(callArgs.response_format.json_schema.strict).toBe(true)
+  })
+
+  it('returns 400 when the image field is missing from the body', async () => {
+    const { status, json } = await callPOST({})
+    expect(status).toBe(400)
+    expect(json).toEqual({ error: 'No image provided' })
+    expect(createMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the image field is not a string', async () => {
+    const { status, json } = await callPOST({ image: 12345 })
+    expect(status).toBe(400)
+    expect(json).toEqual({ error: 'No image provided' })
+    expect(createMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the request body is not valid JSON', async () => {
+    const { status } = await callPOST('not-json')
+    expect(status).toBe(400)
+    expect(createMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 500 with a generic error when OpenAI throws', async () => {
+    createMock.mockRejectedValue(new Error('OpenAI internal: rate-limited xyz123'))
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(500)
+    expect(json).toEqual({ error: 'OCR failed' })
+    // The thrown error message must NOT leak into the response body
+    // (T-2-04 mitigation: prevent OpenAI error details exposure).
+    expect(JSON.stringify(json)).not.toContain('rate-limited')
+    expect(JSON.stringify(json)).not.toContain('xyz123')
+  })
+
+  it('returns 500 when OpenAI returns malformed JSON content', async () => {
+    createMock.mockResolvedValue({
+      choices: [{ message: { content: 'not actually json {{{' } }],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(500)
+    expect(json).toEqual({ error: 'OCR failed' })
+  })
+
+  it('returns 500 when OpenAI returns empty/null content', async () => {
+    createMock.mockResolvedValue({
+      choices: [{ message: { content: null } }],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(500)
+    expect(json).toEqual({ error: 'OCR failed' })
+  })
 })
