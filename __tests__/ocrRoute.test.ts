@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
+process.env.OPENAI_API_KEY = 'test-key'
+
 // vi.mock MUST be set up before the route module is imported. Vitest hoists
 // vi.mock factory calls above all imports, but we still call POST through a
 // dynamic import inside each test so the mock applies before module init.
@@ -15,6 +17,7 @@ vi.mock('openai', () => {
 })
 
 beforeEach(() => {
+  vi.resetModules()
   createMock.mockReset()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
