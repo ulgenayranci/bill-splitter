@@ -94,7 +94,7 @@ describe('ResultsStep', () => {
     // Alice's share of pizza: $5.00
     expect(screen.getByText('$5.00')).toBeDefined()
     // Tip share line
-    expect(screen.getByText(/Tip:/)).toBeDefined()
+    expect(screen.getByText('Tip')).toBeDefined()
   })
 
   it('Test 6 (single-expand rule): tapping Alice then Bob collapses Alice and expands Bob', () => {
@@ -111,8 +111,8 @@ describe('ResultsStep', () => {
     expect(screen.getByText('Pizza')).toBeDefined()
 
     // After Bob expands, Alice's unique expansion marker (expanded with tip total) should show Bob's total
-    // Verify only one "Total:" line is visible in the expanded section
-    const totalLines = screen.getAllByText(/^Total:/)
+    // Verify only one "Total" line is visible in the expanded section
+    const totalLines = screen.getAllByText('Total')
     expect(totalLines.length).toBe(1)
   })
 
@@ -120,12 +120,12 @@ describe('ResultsStep', () => {
     render(<ResultsStep />)
     // Tap Alice to expand
     fireEvent.click(screen.getByText('Alice'))
-    // Verify expanded (Total: line visible)
-    expect(screen.getAllByText(/^Total:/).length).toBeGreaterThan(0)
+    // Verify expanded (Total line visible)
+    expect(screen.getAllByText('Total').length).toBeGreaterThan(0)
     // Tap Alice again to collapse
     fireEvent.click(screen.getByText('Alice'))
-    // Total: line should no longer be visible (no expanded card)
-    expect(screen.queryAllByText(/^Total:/).length).toBe(0)
+    // Total line should no longer be visible (no expanded card)
+    expect(screen.queryAllByText('Total').length).toBe(0)
   })
 
   it('Test 8: per-person total displayed with text-[28px] and text-amber-600 class', () => {
@@ -139,8 +139,8 @@ describe('ResultsStep', () => {
   it('Test 9: card expansion shows tip share line with "Tip:" text', () => {
     render(<ResultsStep />)
     fireEvent.click(screen.getByText('Alice'))
-    // Should show "Tip:" in the expanded section
-    expect(screen.getByText(/Tip:/)).toBeDefined()
+    // Should show "Tip" in the expanded section
+    expect(screen.getByText('Tip')).toBeDefined()
   })
 
   it('Test 10: Back button calls setStep(4)', () => {

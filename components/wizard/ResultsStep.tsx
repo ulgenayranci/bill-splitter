@@ -137,14 +137,16 @@ export function ResultsStep() {
 
                     {/* Tip share line */}
                     <div className="flex justify-between text-[14px] text-zinc-600">
-                      <span>Tip: {formatCents(tipShare)}</span>
+                      <span>Tip</span>
+                      <span>{formatCents(tipShare)}</span>
                     </div>
 
                     <Separator />
 
                     {/* Line total */}
                     <div className="flex justify-between text-[14px] font-semibold">
-                      <span>Total: {formatCents(personTotal)}</span>
+                      <span>Total</span>
+                      <span>{formatCents(personTotal)}</span>
                     </div>
                   </div>
                 )}
