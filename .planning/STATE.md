@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered — ready to plan OCR pipeline
-last_updated: "2026-05-09T12:00:00.000Z"
+stopped_at: Phase 2 planned — 3 plans ready to execute
+last_updated: "2026-05-09T15:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
+  total_plans: 6
   completed_plans: 3
-  percent: 100
+  percent: 20
 ---
 
 # Project State
@@ -24,17 +24,15 @@ progress:
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Phase 01 — manual-bill-splitter — COMPLETE
+**Current focus:** Phase 02 — ocr-pipeline — Ready to execute
 
 ---
 
 ## Current Position
 
-Phase: 01 (manual-bill-splitter) — COMPLETE
-Plan: 3 of 3 (all plans complete)
-**Phase:** 2
-**Plan:** Not started
-**Status:** Ready to plan
+Phase: 02 (ocr-pipeline) — Ready to execute
+Plan: 0 of 3 (plans created, not yet executed)
+**Status:** Ready to execute
 
 ```
 Progress: [██        ] 20%
@@ -96,7 +94,7 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-05-09T12:00:00Z
-**Stopped at:** Phase 2 context gathered — 3 gray areas discussed (wizard placement, skip path, loading/error UX)
-**Next action:** Run `/gsd-plan-phase 2` to create PLAN.md files for the OCR pipeline.
-**Context notes:** Phase 2 context is in `.planning/phases/02-ocr-pipeline/02-CONTEXT.md`. Key decisions: scan button augments AddItems (step 2, no new step), OCR results inline-replace empty list, thumbnail persists in Zustand state, full-screen overlay during OCR, error toast on failure. API route at `app/api/ocr/route.ts`. addItem() is still the integration point.
+**Last session:** 2026-05-09T15:00:00Z
+**Stopped at:** Phase 2 planned — 3 PLAN.md files created (02-01, 02-02, 02-03), verification passed
+**Next action:** Run `/gsd-execute-phase 2` to execute all 3 plans.
+**Context notes:** Phase 2 has 3 plans across 3 waves: Wave 0 (foundation: deps, store, test stubs), Wave 1 (OCR Route Handler), Wave 2 (UI integration: scan button, overlay, toast, AddItemsStep). Install needed: `npm install openai browser-image-compression`. Env needed: `.env.local` with `OPENAI_API_KEY`.
