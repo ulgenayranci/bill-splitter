@@ -1,10 +1,12 @@
 import type { Item, ItemId, Person, PersonId } from '@/stores/useBillStore'
 
-/** Parse user-typed dollar string → integer cents. Returns null if invalid. */
+/** Parse user-typed dollar string → integer cents. Returns null if invalid or zero. */
 export function parseCents(value: string): number | null {
   const trimmed = value.trim()
   if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return null
-  return Math.round(parseFloat(trimmed) * 100)
+  const cents = Math.round(parseFloat(trimmed) * 100)
+  if (cents === 0) return null // reject zero-price items
+  return cents
 }
 
 /** Format integer cents → display string ("$12.50"). */

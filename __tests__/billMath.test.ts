@@ -17,8 +17,8 @@ describe('parseCents', () => {
     expect(parseCents('0.1')).toBe(10)
   })
 
-  it('parses "0" to 0', () => {
-    expect(parseCents('0')).toBe(0)
+  it('returns null for "0" (zero-price items are rejected)', () => {
+    expect(parseCents('0')).toBeNull()
   })
 
   it('returns null for empty string', () => {
