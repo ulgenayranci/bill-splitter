@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/dialog'
 import { useBillStore } from '@/stores/useBillStore'
 import { parseCents, formatCents } from '@/lib/billMath'
-import type { ItemId } from '@/stores/useBillStore'
+import type { Item, ItemId } from '@/stores/useBillStore'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
+import { DisambiguationDialog } from './DisambiguationDialog'
 import { Badge } from '@/components/ui/badge'
 
 function parsePriceWithError(raw: string): { cents: number } | { error: string } {
@@ -54,6 +55,8 @@ export function AddItemsStep() {
 
   const [editState, setEditState] = useState<EditState | null>(null)
   const [pendingRemove, setPendingRemove] = useState<{ id: ItemId; name: string } | null>(null)
+  const [disambigItem, setDisambigItem] = useState<Item | null>(null)
+  const [disambigOpen, setDisambigOpen] = useState(false)
   const toastManager = Toast.useToastManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -77,6 +80,15 @@ export function AddItemsStep() {
       price: (item.priceCents / 100).toFixed(2),
       priceError: null,
     })
+  }
+
+  const handleItemRowClick = (item: Item) => {
+    if (item.confidence === 'low' || item.confidence === 'ambiguous') {
+      setDisambigItem(item)
+      setDisambigOpen(true)
+    } else {
+      handleEditItemClick(item)
+    }
   }
 
   const handleCommit = () => {
@@ -289,10 +301,10 @@ export function AddItemsStep() {
               /* Display mode */
               <Card
                 className="flex flex-row items-center gap-3 px-4 min-h-14 cursor-pointer hover:bg-zinc-50"
-                onClick={() => handleEditItemClick(item)}
+                onClick={() => handleItemRowClick(item)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleEditItemClick(item) }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleItemRowClick(item) }}
                 data-testid={`item-row-${index}`}
               >
                 <span className="flex-1 text-[16px]">{item.name}</span>
@@ -410,6 +422,19 @@ export function AddItemsStep() {
 
       <OcrLoadingOverlay visible={ocrStatus === 'loading'} />
       <OcrLoadingOverlay visible={expandStatus === 'loading'} message="Expanding names…" />
+
+      <DisambiguationDialog
+        item={disambigItem}
+        open={disambigOpen}
+        onOpenChange={(nextOpen) => {
+          setDisambigOpen(nextOpen)
+          if (!nextOpen) setDisambigItem(null)
+        }}
+        onSave={(id, name) => {
+          const target = items.find((i) => i.id === id)
+          if (target) updateItem(id, name, target.priceCents)
+        }}
+      />
     </div>
   )
 }
