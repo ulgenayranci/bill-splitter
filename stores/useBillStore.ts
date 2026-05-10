@@ -22,6 +22,8 @@ export interface Item {
   id: ItemId
   name: string
   priceCents: number
+  rawName?: string
+  confidence?: 'high' | 'low' | 'ambiguous'
 }
 
 interface BillState {
@@ -33,8 +35,11 @@ interface BillState {
   nextColorIndex: number
   billImageUrl: string | null
   ocrStatus: 'idle' | 'loading' | 'done' | 'error'
+  expandStatus: 'idle' | 'loading' | 'done' | 'error'
   setBillImage: (url: string | null) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
+  setExpandStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
+  setItems: (items: Item[]) => void
   setStep: (step: BillState['step']) => void
   addPerson: (name: string) => void
   removePerson: (id: PersonId) => void
@@ -55,6 +60,7 @@ const INITIAL_STATE = {
   nextColorIndex: 0,
   billImageUrl: null,
   ocrStatus: 'idle' as const,
+  expandStatus: 'idle' as const,
 }
 
 export const useBillStore = create<BillState>()((set) => ({
@@ -87,9 +93,14 @@ export const useBillStore = create<BillState>()((set) => ({
       const { [id]: _removed, ...rest } = s.assignments
       return { items: s.items.filter((i) => i.id !== id), assignments: rest }
     }),
+  setItems: (items) => set({ items }),
   updateItem: (id, name, priceCents) =>
     set((s) => ({
-      items: s.items.map((i) => (i.id === id ? { ...i, name, priceCents } : i)),
+      items: s.items.map((i) =>
+        i.id === id
+          ? { ...i, name, priceCents, confidence: 'high' as const }
+          : i
+      ),
     })),
   setAssignment: (itemId, personIds) =>
     set((s) => ({
@@ -98,6 +109,7 @@ export const useBillStore = create<BillState>()((set) => ({
   setTipPercent: (percent) => set({ tipPercent: percent }),
   setBillImage: (url) => set({ billImageUrl: url }),
   setOcrStatus: (status) => set({ ocrStatus: status }),
+  setExpandStatus: (status) => set({ expandStatus: status }),
   reset: () =>
     set((s) => {
       if (s.billImageUrl) URL.revokeObjectURL(s.billImageUrl)

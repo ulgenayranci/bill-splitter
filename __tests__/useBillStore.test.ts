@@ -163,3 +163,47 @@ describe('useBillStore', () => {
     revokeSpy.mockRestore()
   })
 })
+
+describe('Phase 3 store extensions', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+  })
+
+  it('addItem produces an Item with confidence and rawName both undefined', () => {
+    useBillStore.getState().addItem('Coke', 250)
+    const item = useBillStore.getState().items[0]
+    expect(item.confidence).toBeUndefined()
+    expect(item.rawName).toBeUndefined()
+  })
+
+  it('setItems replaces state.items with the supplied array exactly', () => {
+    const newItems = [{ id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'CK', confidence: 'low' as const }]
+    useBillStore.getState().setItems(newItems)
+    const items = useBillStore.getState().items
+    expect(items).toHaveLength(1)
+    expect(items[0].id).toBe('i1')
+    expect(items[0].name).toBe('Burger')
+    expect(items[0].priceCents).toBe(1299)
+    expect(items[0].rawName).toBe('CK')
+    expect(items[0].confidence).toBe('low')
+  })
+
+  it('updateItem sets confidence to "high" (clears Review badge)', () => {
+    useBillStore.getState().setItems([{ id: 'i1', name: 'Burger', priceCents: 1299, confidence: 'low' }])
+    useBillStore.getState().updateItem('i1', 'Burger', 1299)
+    expect(useBillStore.getState().items[0].confidence).toBe('high')
+  })
+
+  it('setExpandStatus("loading") updates expandStatus to "loading"; initial value is "idle"', () => {
+    expect(useBillStore.getState().expandStatus).toBe('idle')
+    useBillStore.getState().setExpandStatus('loading')
+    expect(useBillStore.getState().expandStatus).toBe('loading')
+  })
+
+  it('reset() returns expandStatus to "idle"', () => {
+    useBillStore.getState().setBillImage('blob:abc')
+    useBillStore.getState().setExpandStatus('loading')
+    useBillStore.getState().reset()
+    expect(useBillStore.getState().expandStatus).toBe('idle')
+  })
+})
