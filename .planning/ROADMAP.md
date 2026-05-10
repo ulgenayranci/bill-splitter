@@ -69,9 +69,9 @@
   2. Low-confidence expansions are visually flagged so the user knows which items to review
   3. For items that remain ambiguous, user is offered the choice to take a photo of the menu or enter the correct name manually
   4. The app handles LLM timeout gracefully by falling back to the raw abbreviated name (still editable) rather than blocking
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
   **Wave 0**
-  - [ ] 03-01-PLAN.md — Foundation: extend useBillStore (Item.confidence, expandStatus, setItems), OcrLoadingOverlay message prop, failing test scaffolds for /api/expand + /api/clarify + AddItemsStep Phase 3 behaviors (OCR-02, OCR-04)
+  - [x] 03-01-PLAN.md — Foundation: extend useBillStore (Item.confidence, expandStatus, setItems), OcrLoadingOverlay message prop, failing test scaffolds for /api/expand + /api/clarify + AddItemsStep Phase 3 behaviors (OCR-02, OCR-04)
   **Wave 1**
   - [ ] 03-02-PLAN.md — Server + UI vertical slice for OCR-02: /api/expand route, two-step OCR→Expand fetch chain in AddItemsStep, dual loading overlay, orange Review badges on low/ambiguous rows, expansion-failure toast fallback (OCR-02)
   **Wave 2**
@@ -110,6 +110,6 @@
 |-------|----------------|--------|-----------|
 | 1. Manual Bill Splitter | 3/3 | Complete | 2026-05-09 |
 | 2. OCR Pipeline | 3/3 | Complete | 2026-05-09 |
-| 3. AI Expansion + Disambiguation | 0/3 | Not started | - |
+| 3. AI Expansion + Disambiguation | 1/3 | In Progress|  |
 | 4. Shareable Links | 0/3 | Not started | - |
 | 5. Polish & Hardening | 0/2 | Not started | - |
