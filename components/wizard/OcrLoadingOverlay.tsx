@@ -6,9 +6,10 @@ import { LoaderCircle } from 'lucide-react'
 
 export interface OcrLoadingOverlayProps {
   visible: boolean
+  message?: string
 }
 
-export function OcrLoadingOverlay({ visible }: OcrLoadingOverlayProps) {
+export function OcrLoadingOverlay({ visible, message = 'Scanning your bill…' }: OcrLoadingOverlayProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
@@ -17,12 +18,12 @@ export function OcrLoadingOverlay({ visible }: OcrLoadingOverlayProps) {
     <div
       role="status"
       aria-live="polite"
-      aria-label="Scanning your bill"
+      aria-label={message}
       className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/80 transition-opacity duration-150"
     >
       <div className="flex flex-col items-center gap-4">
         <LoaderCircle size={40} className="text-white animate-spin" aria-hidden="true" />
-        <p className="text-[16px] text-white">Scanning your bill…</p>
+        <p className="text-[16px] text-white">{message}</p>
       </div>
     </div>,
     document.body,

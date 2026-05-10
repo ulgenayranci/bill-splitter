@@ -36,4 +36,17 @@ describe('OcrLoadingOverlay', () => {
     expect(cls).toContain('z-50')
     expect(cls).toContain('bg-zinc-950/80')
   })
+
+  it('renders the supplied message prop in place of the default copy', () => {
+    render(<OcrLoadingOverlay visible={true} message="Expanding names…" />)
+    expect(screen.getByText('Expanding names…')).toBeTruthy()
+    expect(screen.queryByText('Scanning your bill…')).toBeNull()
+  })
+
+  it('sets aria-label to the supplied message', () => {
+    render(<OcrLoadingOverlay visible={true} message="Expanding names…" />)
+    const region = document.body.querySelector('[role="status"]') as HTMLElement | null
+    expect(region).not.toBeNull()
+    expect(region!.getAttribute('aria-label')).toBe('Expanding names…')
+  })
 })
