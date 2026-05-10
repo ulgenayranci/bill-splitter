@@ -261,3 +261,134 @@ describe('AddItemsStep', () => {
     ;(global as unknown as { FileReader: typeof origFR }).FileReader = origFR
   })
 })
+
+describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+  })
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('shows the expansion overlay when expandStatus is "loading"', () => {
+    useBillStore.getState().setExpandStatus('loading')
+    renderInProvider(<AddItemsStep />)
+    const overlays = document.body.querySelectorAll('[role="status"]')
+    // At least one overlay reads "Expanding names…"
+    const found = Array.from(overlays).some((el) => /expanding names/i.test(el.textContent ?? ''))
+    expect(found).toBe(true)
+  })
+
+  it('renders a "Review" badge for items with confidence "low"', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'BRGR', confidence: 'low' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    expect(screen.getByText(/^Review$/)).toBeDefined()
+  })
+
+  it('renders a "Review" badge for items with confidence "ambiguous"', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Mystery', priceCents: 500, rawName: 'XYZ', confidence: 'ambiguous' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    expect(screen.getByText(/^Review$/)).toBeDefined()
+  })
+
+  it('does NOT render a "Review" badge for items with confidence "high"', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Coke', priceCents: 250, confidence: 'high' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    expect(screen.queryByText(/^Review$/)).toBeNull()
+  })
+
+  it('on /api/expand failure, falls back to raw OCR names and sets expandStatus to "error"', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/ocr')) {
+        return new Response(JSON.stringify({ items: [{ name: 'BRGR', priceCents: 1299 }, { name: 'FRY', priceCents: 499 }] }), { status: 200 })
+      }
+      if (url.includes('/api/expand')) {
+        return new Response(JSON.stringify({ error: 'Expand failed' }), { status: 500 })
+      }
+      return new Response('', { status: 404 })
+    })
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const origFR = global.FileReader
+    class StubFR {
+      onloadend: (() => void) | null = null
+      onerror: ((e: unknown) => void) | null = null
+      result: string | ArrayBuffer | null = null
+      readAsDataURL() {
+        this.result = 'data:image/jpeg;base64,FAKE'
+        queueMicrotask(() => this.onloadend?.())
+      }
+    }
+    ;(global as unknown as { FileReader: typeof StubFR }).FileReader = StubFR
+
+    renderInProvider(<AddItemsStep />)
+    const fileInput = screen.getByTestId('ocr-file-input') as HTMLInputElement
+    fireEvent.change(fileInput, { target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] } })
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+
+    const items = useBillStore.getState().items
+    expect(items.length).toBe(2)
+    expect(items[0].name).toBe('BRGR')
+    expect(items[1].name).toBe('FRY')
+    expect(useBillStore.getState().expandStatus).toBe('error')
+
+    fetchMock.mockRestore()
+    consoleSpy.mockRestore()
+    ;(global as unknown as { FileReader: typeof origFR }).FileReader = origFR
+  })
+
+  it('tapping a Review item row opens the disambiguation dialog', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'BRGR', confidence: 'low' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    const row = screen.getByTestId('item-row-0')
+    fireEvent.click(row)
+    expect(screen.getByText("What's this item?")).toBeDefined()
+  })
+
+  it('disambiguation dialog presents both "Type name" and "Take menu photo" buttons', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'BRGR', confidence: 'low' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    fireEvent.click(screen.getByTestId('item-row-0'))
+    expect(screen.getByRole('button', { name: /type name/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /take menu photo/i })).toBeDefined()
+  })
+
+  it('"Type name" reveals an editable input pre-filled with the current name', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Chicken Sandwich', priceCents: 1299, rawName: 'CHKN SAND', confidence: 'low' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    fireEvent.click(screen.getByTestId('item-row-0'))
+    fireEvent.click(screen.getByRole('button', { name: /type name/i }))
+    const input = screen.getByDisplayValue('Chicken Sandwich')
+    expect(input).toBeDefined()
+  })
+
+  it('saving an edited name in the dialog calls updateItem and dismisses the Review badge', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Chicken Sandwich', priceCents: 1299, rawName: 'CHKN SAND', confidence: 'low' },
+    ])
+    renderInProvider(<AddItemsStep />)
+    fireEvent.click(screen.getByTestId('item-row-0'))
+    fireEvent.click(screen.getByRole('button', { name: /type name/i }))
+    const input = screen.getByDisplayValue('Chicken Sandwich')
+    fireEvent.change(input, { target: { value: 'Chicken Sandwich (Large)' } })
+    fireEvent.click(screen.getByRole('button', { name: /save name/i }))
+    const updated = useBillStore.getState().items[0]
+    expect(updated.name).toBe('Chicken Sandwich (Large)')
+    expect(updated.confidence).toBe('high')
+    expect(screen.queryByText(/^Review$/)).toBeNull()
+  })
+})
