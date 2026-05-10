@@ -182,17 +182,32 @@ describe('AddItemsStep', () => {
   })
 
   it('on successful OCR fetch, batch-inserts returned items into the store', async () => {
-    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          items: [
-            { name: 'Burger', priceCents: 1299 },
-            { name: 'Fries', priceCents: 499 },
-          ],
-        }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ),
-    )
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/ocr')) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              { name: 'Burger', priceCents: 1299 },
+              { name: 'Fries', priceCents: 499 },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      if (url.includes('/api/expand')) {
+        return new Response(
+          JSON.stringify({
+            items: [
+              { rawName: 'Burger', displayName: 'Burger', priceCents: 1299, confidence: 'high' },
+              { rawName: 'Fries', displayName: 'Fries', priceCents: 499, confidence: 'high' },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return new Response('', { status: 404 })
+    })
 
     renderInProvider(<AddItemsStep />)
     const fileInput = screen.getByTestId('ocr-file-input') as HTMLInputElement
@@ -212,7 +227,8 @@ describe('AddItemsStep', () => {
     ;(global as unknown as { FileReader: typeof StubFR }).FileReader = StubFR
 
     fireEvent.change(fileInput, { target: { files: [fakeFile] } })
-    // Allow the async chain to resolve
+    // Allow the async chain to resolve (OCR + expand both settle)
+    await new Promise((r) => setTimeout(r, 0))
     await new Promise((r) => setTimeout(r, 0))
     await new Promise((r) => setTimeout(r, 0))
 
@@ -223,6 +239,7 @@ describe('AddItemsStep', () => {
     expect(items[1].name).toBe('Fries')
     expect(items[1].priceCents).toBe(499)
     expect(useBillStore.getState().ocrStatus).toBe('done')
+    expect(useBillStore.getState().expandStatus).toBe('done')
 
     fetchMock.mockRestore()
     ;(global as unknown as { FileReader: typeof origFR }).FileReader = origFR
@@ -255,6 +272,7 @@ describe('AddItemsStep', () => {
 
     expect(useBillStore.getState().items.length).toBe(0)
     expect(useBillStore.getState().ocrStatus).toBe('error')
+    expect(useBillStore.getState().expandStatus).toBe('idle')
 
     fetchMock.mockRestore()
     consoleSpy.mockRestore()
