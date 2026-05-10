@@ -19,6 +19,7 @@ import { useBillStore } from '@/stores/useBillStore'
 import { parseCents, formatCents } from '@/lib/billMath'
 import type { ItemId } from '@/stores/useBillStore'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
+import { Badge } from '@/components/ui/badge'
 
 function parsePriceWithError(raw: string): { cents: number } | { error: string } {
   const trimmed = raw.trim()
@@ -47,6 +48,9 @@ export function AddItemsStep() {
   const ocrStatus = useBillStore((s) => s.ocrStatus)
   const setBillImage = useBillStore((s) => s.setBillImage)
   const setOcrStatus = useBillStore((s) => s.setOcrStatus)
+  const expandStatus = useBillStore((s) => s.expandStatus)
+  const setExpandStatus = useBillStore((s) => s.setExpandStatus)
+  const setItems = useBillStore((s) => s.setItems)
 
   const [editState, setEditState] = useState<EditState | null>(null)
   const [pendingRemove, setPendingRemove] = useState<{ id: ItemId; name: string } | null>(null)
@@ -112,6 +116,8 @@ export function AddItemsStep() {
       setBillImage(blobUrl)
       setOcrStatus('loading')
 
+      let ocrItems: { name: string; priceCents: number }[] | null = null
+
       try {
         const compressed = await imageCompression(file, {
           maxSizeMB: 0.5,
@@ -137,9 +143,7 @@ export function AddItemsStep() {
         const data = (await res.json()) as {
           items: { name: string; priceCents: number }[]
         }
-        for (const item of data.items) {
-          addItem(item.name, item.priceCents)
-        }
+        ocrItems = data.items
         setOcrStatus('done')
       } catch (err) {
         console.error(err)
@@ -148,9 +152,48 @@ export function AddItemsStep() {
           description: "Couldn't read the bill — try again or enter manually",
           timeout: 4000,
         })
+        return
+      }
+
+      // OCR succeeded. Chain into expansion.
+      setExpandStatus('loading')
+      try {
+        abortRef.current?.abort()
+        abortRef.current = new AbortController()
+        const expandRes = await fetch('/api/expand', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: ocrItems }),
+          signal: abortRef.current.signal,
+        })
+        if (!expandRes.ok) throw new Error(`Expand route returned ${expandRes.status}`)
+        const expandData = (await expandRes.json()) as {
+          items: { rawName: string; displayName: string; priceCents: number; confidence: 'high' | 'low' | 'ambiguous' }[]
+        }
+        setItems(
+          expandData.items.map((ei) => ({
+            id: crypto.randomUUID(),
+            name: ei.displayName,
+            rawName: ei.rawName,
+            priceCents: ei.priceCents,
+            confidence: ei.confidence,
+          })),
+        )
+        setExpandStatus('done')
+      } catch (err) {
+        console.error(err)
+        setExpandStatus('error')
+        // D-03 fallback: keep raw OCR names — still editable.
+        for (const item of ocrItems) {
+          addItem(item.name, item.priceCents)
+        }
+        toastManager.add({
+          description: "Couldn't expand item names — you can edit them manually",
+          timeout: 4000,
+        })
       }
     },
-    [setBillImage, setOcrStatus, addItem, toastManager],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, addItem, toastManager],
   )
 
   return (
@@ -253,6 +296,11 @@ export function AddItemsStep() {
                 data-testid={`item-row-${index}`}
               >
                 <span className="flex-1 text-[16px]">{item.name}</span>
+                {(item.confidence === 'low' || item.confidence === 'ambiguous') && (
+                  <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-medium">
+                    Review
+                  </Badge>
+                )}
                 <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents)}</span>
                 <button
                   type="button"
@@ -361,6 +409,7 @@ export function AddItemsStep() {
       </Dialog>
 
       <OcrLoadingOverlay visible={ocrStatus === 'loading'} />
+      <OcrLoadingOverlay visible={expandStatus === 'loading'} message="Expanding names…" />
     </div>
   )
 }
