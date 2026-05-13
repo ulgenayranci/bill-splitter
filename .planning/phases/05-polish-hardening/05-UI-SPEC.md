@@ -1,7 +1,8 @@
 ---
 phase: 5
 slug: polish-hardening
-status: draft
+status: approved
+reviewed_at: 2026-05-13
 shadcn_initialized: true
 preset: base-nova / neutral / cssVariables
 created: 2026-05-13
