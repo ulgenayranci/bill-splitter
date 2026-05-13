@@ -13,6 +13,7 @@ import {
   computeTipCents,
   formatCents,
 } from '@/lib/billMath'
+import { HostWaitingScreen } from './HostWaitingScreen'
 
 /**
  * Compute a single person's share of an item using the largest-remainder method.
@@ -37,8 +38,15 @@ export function ResultsStep() {
   const assignments = useBillStore((s) => s.assignments)
   const tipPercent = useBillStore((s) => s.tipPercent)
   const setStep = useBillStore((s) => s.setStep)
+  const syncStatus = useBillStore((s) => s.syncStatus)
+  const sessionId = useBillStore((s) => s.sessionId)
 
   const [expandedPersonId, setExpandedPersonId] = useState<PersonId | null>(null)
+
+  // Route to HostWaitingScreen when host has started sharing session
+  if (syncStatus === 'waiting' && sessionId) {
+    return <HostWaitingScreen sessionId={sessionId} />
+  }
 
   // Compute totals once per render
   const totals = computePersonTotals(people, items, assignments, tipPercent)
@@ -155,6 +163,28 @@ export function ResultsStep() {
           )
         })}
       </ul>
+
+      {/* Unclaimed items section (D-13) */}
+      {(() => {
+        const unclaimedItems = items.filter(
+          (i) => !(assignments[i.id] && assignments[i.id].length > 0)
+        )
+        if (unclaimedItems.length === 0) return null
+        return (
+          <Card className="flex flex-col gap-2 px-4 py-3">
+            <span className="text-[16px] font-semibold">Unclaimed items</span>
+            {unclaimedItems.map((item) => (
+              <div key={item.id} className="flex justify-between text-[14px]">
+                <span>{item.name}</span>
+                <span>{formatCents(item.priceCents)}</span>
+              </div>
+            ))}
+            <p className="text-[14px] text-zinc-500">
+              These items were not claimed. Sort them out with the table.
+            </p>
+          </Card>
+        )
+      })()}
 
       {/* Fixed bottom strip */}
       <div
