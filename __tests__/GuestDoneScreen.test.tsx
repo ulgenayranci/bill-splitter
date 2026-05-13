@@ -3,10 +3,11 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { GuestDoneScreen } from '@/components/split/GuestDoneScreen'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
-// Session: 2 people, p1 claimed i1 (1000 cents), tip 18%
-// subtotal = 1000, tip = Math.round(1000 * 18 / 100) = 180
-// tipBase = floor(180/2) = 90, tipRemainder = 0, so each person gets 90
-// p1 total = 1000 + 90 = 1090 -> $10.90
+// Session: 2 people, p1 claimed i1 (1000 cents), Coke (250 cents) unclaimed, tip 18%
+// computePersonTotals uses ALL items for subtotal (not just claimed):
+// subtotal = 1000 + 250 = 1250, tip = round(1250 * 18 / 100) = 225
+// tipBase = floor(225/2) = 112, tipRemainder = 1
+// p1 (index 0): 1000 (pizza) + 112 + 1 (tip, gets remainder) = 1113 -> $11.13
 const mockSession: SessionPayload = {
   people: [
     { id: 'p1', name: 'Alice', colorIndex: 0 },
@@ -32,8 +33,10 @@ describe('GuestDoneScreen', () => {
 
   it('Test 1: Renders the correct personal total using computePersonTotals', () => {
     render(<GuestDoneScreen session={mockSession} personId="p1" />)
-    // Alice: pizza 1000 + tip 90 = 1090 -> $10.90
-    expect(screen.getByText('$10.90')).toBeDefined()
+    // Alice: pizza 1000 + tip 113 (gets remainder) = 1113 -> $11.13
+    // Total appears twice: in the header amount and in the Total line at bottom
+    const totals = screen.getAllByText('$11.13')
+    expect(totals.length).toBeGreaterThan(0)
   })
 
   it('Test 2: Does NOT render any other person name or total (D-11)', () => {
