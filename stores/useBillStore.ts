@@ -36,9 +36,13 @@ interface BillState {
   billImageUrl: string | null
   ocrStatus: 'idle' | 'loading' | 'done' | 'error'
   expandStatus: 'idle' | 'loading' | 'done' | 'error'
+  syncStatus: 'idle' | 'waiting' | 'results'
+  sessionId: string | null
   setBillImage: (url: string | null) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setExpandStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
+  setSyncStatus: (status: 'idle' | 'waiting' | 'results') => void
+  setSessionId: (id: string | null) => void
   setItems: (items: Item[]) => void
   setStep: (step: BillState['step']) => void
   addPerson: (name: string) => void
@@ -61,6 +65,8 @@ const INITIAL_STATE = {
   billImageUrl: null,
   ocrStatus: 'idle' as const,
   expandStatus: 'idle' as const,
+  syncStatus: 'idle' as const,
+  sessionId: null,
 }
 
 export const useBillStore = create<BillState>()((set) => ({
@@ -110,6 +116,8 @@ export const useBillStore = create<BillState>()((set) => ({
   setBillImage: (url) => set({ billImageUrl: url }),
   setOcrStatus: (status) => set({ ocrStatus: status }),
   setExpandStatus: (status) => set({ expandStatus: status }),
+  setSyncStatus: (status) => set({ syncStatus: status }),
+  setSessionId: (id) => set({ sessionId: id }),
   reset: () =>
     set((s) => {
       if (s.billImageUrl) URL.revokeObjectURL(s.billImageUrl)

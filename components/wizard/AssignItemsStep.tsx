@@ -102,17 +102,17 @@ export function AssignItemsStep() {
       <div className="mt-auto flex gap-3">
         <Button
           variant="outline"
-          onClick={() => setStep(2)}
+          onClick={() => setStep(3)}
           className="h-12 flex-1"
         >
           Back
         </Button>
         <Button
-          onClick={() => setStep(4)}
+          onClick={() => setStep(5)}
           className="h-12 flex-1 bg-amber-600 hover:bg-amber-700"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
         >
-          Set tip
+          See results
         </Button>
       </div>
     </div>

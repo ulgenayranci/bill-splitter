@@ -207,3 +207,43 @@ describe('Phase 3 store extensions', () => {
     expect(useBillStore.getState().expandStatus).toBe('idle')
   })
 })
+
+describe('syncStatus + sessionId (Phase 4)', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+  })
+
+  it('initial syncStatus is "idle" and sessionId is null', () => {
+    expect(useBillStore.getState().syncStatus).toBe('idle')
+    expect(useBillStore.getState().sessionId).toBeNull()
+  })
+
+  it('setSyncStatus("waiting") updates syncStatus to "waiting"', () => {
+    useBillStore.getState().setSyncStatus('waiting')
+    expect(useBillStore.getState().syncStatus).toBe('waiting')
+  })
+
+  it('setSyncStatus("results") updates syncStatus to "results"', () => {
+    useBillStore.getState().setSyncStatus('results')
+    expect(useBillStore.getState().syncStatus).toBe('results')
+  })
+
+  it('setSessionId("abc123") updates sessionId to "abc123"', () => {
+    useBillStore.getState().setSessionId('abc123')
+    expect(useBillStore.getState().sessionId).toBe('abc123')
+  })
+
+  it('setSessionId(null) clears sessionId', () => {
+    useBillStore.getState().setSessionId('abc123')
+    useBillStore.getState().setSessionId(null)
+    expect(useBillStore.getState().sessionId).toBeNull()
+  })
+
+  it('after setSyncStatus("waiting") + setSessionId("abc"), reset() returns both to idle/null', () => {
+    useBillStore.getState().setSyncStatus('waiting')
+    useBillStore.getState().setSessionId('abc')
+    useBillStore.getState().reset()
+    expect(useBillStore.getState().syncStatus).toBe('idle')
+    expect(useBillStore.getState().sessionId).toBeNull()
+  })
+})

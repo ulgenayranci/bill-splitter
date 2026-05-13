@@ -99,16 +99,16 @@ describe('AssignItemsStep', () => {
     expect(screen.queryByText('Shared')).toBeNull()
   })
 
-  it('"Set tip" CTA is always enabled (no disabled attribute)', () => {
+  it('"See results" CTA is always enabled (no disabled attribute)', () => {
     render(<AssignItemsStep />)
-    const cta = screen.getByRole('button', { name: /set tip/i })
+    const cta = screen.getByRole('button', { name: /see results/i })
     expect(cta.hasAttribute('disabled')).toBe(false)
   })
 
-  it('clicking "Set tip" CTA sets step to 4', () => {
+  it('clicking "See results" CTA sets step to 5', () => {
     render(<AssignItemsStep />)
-    fireEvent.click(screen.getByRole('button', { name: /set tip/i }))
-    expect(useBillStore.getState().step).toBe(4)
+    fireEvent.click(screen.getByRole('button', { name: /see results/i }))
+    expect(useBillStore.getState().step).toBe(5)
   })
 
   it('removing a person cleans orphaned PersonIds from assignments', () => {
