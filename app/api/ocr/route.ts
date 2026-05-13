@@ -3,7 +3,14 @@ import { NextResponse } from 'next/server'
 
 // Read OPENAI_API_KEY from server-only env. NEVER prefix with NEXT_PUBLIC_.
 // (T-2-01 mitigation — see 02-RESEARCH.md Security Domain.)
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Lazy initialization to avoid build-time errors when env var is absent.
+let _openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return _openai
+}
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
@@ -37,6 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const openai = getOpenAI()
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [

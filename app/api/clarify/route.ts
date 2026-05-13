@@ -3,7 +3,15 @@ import { NextResponse } from 'next/server'
 
 // Read OPENAI_API_KEY from server-only env. NEVER prefix with NEXT_PUBLIC_.
 // (T-03-CL-04 mitigation)
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// NOTE: Instantiated lazily inside POST (not at module level) to avoid build-time
+// errors when OPENAI_API_KEY is not present during static page collection.
+let _openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return _openai
+}
 
 // Note the trailing space — rawName will be appended directly in quotes.
 // (T-03-CL-02 mitigation: rawName wrapped in quotes to bound prompt injection.)
@@ -50,6 +58,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const openai = getOpenAI()
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [

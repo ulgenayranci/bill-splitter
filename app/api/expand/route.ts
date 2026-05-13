@@ -2,7 +2,14 @@ import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 
 // Read OPENAI_API_KEY from server-only env. NEVER prefix with NEXT_PUBLIC_.
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Lazy initialization to avoid build-time errors when env var is absent.
+let _openai: OpenAI | null = null
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return _openai
+}
 
 const EXPAND_PROMPT = `You are a restaurant receipt item name expander.
 Given a list of abbreviated receipt item names and their prices in cents, expand each name into a readable description.
@@ -48,6 +55,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const openai = getOpenAI()
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
