@@ -79,7 +79,7 @@
 **UI hint**: yes
 
 ### Phase 4: Shareable Links
-**Goal**: The host can share a link so each person claims their own items on their own phone instead of the host doing all the tapping.
+**Goal**: As a dinner host, I want to share a link so each person claims their own items on their own phone, so that I don't have to tap through everyone else's orders myself.
 **Mode:** mvp
 **Depends on**: Phase 2
 **Requirements**: RESULTS-02
@@ -88,7 +88,14 @@
   2. Each person can open the link on their own phone and see the full item list
   3. Each person can tap to claim their items; the app prevents double-claiming (an item claimed by one person is shown as taken to others)
   4. Final totals update to reflect each person's claimed items once everyone is done
-**Plans**: TBD
+**Plans:** 3 plans
+  **Wave 0**
+  - [ ] 04-01-PLAN.md — Foundation: install @upstash/redis + nanoid + swr, create lib/redis.ts + lib/sessionSchema.ts, extend useBillStore with syncStatus + sessionId, reorder wizard steps (D-04), failing route test scaffolds (RESULTS-02)
+  **Wave 1**
+  - [ ] 04-02-PLAN.md — Server vertical slice: POST /api/session, GET /api/session/[sessionId], POST /api/session/[sessionId]/claim (atomic multi/exec, D-02 + D-09), POST /api/session/[sessionId]/done (RESULTS-02)
+  **Wave 2**
+  - [ ] 04-03-PLAN.md — Client vertical slice: ShareLinkButton, HostWaitingScreen (SWR 3s polling), /split/[sessionId] page, PersonSlotPicker, ClaimableItemCard (D-08 taken-by dimming), GuestDoneScreen (D-11 personal total), SessionExpiredScreen (RESULTS-02)
+**UI hint**: yes
 
 ### Phase 5: Polish & Hardening
 **Goal**: Edge cases are caught, the mobile experience is smooth, and users can share the result outside the app.
