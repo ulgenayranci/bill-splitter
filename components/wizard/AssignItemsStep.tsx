@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { useBillStore, AVATAR_COLORS } from '@/stores/useBillStore'
 import { formatCents } from '@/lib/billMath'
 import type { ItemId, PersonId } from '@/stores/useBillStore'
+import { ShareLinkButton } from './ShareLinkButton'
 
 export function AssignItemsStep() {
   const items = useBillStore((s) => s.items)
@@ -99,21 +100,24 @@ export function AssignItemsStep() {
       </ul>
 
       {/* Bottom CTA row */}
-      <div className="mt-auto flex gap-3">
+      <div className="mt-auto flex flex-col gap-3" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
         <Button
           variant="outline"
           onClick={() => setStep(3)}
-          className="h-12 flex-1"
+          className="h-12 w-full"
         >
           Back
         </Button>
-        <Button
-          onClick={() => setStep(5)}
-          className="h-12 flex-1 bg-amber-600 hover:bg-amber-700"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
-        >
-          See results
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setStep(5)}
+            className="h-12 flex-1"
+          >
+            See results
+          </Button>
+          <ShareLinkButton />
+        </div>
       </div>
     </div>
   )
