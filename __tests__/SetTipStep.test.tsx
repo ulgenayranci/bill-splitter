@@ -95,21 +95,21 @@ describe('SetTipStep', () => {
     expect(Number.isFinite(useBillStore.getState().tipPercent)).toBe(true)
   })
 
-  it('Test 10: "See results" CTA is always enabled (no disabled attribute)', () => {
+  it('Test 10: "Assign items" CTA is always enabled (no disabled attribute)', () => {
     render(<SetTipStep />)
-    const cta = screen.getByRole('button', { name: /see results/i })
+    const cta = screen.getByRole('button', { name: /assign items/i })
     expect(cta.hasAttribute('disabled')).toBe(false)
   })
 
-  it('Test 11: clicking "See results" sets step to 5', () => {
+  it('Test 11: clicking "Assign items" sets step to 4', () => {
     render(<SetTipStep />)
-    fireEvent.click(screen.getByRole('button', { name: /see results/i }))
-    expect(useBillStore.getState().step).toBe(5)
+    fireEvent.click(screen.getByRole('button', { name: /assign items/i }))
+    expect(useBillStore.getState().step).toBe(4)
   })
 
-  it('Test 12: clicking Back sets step to 3', () => {
+  it('Test 12: clicking Back sets step to 2', () => {
     render(<SetTipStep />)
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }))
-    expect(useBillStore.getState().step).toBe(3)
+    expect(useBillStore.getState().step).toBe(2)
   })
 })
