@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-05-13T15:48:45.763Z"
+last_updated: "2026-05-13T15:51:06.939Z"
 progress:
   total_phases: 5
   completed_phases: 3
@@ -24,15 +24,15 @@ progress:
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Phase 03 — ai-expansion-disambiguation
+**Current focus:** Phase 04 — shareable-links
 
 ---
 
 ## Current Position
 
-Phase: 03 (ai-expansion-disambiguation) — EXECUTING
-Plan: 3 of 3
-**Status:** Ready to execute
+Phase: 04 (shareable-links) — EXECUTING
+Plan: 1 of 3
+**Status:** Executing Phase 04
 
 ```
 Progress: [██████████] 100%

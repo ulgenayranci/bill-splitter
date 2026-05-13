@@ -90,7 +90,7 @@
   4. Final totals update to reflect each person's claimed items once everyone is done
 **Plans:** 3 plans
   **Wave 0**
-  - [ ] 04-01-PLAN.md — Foundation: install @upstash/redis + nanoid + swr, create lib/redis.ts + lib/sessionSchema.ts, extend useBillStore with syncStatus + sessionId, reorder wizard steps (D-04), failing route test scaffolds (RESULTS-02)
+  - [x] 04-01-PLAN.md — Foundation: install @upstash/redis + nanoid + swr, create lib/redis.ts + lib/sessionSchema.ts, extend useBillStore with syncStatus + sessionId, reorder wizard steps (D-04), failing route test scaffolds (RESULTS-02)
   **Wave 1**
   - [ ] 04-02-PLAN.md — Server vertical slice: POST /api/session, GET /api/session/[sessionId], POST /api/session/[sessionId]/claim (atomic multi/exec, D-02 + D-09), POST /api/session/[sessionId]/done (RESULTS-02)
   **Wave 2**
