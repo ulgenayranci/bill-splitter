@@ -94,7 +94,7 @@
   **Wave 1**
   - [x] 04-02-PLAN.md — Server vertical slice: POST /api/session, GET /api/session/[sessionId], POST /api/session/[sessionId]/claim (atomic multi/exec, D-02 + D-09), POST /api/session/[sessionId]/done (RESULTS-02)
   **Wave 2**
-  - [ ] 04-03-PLAN.md — Client vertical slice: ShareLinkButton, HostWaitingScreen (SWR 3s polling), /split/[sessionId] page, PersonSlotPicker, ClaimableItemCard (D-08 taken-by dimming), GuestDoneScreen (D-11 personal total), SessionExpiredScreen (RESULTS-02)
+  - [x] 04-03-PLAN.md — Client vertical slice: ShareLinkButton, HostWaitingScreen (SWR 3s polling), /split/[sessionId] page, PersonSlotPicker, ClaimableItemCard (D-08 taken-by dimming), GuestDoneScreen (D-11 personal total), SessionExpiredScreen (RESULTS-02)
 **UI hint**: yes
 
 ### Phase 5: Polish & Hardening
