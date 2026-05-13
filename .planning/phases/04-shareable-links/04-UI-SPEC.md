@@ -1,7 +1,8 @@
 ---
 phase: 4
 slug: shareable-links
-status: draft
+status: approved
+reviewed_at: 2026-05-13
 shadcn_initialized: true
 preset: base-nova
 created: 2026-05-13
