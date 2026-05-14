@@ -113,8 +113,14 @@ describe('AssignItemsStep', () => {
     expect(cta.hasAttribute('disabled')).toBe(false)
   })
 
-  it('clicking "See results" CTA sets step to 5', () => {
+  it('clicking "See results" CTA sets step to 5 (when all items are assigned)', () => {
     renderInProvider(<AssignItemsStep />)
+    const { items, people } = useBillStore.getState()
+    const coke = items.find((i) => i.name === 'Coke')!
+    const pizza = items.find((i) => i.name === 'Pizza')!
+    const alice = people.find((p) => p.name === 'Alice')!
+    useBillStore.getState().setAssignment(coke.id, [alice.id])
+    useBillStore.getState().setAssignment(pizza.id, [alice.id])
     fireEvent.click(screen.getByRole('button', { name: /see results/i }))
     expect(useBillStore.getState().step).toBe(5)
   })
@@ -130,5 +136,56 @@ describe('AssignItemsStep', () => {
     state.removePerson(bob.id)
     const assignments = useBillStore.getState().assignments
     expect((assignments[coke.id] ?? []).includes(bob.id)).toBe(false)
+  })
+
+  it('(ITEMS-04) clicking "See results" with one unassigned item opens dialog and does NOT call setStep(5)', () => {
+    renderInProvider(<AssignItemsStep />)
+    const { items, people } = useBillStore.getState()
+    const coke = items.find((i) => i.name === 'Coke')!
+    const alice = people.find((p) => p.name === 'Alice')!
+    // Assign only Coke, leave Pizza unassigned
+    useBillStore.getState().setAssignment(coke.id, [alice.id])
+    const stepBefore = useBillStore.getState().step
+    fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
+    expect(useBillStore.getState().step).toBe(stepBefore)
+    expect(screen.getByText(/some items aren.*t assigned/i)).toBeDefined()
+  })
+
+  it('(D-01) dialog body lists the unassigned item name', () => {
+    renderInProvider(<AssignItemsStep />)
+    // Both items unassigned by default in beforeEach
+    fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
+    // The dialog description contains "These items have no one assigned: Coke, Pizza"
+    const description = screen.getByText(/These items have no one assigned/i)
+    expect(description.textContent).toMatch(/Pizza/i)
+    expect(description.textContent).toMatch(/Coke/i)
+  })
+
+  it('(D-02) clicking "Go back to assign them" closes dialog and does NOT navigate', () => {
+    renderInProvider(<AssignItemsStep />)
+    fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
+    const stepBefore = useBillStore.getState().step
+    fireEvent.click(screen.getByRole('button', { name: /go back to assign them/i }))
+    expect(useBillStore.getState().step).toBe(stepBefore)
+  })
+
+  it('(D-02) clicking "Continue anyway" closes dialog and calls setStep(5)', () => {
+    renderInProvider(<AssignItemsStep />)
+    fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /continue anyway/i }))
+    expect(useBillStore.getState().step).toBe(5)
+  })
+
+  it('(ITEMS-04) when all items are assigned, clicking "See results" navigates to step 5 with no dialog', () => {
+    renderInProvider(<AssignItemsStep />)
+    const { items, people } = useBillStore.getState()
+    const coke = items.find((i) => i.name === 'Coke')!
+    const pizza = items.find((i) => i.name === 'Pizza')!
+    const alice = people.find((p) => p.name === 'Alice')!
+    useBillStore.getState().setAssignment(coke.id, [alice.id])
+    useBillStore.getState().setAssignment(pizza.id, [alice.id])
+    fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
+    expect(useBillStore.getState().step).toBe(5)
+    expect(screen.queryByText(/some items aren.*t assigned/i)).toBeNull()
   })
 })

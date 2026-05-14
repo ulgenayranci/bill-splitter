@@ -1,11 +1,20 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useBillStore, AVATAR_COLORS } from '@/stores/useBillStore'
 import { formatCents } from '@/lib/billMath'
-import type { ItemId, PersonId } from '@/stores/useBillStore'
+import type { Item, ItemId, PersonId } from '@/stores/useBillStore'
 import { ShareLinkButton } from './ShareLinkButton'
 
 export function AssignItemsStep() {
@@ -15,12 +24,29 @@ export function AssignItemsStep() {
   const setAssignment = useBillStore((s) => s.setAssignment)
   const setStep = useBillStore((s) => s.setStep)
 
+  const [showUnassignedDialog, setShowUnassignedDialog] = useState(false)
+  const [unassignedItems, setUnassignedItems] = useState<Item[]>([])
+
   function toggleAssignment(itemId: ItemId, personId: PersonId) {
     const current = assignments[itemId] ?? []
     const next = current.includes(personId)
       ? current.filter((p) => p !== personId)
       : [...current, personId]
     setAssignment(itemId, next)
+  }
+
+  function handleContinue() {
+    // Read fresh state to avoid stale closure on the assignments selector
+    const { items: storeItems, assignments: storeAssignments } = useBillStore.getState()
+    const unassigned = storeItems.filter(
+      (item) => !storeAssignments[item.id] || storeAssignments[item.id].length === 0
+    )
+    if (unassigned.length > 0) {
+      setUnassignedItems(unassigned)
+      setShowUnassignedDialog(true)
+    } else {
+      setStep(5)
+    }
   }
 
   return (
@@ -111,7 +137,7 @@ export function AssignItemsStep() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={() => setStep(5)}
+            onClick={handleContinue}
             className="h-12 flex-1"
           >
             See results
@@ -119,6 +145,31 @@ export function AssignItemsStep() {
           <ShareLinkButton />
         </div>
       </div>
+
+      <Dialog
+        open={showUnassignedDialog}
+        onOpenChange={(open) => { if (!open) setShowUnassignedDialog(false) }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Some items aren&apos;t assigned</DialogTitle>
+            <DialogDescription>
+              These items have no one assigned: {unassignedItems.map((i) => i.name).join(', ')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowUnassignedDialog(false)}>
+              Go back to assign them
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { setShowUnassignedDialog(false); setStep(5) }}
+            >
+              Continue anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
