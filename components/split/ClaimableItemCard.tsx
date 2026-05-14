@@ -12,6 +12,7 @@ interface ClaimableItemCardProps {
   myPersonId: PersonId
   peopleById: Record<PersonId, Person>
   onTap: () => void
+  hasError?: boolean
 }
 
 export function ClaimableItemCard({
@@ -20,6 +21,7 @@ export function ClaimableItemCard({
   myPersonId,
   peopleById,
   onTap,
+  hasError,
 }: ClaimableItemCardProps) {
   const mine = claimedBy === myPersonId
   const takenByOther = claimedBy !== undefined && claimedBy !== myPersonId
@@ -37,37 +39,42 @@ export function ClaimableItemCard({
       }
       onClick={() => { if (!takenByOther) onTap() }}
       className={[
-        'flex items-center gap-3 px-4 py-3 transition-colors',
+        'flex min-h-[44px] flex-col gap-1 px-4 py-3 transition-colors',
         takenByOther ? 'opacity-50 pointer-events-none' : 'cursor-pointer',
         mine ? 'bg-amber-50' : '',
       ].join(' ')}
     >
-      <div className="shrink-0">
-        {mine ? (
-          <Check size={24} className="text-amber-600" aria-hidden="true" />
-        ) : (
-          <Circle size={24} className="text-zinc-300" aria-hidden="true" />
-        )}
-      </div>
-      <span
-        className={[
-          'flex-1 text-[16px]',
-          mine ? 'font-semibold' : '',
-          takenByOther ? 'line-through' : '',
-        ].join(' ')}
-      >
-        {item.name}
-      </span>
-      {takenByOther && otherPerson && (
-        <span className="flex items-center gap-2 text-[14px] text-zinc-500">
-          <span
-            className={`inline-block h-4 w-4 rounded-full ${AVATAR_COLORS[otherPerson.colorIndex]}`}
-            aria-hidden="true"
-          />
-          Taken by {otherPerson.name}
+      <div className="flex items-center gap-3">
+        <div className="shrink-0">
+          {mine ? (
+            <Check size={24} className="text-amber-600" aria-hidden="true" />
+          ) : (
+            <Circle size={24} className="text-zinc-300" aria-hidden="true" />
+          )}
+        </div>
+        <span
+          className={[
+            'flex-1 text-[16px]',
+            mine ? 'font-semibold' : '',
+            takenByOther ? 'line-through' : '',
+          ].join(' ')}
+        >
+          {item.name}
         </span>
+        {takenByOther && otherPerson && (
+          <span className="flex items-center gap-2 text-[14px] text-zinc-500">
+            <span
+              className={`inline-block h-4 w-4 rounded-full ${AVATAR_COLORS[otherPerson.colorIndex]}`}
+              aria-hidden="true"
+            />
+            Taken by {otherPerson.name}
+          </span>
+        )}
+        <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents)}</span>
+      </div>
+      {hasError && (
+        <span className="text-sm text-red-600">Couldn&apos;t save — tap to retry</span>
       )}
-      <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents)}</span>
     </Card>
   )
 }
