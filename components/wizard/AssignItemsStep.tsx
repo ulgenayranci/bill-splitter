@@ -36,7 +36,8 @@ export function AssignItemsStep() {
   }
 
   function handleContinue() {
-    // Read fresh state to avoid stale closure on the assignments selector
+    // Read directly from store to guarantee latest state at click time,
+    // avoiding any stale render-time snapshot of items/assignments.
     const { items: storeItems, assignments: storeAssignments } = useBillStore.getState()
     const unassigned = storeItems.filter(
       (item) => !storeAssignments[item.id] || storeAssignments[item.id].length === 0
