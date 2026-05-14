@@ -64,7 +64,7 @@ export function ClaimableItemCard({
         {takenByOther && otherPerson && (
           <span className="flex items-center gap-2 text-[14px] text-zinc-500">
             <span
-              className={`inline-block h-4 w-4 rounded-full ${AVATAR_COLORS[otherPerson.colorIndex]}`}
+              className={`inline-block h-4 w-4 rounded-full ${AVATAR_COLORS[otherPerson.colorIndex % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
               aria-hidden="true"
             />
             Taken by {otherPerson.name}
