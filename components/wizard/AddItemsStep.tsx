@@ -62,7 +62,11 @@ export function AddItemsStep() {
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    return () => { abortRef.current?.abort() }
+    return () => {
+      abortRef.current?.abort()
+      const url = useBillStore.getState().billImageUrl
+      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+    }
   }, [])
 
   const isAdding = editState !== null && editState.id === null
@@ -124,6 +128,8 @@ export function AddItemsStep() {
       if (!file) return
       e.target.value = ''
 
+      const prevUrl = useBillStore.getState().billImageUrl
+      if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
       const blobUrl = URL.createObjectURL(file)
       setBillImage(blobUrl)
       setOcrStatus('loading')
