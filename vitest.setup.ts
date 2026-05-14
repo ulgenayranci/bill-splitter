@@ -14,3 +14,10 @@ import { vi } from 'vitest'
 // (toBeInTheDocument, toHaveValue, etc.) globally across all test files.
 // Run: npm install --save-dev @testing-library/jest-dom
 // Then add: import '@testing-library/jest-dom'
+
+// jsdom does not implement the Clipboard API. Phase 5 ResultsStep copy
+// summary feature calls navigator.clipboard.writeText. Mock it globally
+// so tests do not crash.
+;(navigator as { clipboard?: unknown }).clipboard = {
+  writeText: vi.fn().mockResolvedValue(undefined),
+}

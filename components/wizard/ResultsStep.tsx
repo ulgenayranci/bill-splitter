@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -40,8 +40,10 @@ export function ResultsStep() {
   const setStep = useBillStore((s) => s.setStep)
   const syncStatus = useBillStore((s) => s.syncStatus)
   const sessionId = useBillStore((s) => s.sessionId)
+  const reset = useBillStore((s) => s.reset)
 
   const [expandedPersonId, setExpandedPersonId] = useState<PersonId | null>(null)
+  const [copied, setCopied] = useState(false)
 
   // Route to HostWaitingScreen when host has started sharing session
   if (syncStatus === 'waiting' && sessionId) {
@@ -56,6 +58,23 @@ export function ResultsStep() {
 
   const handleCardClick = (personId: PersonId) => {
     setExpandedPersonId((prev) => (prev === personId ? null : personId))
+  }
+
+  async function handleCopy() {
+    try {
+      const { people: ps, items: is, assignments: as_, tipPercent: tp } =
+        useBillStore.getState()
+      const totals = computePersonTotals(ps, is, as_, tp)
+      const subtotal = computeSubtotalCents(is)
+      const tip = computeTipCents(subtotal, tp)
+      const lines = ps.map((p) => `${p.name} owes ${formatCents(totals[p.id] ?? 0)}`)
+      lines.push(`Total: ${formatCents(subtotal + tip)}`)
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Silent fallback — clipboard access denied is non-critical (matches HostWaitingScreen)
+    }
   }
 
   return (
@@ -188,12 +207,38 @@ export function ResultsStep() {
 
       {/* Fixed bottom strip */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-zinc-100 dark:bg-zinc-900 p-4"
+        className="fixed bottom-0 left-0 right-0 flex flex-col gap-3 bg-zinc-100 dark:bg-zinc-900 p-4"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
       >
         <p className="font-semibold text-[16px]">
           Total bill: {formatCents(totalBillCents)}
         </p>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={handleCopy}
+            className="h-12 flex-1 gap-2"
+          >
+            {copied ? (
+              <>
+                <Check size={16} />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy size={16} />
+                Copy summary
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={reset}
+            className="h-12 flex-1"
+          >
+            Start over
+          </Button>
+        </div>
       </div>
     </div>
   )

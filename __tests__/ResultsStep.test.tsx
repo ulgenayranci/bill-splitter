@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { ResultsStep } from '@/components/wizard/ResultsStep'
 import { useBillStore } from '@/stores/useBillStore'
 import { computePersonTotals, computeSubtotalCents, computeTipCents } from '@/lib/billMath'
@@ -43,6 +43,8 @@ describe('ResultsStep', () => {
     state.setAssignment(cokeId, [carolId])
     // Set tip to 20%
     state.setTipPercent(20)
+
+    vi.mocked(navigator.clipboard.writeText).mockClear()
   })
 
   afterEach(() => {
@@ -174,5 +176,43 @@ describe('ResultsStep', () => {
     // Dave's card is present in the rendered output
     const daveEl = screen.getByText('Dave')
     expect(daveEl).toBeDefined()
+  })
+
+  it('(D-03/D-04) clicking "Copy summary" calls navigator.clipboard.writeText with totals-only text', async () => {
+    render(<ResultsStep />)
+    const copyBtn = screen.getByRole('button', { name: /copy summary/i })
+    fireEvent.click(copyBtn)
+    await act(async () => { await Promise.resolve() })
+    const expected = 'Alice owes $5.84\nBob owes $5.83\nCarol owes $3.33\nTotal: $15.00'
+    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1)
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expected)
+  })
+
+  it('(D-05) button label swaps to "Copied!" after click, then reverts after 2000ms', async () => {
+    vi.useFakeTimers()
+    render(<ResultsStep />)
+    const copyBtn = screen.getByRole('button', { name: /copy summary/i })
+    fireEvent.click(copyBtn)
+    // Flush the clipboard promise microtask
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByRole('button', { name: /copied!/i })).toBeDefined()
+    await act(async () => { vi.advanceTimersByTime(2000) })
+    expect(screen.getByRole('button', { name: /copy summary/i })).toBeDefined()
+    vi.useRealTimers()
+  })
+
+  it('(D-03) clicking "Start over" calls reset() — store ends with empty people/items', () => {
+    render(<ResultsStep />)
+    const resetBtn = screen.getByRole('button', { name: /start over/i })
+    fireEvent.click(resetBtn)
+    const state = useBillStore.getState()
+    expect(state.people).toHaveLength(0)
+    expect(state.items).toHaveLength(0)
+  })
+
+  it('(D-05 anti-toast) ResultsStep renders no Toast notification surface — feedback is button label swap only', () => {
+    render(<ResultsStep />)
+    // No element with role="status" announcing "Copied" — feedback is the button text, not a toast
+    expect(screen.queryByRole('status')).toBeNull()
   })
 })
