@@ -72,11 +72,17 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
     const newClaim = currentOwner === selectedPersonId ? null : selectedPersonId
     setOptimisticClaims((prev) => ({ ...prev, [itemId]: newClaim }))
     try {
-      await fetch(`/api/session/${sessionId}/claim`, {
+      const claimRes = await fetch(`/api/session/${sessionId}/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ personId: selectedPersonId, itemId, action: 'item' }),
       })
+      if (!claimRes.ok) {
+        // Revert optimistic and surface error — same path as the catch block
+        setOptimisticClaims((prev) => { const next = { ...prev }; delete next[itemId]; return next })
+        setItemErrors((prev) => ({ ...prev, [itemId]: true }))
+        return
+      }
       await mutate(swrKey)
       setItemErrors((prev) => {
         if (!prev[itemId]) return prev
@@ -106,7 +112,8 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
       })
       if (!res.ok) throw new Error(`done route returned ${res.status}`)
       await mutate(swrKey)
-    } catch {
+    } catch (err) {
+      console.error('Done submission failed:', err)
       setDoneError("Couldn't submit — tap to retry")
     }
   }
@@ -136,7 +143,7 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
       {/* Fixed header */}
       <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-6">
         <div
-          className={`flex h-8 w-8 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[me.colorIndex]}`}
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[me.colorIndex % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
           aria-hidden="true"
         >
           {me.name.charAt(0).toUpperCase()}
