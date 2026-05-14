@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-05-14T05:16:59.066Z"
+last_updated: "2026-05-14T05:18:37.515Z"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -24,15 +24,15 @@ progress:
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Phase 04 — shareable-links
+**Current focus:** Phase 05 — polish-hardening
 
 ---
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-**Status:** Ready to execute
+Phase: 05 (polish-hardening) — EXECUTING
+Plan: 1 of 3
+**Status:** Executing Phase 05
 
 ```
 Progress: [██████████] 100%
