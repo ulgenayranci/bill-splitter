@@ -234,16 +234,19 @@ export function AddItemsStep() {
       )}
 
       {ocrStatus !== 'loading' && ocrStatus !== 'done' && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-          className="h-12 w-full gap-2 border-dashed border-zinc-300 text-zinc-600 hover:bg-zinc-50"
-          aria-label="Scan bill"
-        >
-          <Camera size={20} />
-          Scan bill
-        </Button>
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-12 w-full gap-2 border-dashed border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+            aria-label="Scan bill"
+          >
+            <Camera size={20} />
+            Scan bill
+          </Button>
+          <p className="text-sm text-zinc-500">Allow camera access if prompted.</p>
+        </>
       )}
 
       <input
