@@ -22,6 +22,8 @@ interface GuestClaimingViewProps { sessionId: string }
 export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
   const [selectedPersonId, setSelectedPersonId] = useState<PersonId | null>(null)
   const [optimisticClaims, setOptimisticClaims] = useState<Record<ItemId, PersonId | null>>({})
+  const [itemErrors, setItemErrors] = useState<Record<ItemId, boolean>>({})
+  const [doneError, setDoneError] = useState<string | null>(null)
 
   const swrKey = `/api/session/${sessionId}`
   const { data: session, error } = useSWR<SessionPayload>(swrKey, fetcher, {
@@ -76,6 +78,12 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
         body: JSON.stringify({ personId: selectedPersonId, itemId, action: 'item' }),
       })
       await mutate(swrKey)
+      setItemErrors((prev) => {
+        if (!prev[itemId]) return prev
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
     } catch {
       // Revert optimistic — next poll will reconcile
       setOptimisticClaims((prev) => {
@@ -83,17 +91,24 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
         delete next[itemId]
         return next
       })
+      setItemErrors((prev) => ({ ...prev, [itemId]: true }))
     }
   }
 
   async function handleDone() {
     if (!selectedPersonId) return
-    await fetch(`/api/session/${sessionId}/done`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ personId: selectedPersonId }),
-    })
-    await mutate(swrKey)
+    setDoneError(null)
+    try {
+      const res = await fetch(`/api/session/${sessionId}/done`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personId: selectedPersonId }),
+      })
+      if (!res.ok) throw new Error(`done route returned ${res.status}`)
+      await mutate(swrKey)
+    } catch {
+      setDoneError("Couldn't submit — tap to retry")
+    }
   }
 
   if (selectedPersonId === null) {
@@ -145,6 +160,7 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
                 myPersonId={selectedPersonId}
                 peopleById={peopleById}
                 onTap={() => handleItemTap(item.id)}
+                hasError={!!itemErrors[item.id]}
               />
             </li>
           )
@@ -156,6 +172,9 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
         className="fixed bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
       >
+        {doneError && (
+          <p className="mb-2 text-center text-sm text-red-600">{doneError}</p>
+        )}
         <Button onClick={handleDone} className="h-12 w-full bg-amber-600 hover:bg-amber-700">
           I&rsquo;m done
         </Button>
