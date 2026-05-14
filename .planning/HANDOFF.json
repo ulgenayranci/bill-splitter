@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-14T06:11:20.407Z",
+  "phase": "05",
+  "phase_name": "polish-hardening",
+  "phase_dir": ".planning/phases/05-polish-hardening",
+  "plan": 3,
+  "task": "complete",
+  "total_tasks": "complete",
+  "status": "human_uat_pending",
+  "completed_tasks": [
+    {"id": "05-01", "name": "Unassigned-item warning + viewport + camera hint", "status": "done", "commit": "4046348"},
+    {"id": "05-02", "name": "Copy summary + Start over + ShareLinkButton inline error", "status": "done", "commit": "ffc1cd2"},
+    {"id": "05-03", "name": "Guest claiming resilience + touch target", "status": "done", "commit": "07aca74"},
+    {"id": "cr-fixes", "name": "Code review fixes (CR-01/02/03, WR-02/03)", "status": "done", "commit": "98ec97b"}
+  ],
+  "remaining_tasks": [
+    {"id": "uat-1", "name": "iOS safe-area inset verification", "status": "human_action"},
+    {"id": "uat-2", "name": "Camera guidance text visual check", "status": "human_action"},
+    {"id": "uat-3", "name": "Copy summary clipboard end-to-end", "status": "human_action"},
+    {"id": "uat-4", "name": "Unassigned-item dialog full flow", "status": "human_action"},
+    {"id": "uat-5", "name": "Guest claim error (offline simulation)", "status": "human_action"},
+    {"id": "uat-6", "name": "Guest done error (offline simulation)", "status": "human_action"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {
+      "action": "Run 6 UAT items in .planning/phases/05-polish-hardening/05-HUMAN-UAT.md",
+      "context": "Mobile/browser testing required — cannot be automated",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {"decision": "handleContinue reads from useBillStore.getState() not closure", "rationale": "Avoids stale reads in tests that mutate state imperatively outside React render cycle", "phase": "05"},
+    {"decision": "setStep(5) in AssignItemsStep is intentional", "rationale": "Wizard goes directly from Assign to Results; no visible tip step in UI flow", "phase": "05"},
+    {"decision": "Skip WR-04 jest-dom migration", "rationale": "Out of scope for patch fix; all tests pass with toBeDefined()", "phase": "05"}
+  ],
+  "uncommitted_files": [".planning/config.json (minor, unrelated)"],
+  "next_action": "Run npm run dev, then work through 6 UAT items in 05-HUMAN-UAT.md. Run /gsd-verify-work 5 when done.",
+  "context_notes": "Phase 5 is the final phase of v1.0 milestone. All automated work complete. Only human UAT remains before the milestone is shippable."
+}
