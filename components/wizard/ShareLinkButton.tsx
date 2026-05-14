@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { LoaderCircle } from 'lucide-react'
-import { Toast } from '@base-ui/react/toast'
 import { Button } from '@/components/ui/button'
 import { useBillStore } from '@/stores/useBillStore'
 
@@ -10,8 +9,8 @@ export function ShareLinkButton() {
   const setSessionId = useBillStore((s) => s.setSessionId)
   const setSyncStatus = useBillStore((s) => s.setSyncStatus)
   const setStep = useBillStore((s) => s.setStep)
-  const toastManager = Toast.useToastManager()
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionError, setSessionError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -22,6 +21,7 @@ export function ShareLinkButton() {
     if (isLoading) return
     setIsLoading(true)
     try {
+      setSessionError(null)
       const { people, items, tipPercent } = useBillStore.getState()
       abortRef.current?.abort()
       abortRef.current = new AbortController()
@@ -38,22 +38,24 @@ export function ShareLinkButton() {
       setStep(5)
     } catch (err) {
       console.error(err)
-      toastManager.add({
-        description: "Couldn't create sharing link — try again",
-        timeout: 4000,
-      })
+      setSessionError("Couldn't create session. Try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <Button
-      onClick={handleShare}
-      disabled={isLoading}
-      className="h-12 flex-1 bg-amber-600 hover:bg-amber-700"
-    >
-      {isLoading ? <LoaderCircle size={16} className="animate-spin" /> : 'Share link'}
-    </Button>
+    <div className="flex flex-1 flex-col">
+      <Button
+        onClick={handleShare}
+        disabled={isLoading}
+        className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+      >
+        {isLoading ? <LoaderCircle size={16} className="animate-spin" /> : 'Share link'}
+      </Button>
+      {sessionError && (
+        <span className="mt-1 text-red-600 text-sm">{sessionError}</span>
+      )}
+    </div>
   )
 }
