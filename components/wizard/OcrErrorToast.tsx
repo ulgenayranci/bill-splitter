@@ -9,7 +9,7 @@ export function OcrErrorToast() {
     <Toast.Portal>
       <Toast.Viewport
         className={cn(
-          'fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-[480px] flex-col gap-2'
+          'fixed bottom-24 left-4 right-4 z-50 mx-auto flex max-w-[480px] flex-col gap-2'
         )}
       >
         {toasts.map((toast) => (

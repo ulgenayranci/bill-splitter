@@ -162,18 +162,26 @@ export function AddItemsStep() {
           items: { name: string; priceCents: number }[]
         }
         ocrItems = data.items
-        setOcrStatus('done')
+        if (ocrItems.length === 0) {
+          setOcrStatus('error')
+          toastManager.add({
+            description: "No items found — try a clearer photo or enter manually",
+            timeout: 7000,
+          })
+          return
+        }
       } catch (err) {
         console.error(err)
         setOcrStatus('error')
         toastManager.add({
           description: "Couldn't read the bill — try again or enter manually",
-          timeout: 4000,
+          timeout: 7000,
         })
         return
       }
 
       // OCR succeeded. Chain into expansion.
+      setOcrStatus('done')
       setExpandStatus('loading')
       try {
         abortRef.current?.abort()
@@ -228,18 +236,7 @@ export function AddItemsStep() {
         <h1 className="text-[20px] font-semibold leading-[1.2]">Items</h1>
       )}
 
-      {billImageUrl && (
-        <Card className="p-2">
-          <img
-            src={billImageUrl}
-            alt="Captured bill photo"
-            className="w-full max-h-48 rounded-lg object-cover"
-          />
-          <span className="block px-2 pt-2 text-[14px] text-zinc-500">Bill photo</span>
-        </Card>
-      )}
-
-      {ocrStatus !== 'loading' && ocrStatus !== 'done' && (
+      {items.length === 0 && ocrStatus !== 'loading' && expandStatus !== 'loading' && (
         <>
           <Button
             type="button"
@@ -253,6 +250,17 @@ export function AddItemsStep() {
           </Button>
           <p className="text-sm text-zinc-500">Allow camera access if prompted.</p>
         </>
+      )}
+
+      {billImageUrl && (
+        <Card className="p-2">
+          <img
+            src={billImageUrl}
+            alt="Captured bill photo"
+            className="w-full max-h-48 rounded-lg object-cover"
+          />
+          <span className="block px-2 pt-2 text-[14px] text-zinc-500">Bill photo</span>
+        </Card>
       )}
 
       <input
