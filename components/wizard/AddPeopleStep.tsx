@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -20,34 +21,14 @@ export function AddPeopleStep() {
   const removePerson = useBillStore((s) => s.removePerson)
   const setStep = useBillStore((s) => s.setStep)
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [canAdd, setCanAdd] = useState(false)
+  const [name, setName] = useState('')
   const [pendingRemove, setPendingRemove] = useState<{ id: PersonId; name: string } | null>(null)
 
-  // Attach native DOM listeners directly — bypasses React's synthetic event
-  // delegation, which silently drops input events on iOS WKWebView (Safari and
-  // all iOS Chrome builds). The 'input', 'change', and 'compositionend' paths
-  // cover every text-entry route the browser might use.
-  useEffect(() => {
-    const input = inputRef.current
-    if (!input) return
-    const sync = () => setCanAdd(input.value.trim().length > 0)
-    input.addEventListener('input', sync)
-    input.addEventListener('change', sync)
-    input.addEventListener('compositionend', sync)
-    return () => {
-      input.removeEventListener('input', sync)
-      input.removeEventListener('change', sync)
-      input.removeEventListener('compositionend', sync)
-    }
-  }, [])
-
   const handleAdd = () => {
-    const trimmed = inputRef.current?.value.trim() ?? ''
+    const trimmed = name.trim()
     if (!trimmed) return
     addPerson(trimmed)
-    if (inputRef.current) inputRef.current.value = ''
-    setCanAdd(false)
+    setName('')
   }
 
   return (
@@ -63,28 +44,28 @@ export function AddPeopleStep() {
         <h1 className="text-[20px] font-semibold leading-[1.2]">Add people to your bill</h1>
       )}
 
-      {/* form wrapper ensures iOS gives this input a proper keyboard session */}
-      <form
-        onSubmit={(e) => { e.preventDefault(); handleAdd() }}
-        className="flex flex-col gap-3"
-      >
-        <input
-          ref={inputRef}
-          type="text"
+      <div className="flex flex-col gap-3">
+        <Input
           placeholder="Enter name"
-          defaultValue=""
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleAdd()
+            }
+          }}
           maxLength={100}
-          autoCapitalize="words"
-          className="h-12 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed"
+          className="h-12 text-base"
         />
         <Button
-          type="submit"
-          disabled={!canAdd}
+          onClick={handleAdd}
+          disabled={!name.trim()}
           className="h-12 w-full"
         >
           Add Person
         </Button>
-      </form>
+      </div>
 
       <ul className="flex flex-col gap-2">
         {people.map((person) => (
