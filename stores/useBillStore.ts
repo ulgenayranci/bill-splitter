@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 
+// randomId() requires a secure context (HTTPS/localhost).
+// Plain-HTTP LAN dev (e.g. http://192.168.x.x) exposes an undefined API.
+const randomId = (): string =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? randomId()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+
 export type PersonId = string
 export type ItemId = string
 
@@ -76,7 +83,7 @@ export const useBillStore = create<BillState>()((set) => ({
     set((s) => ({
       people: [
         ...s.people,
-        { id: crypto.randomUUID(), name, colorIndex: s.nextColorIndex % 6 },
+        { id: randomId(), name, colorIndex: s.nextColorIndex % 6 },
       ],
       nextColorIndex: s.nextColorIndex + 1,
     })),
@@ -92,7 +99,7 @@ export const useBillStore = create<BillState>()((set) => ({
     })),
   addItem: (name, priceCents) =>
     set((s) => ({
-      items: [...s.items, { id: crypto.randomUUID(), name, priceCents }],
+      items: [...s.items, { id: randomId(), name, priceCents }],
     })),
   removeItem: (id) =>
     set((s) => {
