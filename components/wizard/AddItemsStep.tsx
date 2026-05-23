@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { useBillStore } from '@/stores/useBillStore'
+import { useBillStore, randomId } from '@/stores/useBillStore'
 import { parseCents, formatCents } from '@/lib/billMath'
 import type { Item, ItemId } from '@/stores/useBillStore'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
@@ -198,7 +198,7 @@ export function AddItemsStep() {
         }
         setItems(
           expandData.items.map((ei) => ({
-            id: crypto.randomUUID(),
+            id: randomId(),
             name: ei.displayName,
             rawName: ei.rawName,
             priceCents: ei.priceCents,
