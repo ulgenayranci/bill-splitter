@@ -119,7 +119,7 @@ export function HostWaitingScreen({ sessionId }: HostWaitingScreenProps) {
 
       <div
         className="fixed bottom-0 left-0 right-0 border-t border-border bg-background p-4"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         <Button
           onClick={() => {

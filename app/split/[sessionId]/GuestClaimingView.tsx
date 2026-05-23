@@ -177,7 +177,7 @@ export function GuestClaimingView({ sessionId }: GuestClaimingViewProps) {
       {/* Fixed "I'm done" bar */}
       <div
         className="fixed bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         {doneError && (
           <p className="mb-2 text-center text-sm text-red-600">{doneError}</p>

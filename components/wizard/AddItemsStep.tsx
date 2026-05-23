@@ -392,7 +392,6 @@ export function AddItemsStep() {
               aria-label="Add item"
               onClick={handleAddItemClick}
               className="flex w-full items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-[16px] text-zinc-500 hover:bg-zinc-50"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}
             >
               <Plus size={20} />
               Add item
@@ -402,14 +401,15 @@ export function AddItemsStep() {
       </ul>
 
       {/* Bottom CTA */}
-      <Button
-        onClick={() => setStep(3)}
-        disabled={items.length === 0}
-        className="mt-auto h-12 w-full bg-amber-600 hover:bg-amber-700"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
-      >
-        Assign items
-      </Button>
+      <div className="mt-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+        <Button
+          onClick={() => setStep(3)}
+          disabled={items.length === 0}
+          className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+        >
+          Assign items
+        </Button>
+      </div>
 
       {/* Remove confirmation Dialog */}
       <Dialog

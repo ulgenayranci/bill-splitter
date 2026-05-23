@@ -61,19 +61,37 @@ export function ResultsStep() {
   }
 
   async function handleCopy() {
-    try {
-      const { people: ps, items: is, assignments: as_, tipPercent: tp } =
-        useBillStore.getState()
-      const totals = computePersonTotals(ps, is, as_, tp)
-      const subtotal = computeSubtotalCents(is)
-      const tip = computeTipCents(subtotal, tp)
-      const lines = ps.map((p) => `${p.name} owes ${formatCents(totals[p.id] ?? 0)}`)
-      lines.push(`Total: ${formatCents(subtotal + tip)}`)
-      await navigator.clipboard.writeText(lines.join('\n'))
+    const { people: ps, items: is, assignments: as_, tipPercent: tp } =
+      useBillStore.getState()
+    const totals = computePersonTotals(ps, is, as_, tp)
+    const subtotal = computeSubtotalCents(is)
+    const tip = computeTipCents(subtotal, tp)
+    const lines = ps.map((p) => `${p.name} owes ${formatCents(totals[p.id] ?? 0)}`)
+    lines.push(`Total: ${formatCents(subtotal + tip)}`)
+    const text = lines.join('\n')
+
+    let success = false
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text)
+        success = true
+      } catch {
+        // fall through to execCommand
+      }
+    }
+    if (!success) {
+      const el = document.createElement('textarea')
+      el.value = text
+      el.style.cssText = 'position:fixed;opacity:0;top:0;left:0'
+      document.body.appendChild(el)
+      el.focus()
+      el.select()
+      success = document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Silent fallback — clipboard access denied is non-critical (matches HostWaitingScreen)
     }
   }
 
@@ -208,7 +226,7 @@ export function ResultsStep() {
       {/* Fixed bottom strip */}
       <div
         className="fixed bottom-0 left-0 right-0 flex flex-col gap-3 bg-zinc-100 dark:bg-zinc-900 p-4"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         <p className="font-semibold text-[16px]">
           Total bill: {formatCents(totalBillCents)}

@@ -127,7 +127,7 @@ export function AssignItemsStep() {
       </ul>
 
       {/* Bottom CTA row */}
-      <div className="mt-auto flex flex-col gap-3" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
+      <div className="mt-auto flex flex-col gap-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button
           variant="outline"
           onClick={() => setStep(3)}

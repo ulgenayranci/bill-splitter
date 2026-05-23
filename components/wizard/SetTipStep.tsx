@@ -140,7 +140,7 @@ export function SetTipStep() {
       {/* Bottom CTA row */}
       <div
         className="mt-auto flex gap-3"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         <Button
           variant="outline"

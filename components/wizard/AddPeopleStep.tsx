@@ -92,14 +92,15 @@ export function AddPeopleStep() {
         ))}
       </ul>
 
-      <Button
-        onClick={() => setStep(2)}
-        disabled={people.length === 0}
-        className="mt-auto h-12 w-full bg-amber-600 hover:bg-amber-700"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
-      >
-        Continue to items
-      </Button>
+      <div className="mt-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+        <Button
+          onClick={() => setStep(2)}
+          disabled={people.length === 0}
+          className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+        >
+          Continue to items
+        </Button>
+      </div>
 
       <Dialog
         open={pendingRemove !== null}
