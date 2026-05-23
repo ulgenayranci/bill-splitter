@@ -46,7 +46,7 @@ export function AssignItemsStep() {
       setUnassignedItems(unassigned)
       setShowUnassignedDialog(true)
     } else {
-      setStep(5)
+      setStep(4)
     }
   }
 
@@ -130,7 +130,7 @@ export function AssignItemsStep() {
       <div className="mt-auto flex flex-col gap-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button
           variant="outline"
-          onClick={() => setStep(3)}
+          onClick={() => setStep(2)}
           className="h-12 w-full"
         >
           Back
@@ -164,7 +164,7 @@ export function AssignItemsStep() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => { setShowUnassignedDialog(false); setStep(5) }}
+              onClick={() => { setShowUnassignedDialog(false); setStep(4) }}
             >
               Continue anyway
             </Button>

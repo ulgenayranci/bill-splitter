@@ -144,16 +144,16 @@ export function SetTipStep() {
       >
         <Button
           variant="outline"
-          onClick={() => setStep(2)}
+          onClick={() => setStep(3)}
           className="h-12 flex-1"
         >
           Back
         </Button>
         <Button
-          onClick={() => setStep(4)}
+          onClick={() => setStep(5)}
           className="h-12 flex-1 bg-amber-600 hover:bg-amber-700"
         >
-          Assign items
+          See results
         </Button>
       </div>
     </div>

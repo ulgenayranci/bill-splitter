@@ -14,8 +14,8 @@ export default function Page() {
     <WizardShell>
       {step === 1 && <AddPeopleStep />}
       {step === 2 && <AddItemsStep />}
-      {step === 3 && <SetTipStep />}
-      {step === 4 && <AssignItemsStep />}
+      {step === 3 && <AssignItemsStep />}
+      {step === 4 && <SetTipStep />}
       {step === 5 && <ResultsStep />}
     </WizardShell>
   )
