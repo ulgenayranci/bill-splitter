@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Trash2, Check, Plus, Camera } from 'lucide-react'
+import { Trash2, Check, Plus, Camera, ChevronLeft, X } from 'lucide-react'
 import { Toast } from '@base-ui/react/toast'
 import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
@@ -57,9 +57,22 @@ export function AddItemsStep() {
   const [pendingRemove, setPendingRemove] = useState<{ id: ItemId; name: string } | null>(null)
   const [disambigItem, setDisambigItem] = useState<Item | null>(null)
   const [disambigOpen, setDisambigOpen] = useState(false)
+  const [formHighlight, setFormHighlight] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const toastManager = Toast.useToastManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const activeFormRef = useRef<HTMLDivElement>(null)
+
+  const handleCTAClick = () => {
+    if (editState !== null) {
+      activeFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFormHighlight(true)
+      setTimeout(() => setFormHighlight(false), 2000)
+      return
+    }
+    setStep(3)
+  }
 
   useEffect(() => {
     return () => {
@@ -205,6 +218,7 @@ export function AddItemsStep() {
             confidence: ei.confidence,
           })),
         )
+        setEditState(null)
         setExpandStatus('done')
       } catch (err) {
         console.error(err)
@@ -213,6 +227,7 @@ export function AddItemsStep() {
         for (const item of ocrItems) {
           addItem(item.name, item.priceCents)
         }
+        setEditState(null)
         toastManager.add({
           description: "Couldn't expand item names — you can edit them manually",
           timeout: 4000,
@@ -224,17 +239,28 @@ export function AddItemsStep() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Heading region */}
-      {items.length === 0 && !isAdding ? (
-        <div className="text-center">
-          <h1 className="text-[20px] font-semibold leading-[1.2]">What did everyone order?</h1>
-          <p className="mt-4 text-[16px] leading-[1.5] text-zinc-500">
-            Add each item and its price. You&apos;ll split them in the next step.
-          </p>
-        </div>
-      ) : (
-        <h1 className="text-[20px] font-semibold leading-[1.2]">Items</h1>
-      )}
+      {/* Back button + heading */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setStep(1)}
+          className="mb-3 flex items-center gap-1 text-[14px] text-zinc-500 hover:text-zinc-800"
+          aria-label="Back to Add People"
+        >
+          <ChevronLeft size={16} />
+          Back
+        </button>
+        {items.length === 0 && !isAdding ? (
+          <div className="text-center">
+            <h1 className="text-[20px] font-semibold leading-[1.2]">What did everyone order?</h1>
+            <p className="mt-4 text-[16px] leading-[1.5] text-zinc-500">
+              Add each item and its price. You&apos;ll split them in the next step.
+            </p>
+          </div>
+        ) : (
+          <h1 className="text-[20px] font-semibold leading-[1.2]">Items</h1>
+        )}
+      </div>
 
       {items.length === 0 && ocrStatus !== 'loading' && expandStatus !== 'loading' && (
         <>
@@ -253,14 +279,48 @@ export function AddItemsStep() {
       )}
 
       {billImageUrl && (
-        <Card className="p-2">
+        <Card
+          className="cursor-pointer p-2 hover:bg-zinc-50"
+          onClick={() => setLightboxOpen(true)}
+          role="button"
+          tabIndex={0}
+          aria-label="View full bill photo"
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setLightboxOpen(true) }}
+        >
           <img
             src={billImageUrl}
             alt="Captured bill photo"
             className="w-full max-h-48 rounded-lg object-cover"
           />
-          <span className="block px-2 pt-2 text-[14px] text-zinc-500">Bill photo</span>
+          <span className="block px-2 pt-2 text-[14px] text-zinc-500">Tap to view full bill</span>
         </Card>
+      )}
+
+      {lightboxOpen && billImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+          onClick={() => setLightboxOpen(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setLightboxOpen(false) }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bill photo"
+          tabIndex={-1}
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setLightboxOpen(false)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={billImageUrl}
+            alt="Full bill photo"
+            className="max-h-[90vh] max-w-[90vw] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
 
       <input
@@ -281,39 +341,44 @@ export function AddItemsStep() {
           <li key={item.id}>
             {editingId === item.id ? (
               /* Inline edit mode */
-              <Card className="flex flex-row items-center gap-2 px-4 py-3">
-                <Input
-                  placeholder="Item name"
-                  value={editState!.name}
-                  onChange={(e) => setEditState({ ...editState!, name: e.target.value })}
-                  className="flex-1 h-10 text-base"
-                  maxLength={100}
-                />
-                <div className="flex flex-col gap-1 w-28">
+              <div ref={activeFormRef} className="flex flex-col gap-1">
+                <Card className={`flex flex-row items-center gap-2 px-4 py-3 transition-colors ${formHighlight ? 'ring-2 ring-red-400 border-red-400' : ''}`}>
                   <Input
-                    placeholder="Price"
-                    value={editState!.price}
-                    inputMode="decimal"
-                    onChange={(e) => setEditState({ ...editState!, price: e.target.value, priceError: null })}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommit() } }}
-                    className="h-10 text-base"
-                    maxLength={9}
-                    aria-invalid={editState!.priceError ? true : undefined}
-                    aria-describedby={editState!.priceError ? 'edit-price-error' : undefined}
+                    placeholder="Item name"
+                    value={editState!.name}
+                    onChange={(e) => setEditState({ ...editState!, name: e.target.value })}
+                    className="flex-1 h-10 text-base"
+                    maxLength={100}
                   />
-                  {editState!.priceError && (
-                    <span id="edit-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  aria-label="Confirm"
-                  onClick={handleCommit}
-                  className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
-                >
-                  <Check size={20} />
-                </button>
-              </Card>
+                  <div className="flex flex-col gap-1 w-28">
+                    <Input
+                      placeholder="Price"
+                      value={editState!.price}
+                      inputMode="decimal"
+                      onChange={(e) => setEditState({ ...editState!, price: e.target.value, priceError: null })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommit() } }}
+                      className="h-10 text-base"
+                      maxLength={9}
+                      aria-invalid={editState!.priceError ? true : undefined}
+                      aria-describedby={editState!.priceError ? 'edit-price-error' : undefined}
+                    />
+                    {editState!.priceError && (
+                      <span id="edit-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Confirm"
+                    onClick={handleCommit}
+                    className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
+                  >
+                    <Check size={20} />
+                  </button>
+                </Card>
+                {formHighlight && (
+                  <p className="text-[13px] text-red-500 px-1">Fill in this item to continue.</p>
+                )}
+              </div>
             ) : (
               /* Display mode */
               <Card
@@ -350,40 +415,45 @@ export function AddItemsStep() {
         {/* Add item inline row */}
         {isAdding ? (
           <li>
-            <Card className="flex flex-row items-center gap-2 px-4 py-3">
-              <Input
-                placeholder="Item name"
-                value={editState!.name}
-                onChange={(e) => setEditState({ ...editState!, name: e.target.value })}
-                className="flex-1 h-10 text-base"
-                maxLength={100}
-                autoFocus
-              />
-              <div className="flex flex-col gap-1 w-28">
+            <div ref={activeFormRef} className="flex flex-col gap-1">
+              <Card className={`flex flex-row items-center gap-2 px-4 py-3 transition-colors ${formHighlight ? 'ring-2 ring-red-400 border-red-400' : ''}`}>
                 <Input
-                  placeholder="Price"
-                  value={editState!.price}
-                  inputMode="decimal"
-                  onChange={(e) => setEditState({ ...editState!, price: e.target.value, priceError: null })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommit() } }}
-                  className="h-10 text-base"
-                  maxLength={9}
-                  aria-invalid={editState!.priceError ? true : undefined}
-                  aria-describedby={editState!.priceError ? 'add-price-error' : undefined}
+                  placeholder="Item name"
+                  value={editState!.name}
+                  onChange={(e) => setEditState({ ...editState!, name: e.target.value })}
+                  className="flex-1 h-10 text-base"
+                  maxLength={100}
+                  autoFocus
                 />
-                {editState!.priceError && (
-                  <span id="add-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label="Confirm"
-                onClick={handleCommit}
-                className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
-              >
-                <Check size={20} />
-              </button>
-            </Card>
+                <div className="flex flex-col gap-1 w-28">
+                  <Input
+                    placeholder="Price"
+                    value={editState!.price}
+                    inputMode="decimal"
+                    onChange={(e) => setEditState({ ...editState!, price: e.target.value, priceError: null })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommit() } }}
+                    className="h-10 text-base"
+                    maxLength={9}
+                    aria-invalid={editState!.priceError ? true : undefined}
+                    aria-describedby={editState!.priceError ? 'add-price-error' : undefined}
+                  />
+                  {editState!.priceError && (
+                    <span id="add-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Confirm"
+                  onClick={handleCommit}
+                  className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
+                >
+                  <Check size={20} />
+                </button>
+              </Card>
+              {formHighlight && (
+                <p className="text-[13px] text-red-500 px-1">Fill in this item to continue.</p>
+              )}
+            </div>
           </li>
         ) : (
           <li>
@@ -403,11 +473,11 @@ export function AddItemsStep() {
       {/* Bottom CTA */}
       <div className="mt-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button
-          onClick={() => setStep(3)}
+          onClick={handleCTAClick}
           disabled={items.length === 0}
-          className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+          className={`h-12 w-full text-base bg-amber-600 hover:bg-amber-700 ${editState !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          Assign items
+          Continue
         </Button>
       </div>
 

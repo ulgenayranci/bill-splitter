@@ -92,16 +92,19 @@ export function AssignItemsStep() {
                       <button
                         key={person.id}
                         type="button"
-                        aria-label={`Assign ${item.name} to ${person.name}`}
+                        aria-label={`${isFilled ? 'Remove' : 'Assign'} ${item.name} ${isFilled ? 'from' : 'to'} ${person.name}`}
                         onClick={() => toggleAssignment(item.id, person.id)}
                         className={[
-                          'flex min-h-12 min-w-12 h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all',
+                          'flex h-9 max-w-[9rem] items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-sm font-medium transition-all',
                           isFilled
-                            ? `${AVATAR_COLORS[person.colorIndex]} text-white ring-2 ring-amber-600 ring-offset-2`
-                            : 'bg-zinc-200 text-zinc-600',
+                            ? `${AVATAR_COLORS[person.colorIndex]} text-white`
+                            : 'border border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50',
                         ].join(' ')}
                       >
-                        {person.name.charAt(0).toUpperCase()}
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isFilled ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-400'}`}>
+                          {person.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="overflow-hidden text-ellipsis whitespace-nowrap">{person.name}</span>
                       </button>
                     )
                   })}

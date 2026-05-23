@@ -37,9 +37,9 @@ export function WizardShell({ children }: WizardShellProps) {
   }, [setStep])
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-background">
+    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-background" style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
       {/* Progress strip — 4px tall per UI-SPEC */}
-      <div className="flex h-1 w-full">
+      <div className="flex h-1 w-full px-5">
         {STEP_LABELS.map((_, idx) => (
           <div
             key={idx}
