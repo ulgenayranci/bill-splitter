@@ -205,7 +205,7 @@ Disputed item pending state: `bg-zinc-50` with `text-zinc-400` muted text + spin
 **qty = 1 items (default):**
 - Single tap: claim (mine=true → amber-50 bg, Check icon) / unclaim (mine=false → neutral)
 - Multiple claimants: show stacked avatar circles (16px circles, 4px overlap) below item name
-- Host-assigned items: `bg-amber-50 border border-amber-200`, small "Assigned by host" label in 12px zinc-500
+- Host-assigned items: `bg-amber-50 border border-amber-200`, small "Assigned by host" label in 14px zinc-500 (label role)
 - Optimistic update: SWR bound mutate with `optimisticData`, `rollbackOnError: true`
 
 **qty > 1 items:**
