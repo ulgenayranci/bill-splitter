@@ -154,10 +154,14 @@ export function HostPanel({
       // Sequential to keep error attribution simple. D-05 only requires correct allocation,
       // not parallel writes. Lua eval makes each /claim atomic so the host's loop is safe
       // even if a guest claims the same item concurrently between iterations.
+      // WR-04: re-fetch session after each write so the next iteration reads the freshly
+      // committed existingQty rather than the stale pre-loop snapshot. Without this, if a
+      // guest claims between two host writes, the second write could over-assign.
+      let liveSession = session
       for (let i = 0; i < assignees.length; i++) {
         const pid = assignees[i]
         const existingQty =
-          session.claims?.items?.[itemId]?.[pid]?.qty ?? 0
+          liveSession.claims?.items?.[itemId]?.[pid]?.qty ?? 0
         const newQty = existingQty + allocations[i]
         const res = await fetch(`/api/session/${sessionId}/claim`, {
           method: 'POST',
@@ -170,6 +174,9 @@ export function HostPanel({
           }),
         })
         if (!res.ok) throw new Error(`assign failed: ${res.status}`)
+        // Re-fetch after each write to get fresh existingQty for the next assignee
+        const fresh = await mutate()
+        if (fresh) liveSession = fresh
       }
       await mutate()
       setAssignPickerForItem(null)

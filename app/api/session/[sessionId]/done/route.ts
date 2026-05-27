@@ -42,6 +42,11 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
     }
 
+    // WR-01: This is a non-atomic read-modify-write. Two concurrent done/undone submissions
+    // from the same person in quick succession can race. This is acceptable here because:
+    // (a) donePeople is keyed by personId, so concurrent writes from *different* people are safe,
+    // (b) same-person concurrent done writes are extremely unlikely in practice (single button tap).
+    // A Lua-based atomic write would be the correct fix if this becomes a reliability concern.
     const updated: SessionPayload = {
       ...session,
       claims: {

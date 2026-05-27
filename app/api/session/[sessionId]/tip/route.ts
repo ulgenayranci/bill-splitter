@@ -46,6 +46,9 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
     }
 
+    // WR-01: Non-atomic read-modify-write. Concurrent tip writes from different people
+    // are safe (tips is keyed by personId). Same-person concurrent tip writes can race
+    // but are extremely unlikely (single confirm button). Acceptable for MVP.
     const updated: SessionPayload = {
       ...session,
       tips: { ...(session.tips ?? {}), [personId]: tipCents },
