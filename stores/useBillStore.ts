@@ -29,36 +29,37 @@ export interface Item {
   id: ItemId
   name: string
   priceCents: number
+  quantity: number
   rawName?: string
   confidence?: 'high' | 'low' | 'ambiguous'
 }
 
 interface BillState {
-  step: 1 | 2 | 3 | 4 | 5
+  step: 1 | 2 | 3 | 4
   people: Person[]
   items: Item[]
   assignments: Record<ItemId, PersonId[]>
-  tipPercent: number
   nextColorIndex: number
   billImageUrl: string | null
   ocrStatus: 'idle' | 'loading' | 'done' | 'error'
   expandStatus: 'idle' | 'loading' | 'done' | 'error'
-  syncStatus: 'idle' | 'waiting' | 'results'
+  syncStatus: 'idle' | 'results'
   sessionId: string | null
+  hostToken: string | null
   setBillImage: (url: string | null) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setExpandStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
-  setSyncStatus: (status: 'idle' | 'waiting' | 'results') => void
+  setSyncStatus: (status: 'idle' | 'results') => void
   setSessionId: (id: string | null) => void
+  setHostToken: (token: string | null) => void
   setItems: (items: Item[]) => void
   setStep: (step: BillState['step']) => void
   addPerson: (name: string) => void
   removePerson: (id: PersonId) => void
-  addItem: (name: string, priceCents: number) => void
+  addItem: (name: string, priceCents: number, quantity?: number) => void
   removeItem: (id: ItemId) => void
   updateItem: (id: ItemId, name: string, priceCents: number) => void
   setAssignment: (itemId: ItemId, personIds: PersonId[]) => void
-  setTipPercent: (percent: number) => void
   reset: () => void
 }
 
@@ -67,13 +68,13 @@ const INITIAL_STATE = {
   people: [],
   items: [],
   assignments: {},
-  tipPercent: 18,
   nextColorIndex: 0,
   billImageUrl: null,
   ocrStatus: 'idle' as const,
   expandStatus: 'idle' as const,
   syncStatus: 'idle' as const,
   sessionId: null,
+  hostToken: null,
 }
 
 export const useBillStore = create<BillState>()((set) => ({
@@ -97,9 +98,9 @@ export const useBillStore = create<BillState>()((set) => ({
         ])
       ),
     })),
-  addItem: (name, priceCents) =>
+  addItem: (name, priceCents, quantity = 1) =>
     set((s) => ({
-      items: [...s.items, { id: randomId(), name, priceCents }],
+      items: [...s.items, { id: randomId(), name, priceCents, quantity }],
     })),
   removeItem: (id) =>
     set((s) => {
@@ -119,12 +120,12 @@ export const useBillStore = create<BillState>()((set) => ({
     set((s) => ({
       assignments: { ...s.assignments, [itemId]: personIds },
     })),
-  setTipPercent: (percent) => set({ tipPercent: percent }),
   setBillImage: (url) => set({ billImageUrl: url }),
   setOcrStatus: (status) => set({ ocrStatus: status }),
   setExpandStatus: (status) => set({ expandStatus: status }),
   setSyncStatus: (status) => set({ syncStatus: status }),
   setSessionId: (id) => set({ sessionId: id }),
+  setHostToken: (token) => set({ hostToken: token }),
   reset: () =>
     set((s) => {
       if (s.billImageUrl) URL.revokeObjectURL(s.billImageUrl)
