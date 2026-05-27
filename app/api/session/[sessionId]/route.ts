@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
+import type { SessionPayload } from '@/lib/sessionSchema'
 
 export const maxDuration = 10
 
@@ -12,7 +13,7 @@ export async function GET(
     return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   }
   try {
-    const session = await redis.get(`session:${sessionId}`)
+    const session = await redis.get<SessionPayload>(`session:${sessionId}`)
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }

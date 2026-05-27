@@ -16,25 +16,33 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
-  const personId =
-    body && typeof body === 'object' && 'personId' in body
-      ? (body as { personId: unknown }).personId
-      : undefined
+  const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const personId = b.personId
   if (typeof personId !== 'string' || personId.length === 0) {
     return NextResponse.json({ error: 'Invalid personId' }, { status: 400 })
   }
+  // done field is required and must be a boolean (D-08: soft checkpoint)
+  if (typeof b.done !== 'boolean') {
+    return NextResponse.json({ error: 'Invalid done: must be boolean' }, { status: 400 })
+  }
+  const done = b.done
 
   try {
     const session = await redis.get<SessionPayload>(`session:${sessionId}`)
     if (!session) {
       return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
     }
+    // Validate personId is a known participant
+    if (!session.people.some((p) => p.id === personId)) {
+      return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
+    }
+
     const updated: SessionPayload = {
       ...session,
       claims: {
-        items: { ...(session.claims?.items ?? {}) },
-        personSlots: { ...(session.claims?.personSlots ?? {}) },
-        donePeople: { ...(session.claims?.donePeople ?? {}), [personId]: true },
+        items: session.claims?.items ?? {},
+        personSlots: session.claims?.personSlots ?? {},
+        donePeople: { ...(session.claims?.donePeople ?? {}), [personId]: done },
       },
     }
     await redis.set(`session:${sessionId}`, JSON.stringify(updated), { ex: 86400 })
