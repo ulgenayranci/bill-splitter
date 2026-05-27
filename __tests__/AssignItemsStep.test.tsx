@@ -4,6 +4,14 @@ import { Toast } from '@base-ui/react/toast'
 import { AssignItemsStep } from '@/components/wizard/AssignItemsStep'
 import { useBillStore } from '@/stores/useBillStore'
 
+// Mock next/navigation so ShareLinkButton's useRouter() doesn't throw
+// "invariant expected app router to be mounted" outside a Next.js App Router context.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}))
+
 function renderInProvider(ui: React.ReactElement) {
   return render(<Toast.Provider>{ui}</Toast.Provider>)
 }
@@ -85,11 +93,11 @@ describe('AssignItemsStep', () => {
     renderInProvider(<AssignItemsStep />)
     const { items } = useBillStore.getState()
     const coke = items.find((i) => i.name === 'Coke')!
-    // Assign Alice
+    // Assign Alice — label is "Assign Coke to Alice" before click
     fireEvent.click(screen.getByLabelText('Assign Coke to Alice'))
     expect(useBillStore.getState().assignments[coke.id]).toEqual([expect.any(String)])
-    // Deselect Alice
-    fireEvent.click(screen.getByLabelText('Assign Coke to Alice'))
+    // After assignment label becomes "Remove Coke from Alice" — click to deselect
+    fireEvent.click(screen.getByLabelText('Remove Coke from Alice'))
     expect(useBillStore.getState().assignments[coke.id]).toEqual([])
   })
 
@@ -100,8 +108,8 @@ describe('AssignItemsStep', () => {
     const alice = people.find((p) => p.name === 'Alice')!
     fireEvent.click(screen.getByLabelText('Assign Coke to Alice'))
     fireEvent.click(screen.getByLabelText('Assign Coke to Bob'))
-    // Remove Bob
-    fireEvent.click(screen.getByLabelText('Assign Coke to Bob'))
+    // After assignment, Bob's label becomes "Remove Coke from Bob" — click to deselect
+    fireEvent.click(screen.getByLabelText('Remove Coke from Bob'))
     const assignments = useBillStore.getState().assignments
     expect(assignments[coke.id]).toEqual([alice.id])
     expect(screen.queryByText('Shared')).toBeNull()
@@ -113,7 +121,7 @@ describe('AssignItemsStep', () => {
     expect(cta.hasAttribute('disabled')).toBe(false)
   })
 
-  it('clicking "See results" CTA sets step to 5 (when all items are assigned)', () => {
+  it('clicking "See results" CTA sets step to 4 (when all items are assigned)', () => {
     renderInProvider(<AssignItemsStep />)
     const { items, people } = useBillStore.getState()
     const coke = items.find((i) => i.name === 'Coke')!
@@ -122,7 +130,7 @@ describe('AssignItemsStep', () => {
     useBillStore.getState().setAssignment(coke.id, [alice.id])
     useBillStore.getState().setAssignment(pizza.id, [alice.id])
     fireEvent.click(screen.getByRole('button', { name: /see results/i }))
-    expect(useBillStore.getState().step).toBe(5)
+    expect(useBillStore.getState().step).toBe(4)
   })
 
   it('removing a person cleans orphaned PersonIds from assignments', () => {
@@ -169,14 +177,14 @@ describe('AssignItemsStep', () => {
     expect(useBillStore.getState().step).toBe(stepBefore)
   })
 
-  it('(D-02) clicking "Continue anyway" closes dialog and calls setStep(5)', () => {
+  it('(D-02) clicking "Continue anyway" closes dialog and calls setStep(4)', () => {
     renderInProvider(<AssignItemsStep />)
     fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
     fireEvent.click(screen.getByRole('button', { name: /continue anyway/i }))
-    expect(useBillStore.getState().step).toBe(5)
+    expect(useBillStore.getState().step).toBe(4)
   })
 
-  it('(ITEMS-04) when all items are assigned, clicking "See results" navigates to step 5 with no dialog', () => {
+  it('(ITEMS-04) when all items are assigned, clicking "See results" navigates to step 4 with no dialog', () => {
     renderInProvider(<AssignItemsStep />)
     const { items, people } = useBillStore.getState()
     const coke = items.find((i) => i.name === 'Coke')!
@@ -185,7 +193,7 @@ describe('AssignItemsStep', () => {
     useBillStore.getState().setAssignment(coke.id, [alice.id])
     useBillStore.getState().setAssignment(pizza.id, [alice.id])
     fireEvent.click(screen.getByRole('button', { name: /^see results$/i }))
-    expect(useBillStore.getState().step).toBe(5)
+    expect(useBillStore.getState().step).toBe(4)
     expect(screen.queryByText(/some items aren.*t assigned/i)).toBeNull()
   })
 })

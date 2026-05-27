@@ -42,7 +42,7 @@ describe('AddItemsStep', () => {
     const priceField = screen.getByPlaceholderText(/price/i)
     fireEvent.change(nameField, { target: { value: 'Coke' } })
     fireEvent.change(priceField, { target: { value: '2.50' } })
-    fireEvent.click(screen.getByRole('button', { name: /confirm|check|add|save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
     const items = useBillStore.getState().items
     expect(items.length).toBe(1)
     expect(items[0].name).toBe('Coke')
@@ -61,7 +61,7 @@ describe('AddItemsStep', () => {
     const nameField = screen.getByPlaceholderText(/item name/i)
     fireEvent.change(nameField, { target: { value: 'Coke' } })
     // Leave price empty, click confirm
-    fireEvent.click(screen.getByRole('button', { name: /confirm|check|add|save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
     expect(screen.getByText(/enter a price/i)).toBeDefined()
     expect(useBillStore.getState().items.length).toBe(0)
   })
@@ -73,7 +73,7 @@ describe('AddItemsStep', () => {
     const priceField = screen.getByPlaceholderText(/price/i)
     fireEvent.change(nameField, { target: { value: 'Coke' } })
     fireEvent.change(priceField, { target: { value: 'abc' } })
-    fireEvent.click(screen.getByRole('button', { name: /confirm|check|add|save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
     expect(screen.getByText(/numbers only/i)).toBeDefined()
     expect(useBillStore.getState().items.length).toBe(0)
   })
@@ -85,7 +85,7 @@ describe('AddItemsStep', () => {
     const priceField = screen.getByPlaceholderText(/price/i)
     fireEvent.change(nameField, { target: { value: 'Coke' } })
     fireEvent.change(priceField, { target: { value: '12.345' } })
-    fireEvent.click(screen.getByRole('button', { name: /confirm|check|add|save/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
     expect(screen.getByText(/numbers only/i)).toBeDefined()
     expect(useBillStore.getState().items.length).toBe(0)
   })
@@ -103,23 +103,23 @@ describe('AddItemsStep', () => {
     expect(useBillStore.getState().items.length).toBe(0)
   })
 
-  it('"Assign items" CTA is disabled when items.length === 0', () => {
+  it('"Continue" CTA is disabled when items.length === 0', () => {
     renderInProvider(<AddItemsStep />)
-    const cta = screen.getByRole('button', { name: /assign items/i })
+    const cta = screen.getByRole('button', { name: /^continue$/i })
     expect(cta.hasAttribute('disabled')).toBe(true)
   })
 
-  it('"Assign items" CTA is enabled with ≥1 item', () => {
+  it('"Continue" CTA is enabled with ≥1 item', () => {
     useBillStore.getState().addItem('Coke', 250)
     renderInProvider(<AddItemsStep />)
-    const cta = screen.getByRole('button', { name: /assign items/i })
+    const cta = screen.getByRole('button', { name: /^continue$/i })
     expect(cta.hasAttribute('disabled')).toBe(false)
   })
 
-  it('tapping "Assign items" with ≥1 item calls setStep(3)', () => {
+  it('tapping "Continue" with ≥1 item calls setStep(3)', () => {
     useBillStore.getState().addItem('Coke', 250)
     renderInProvider(<AddItemsStep />)
-    const cta = screen.getByRole('button', { name: /assign items/i })
+    const cta = screen.getByRole('button', { name: /^continue$/i })
     fireEvent.click(cta)
     expect(useBillStore.getState().step).toBe(3)
   })

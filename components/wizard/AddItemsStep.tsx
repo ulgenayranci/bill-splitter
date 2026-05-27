@@ -262,7 +262,7 @@ export function AddItemsStep() {
         )}
       </div>
 
-      {items.length === 0 && ocrStatus !== 'loading' && expandStatus !== 'loading' && (
+      {items.length === 0 && ocrStatus !== 'loading' && ocrStatus !== 'done' && expandStatus !== 'loading' && (
         <>
           <Button
             type="button"
