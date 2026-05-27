@@ -36,6 +36,11 @@ export async function POST(
     if (!session.people.some((p) => p.id === personId)) {
       return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
     }
+    // CR-02: Verify the caller has claimed their slot before acting on behalf of personId.
+    // Without this, any anonymous caller who knows a sessionId + personId can file disputes.
+    if (!session.claims?.personSlots?.[personId]) {
+      return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
+    }
     if (!session.items.some((it) => it.id === itemId)) {
       return NextResponse.json({ error: 'Invalid itemId: not in session' }, { status: 400 })
     }
