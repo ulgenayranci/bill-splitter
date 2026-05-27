@@ -43,9 +43,12 @@ export function ShareLinkButton() {
       }
       setSessionId(sessionId)
       setHostToken(hostToken)
-      // D-01 + D-02: host navigates to the live /split page with the token in the URL.
-      // Guests get the same URL WITHOUT the token (handled inside the split page UI's "share guest link" affordance — out of scope here).
-      router.push(`/split/${sessionId}?hostToken=${hostToken}`)
+      // CR-05: Use URL fragment (#) instead of query param (?) for the host token.
+      // Query params appear in browser history, server access logs, and referrer headers.
+      // Fragments are never sent to the server and are not included in referrer headers,
+      // so this prevents server-log and analytics exposure of the host capability secret.
+      // The split page reads the token via window.location.hash on the client.
+      router.push(`/split/${sessionId}#hostToken=${hostToken}`)
     } catch (err) {
       console.error(err)
       setSessionError("Couldn't create session. Try again.")

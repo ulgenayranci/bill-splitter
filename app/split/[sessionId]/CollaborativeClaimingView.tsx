@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Pencil, Plus, ClipboardList } from 'lucide-react'
@@ -25,15 +25,21 @@ const fetcher = (url: string): Promise<PublicSessionPayload> =>
 
 interface CollaborativeClaimingViewProps {
   sessionId: string
-  hostTokenParam: string | null
 }
 
 type Phase = 'claiming' | 'review' | 'tip' | 'results'
 
 export function CollaborativeClaimingView({
   sessionId,
-  hostTokenParam,
 }: CollaborativeClaimingViewProps) {
+  // CR-05: hostToken is in the URL fragment (#hostToken=...) so it is never sent to
+  // the server. Read it client-side from window.location.hash after mount.
+  const [hostTokenParam, setHostTokenParam] = useState<string | null>(null)
+  useEffect(() => {
+    const hash = window.location.hash // e.g. "#hostToken=abc123"
+    const match = hash.match(/[#&]hostToken=([^&]+)/)
+    if (match) setHostTokenParam(match[1])
+  }, [])
   const [selectedPersonId, setSelectedPersonId] = useState<PersonId | null>(null)
   const [itemErrors, setItemErrors] = useState<Record<ItemId, boolean>>({})
   const [doneError, setDoneError] = useState<string | null>(null)

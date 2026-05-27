@@ -1,18 +1,12 @@
 import { CollaborativeClaimingView } from './CollaborativeClaimingView'
 
+// CR-05: hostToken moved to URL fragment (#hostToken=...) so it is never sent to the
+// server. The CollaborativeClaimingView client component reads it from window.location.hash.
 export default async function SplitPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ sessionId: string }>
-  searchParams: Promise<{ hostToken?: string }>
 }) {
   const { sessionId } = await params
-  const { hostToken } = await searchParams
-  return (
-    <CollaborativeClaimingView
-      sessionId={sessionId}
-      hostTokenParam={hostToken ?? null}
-    />
-  )
+  return <CollaborativeClaimingView sessionId={sessionId} />
 }
