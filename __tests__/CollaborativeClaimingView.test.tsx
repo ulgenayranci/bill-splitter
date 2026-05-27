@@ -138,4 +138,53 @@ describe('CollaborativeClaimingView', () => {
       expect(screen.getByText(/couldn.*t save.*tap to retry/i)).toBeDefined()
     })
   })
+
+  it('Test 9 (FAB host-only): when hostTokenParam matches session.hostToken, FAB renders', async () => {
+    await selectAlice('host-token-abc')
+    expect(screen.getByTestId('host-panel-fab')).toBeDefined()
+  })
+
+  it('Test 10 (FAB hidden for guests): when hostTokenParam is null, no FAB renders', async () => {
+    await selectAlice(null)
+    expect(screen.queryByTestId('host-panel-fab')).toBeNull()
+  })
+
+  it('Test 11 (FAB badge): pendingCount reflects pending editRequests + unclaimed + disputes', async () => {
+    // Override the SWR mock to return a session with pending entries.
+    const sessionWithPending = {
+      ...SESSION_FIXTURE,
+      editRequests: {
+        r1: { personId: 'p1', type: 'remove', payload: { itemId: 'i1' }, status: 'pending', createdAt: 1 },
+      },
+      disputes: {
+        d1: { itemId: 'i1', personId: 'p1', status: 'pending', createdAt: 2 },
+      },
+    }
+    useSWRMock.mockReturnValue({ data: sessionWithPending, error: undefined, mutate: mutateMock })
+    await selectAlice('host-token-abc')
+    // i1 (qty 1, claimed 0) + i2 (qty 4, claimed 0) = 2 unclaimed; + 1 edit + 1 dispute = 4
+    expect(screen.getByTestId('host-panel-fab-badge').textContent?.trim()).toBe('4')
+  })
+
+  it('Test 12 (FAB opens HostPanel): tapping FAB shows host-panel', async () => {
+    await selectAlice('host-token-abc')
+    fireEvent.click(screen.getByTestId('host-panel-fab'))
+    expect(screen.getByTestId('host-panel')).toBeDefined()
+  })
+
+  it('Test 13 (per-item pencil opens EditRequestForm in edit_price mode)', async () => {
+    await selectAlice(null)
+    fireEvent.click(screen.getByTestId('edit-pencil-i1'))
+    expect(screen.getByTestId('edit-request-form')).toBeDefined()
+    // edit_price field set — newPriceCents input visible
+    expect(screen.getByLabelText('New price')).toBeDefined()
+  })
+
+  it('Test 14 (Add item button opens EditRequestForm in add mode)', async () => {
+    await selectAlice(null)
+    fireEvent.click(screen.getByTestId('add-item-button'))
+    expect(screen.getByTestId('edit-request-form')).toBeDefined()
+    // add field set — item name input visible
+    expect(screen.getByLabelText('Item name')).toBeDefined()
+  })
 })

@@ -3,12 +3,15 @@
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
+import { Pencil, Plus, ClipboardList } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
+import { HostPanel } from '@/components/split/HostPanel'
+import { EditRequestForm } from '@/components/split/EditRequestForm'
 
 const fetcher = (url: string): Promise<SessionPayload> =>
   fetch(url).then((r) => {
@@ -47,6 +50,30 @@ export function CollaborativeClaimingView({
     if (!session) return {}
     return Object.fromEntries(session.people.map((p) => [p.id, p]))
   }, [session])
+
+  const pendingCount = useMemo(() => {
+    if (!session) return 0
+    const editCount = Object.values(session.editRequests ?? {}).filter(
+      (r) => r.status === 'pending'
+    ).length
+    const disputeCount = Object.values(session.disputes ?? {}).filter(
+      (d) => d.status === 'pending'
+    ).length
+    const unclaimedCount = session.items.filter((item) => {
+      const claimsForItem = session.claims?.items?.[item.id] ?? {}
+      const claimed = Object.values(claimsForItem).reduce(
+        (sum, e) => sum + (e?.qty ?? 0),
+        0
+      )
+      return claimed < (item.quantity ?? 1)
+    }).length
+    return editCount + disputeCount + unclaimedCount
+  }, [session])
+
+  const [hostPanelOpen, setHostPanelOpen] = useState(false)
+  const [editFormState, setEditFormState] = useState<
+    { open: true; type: 'add' | 'remove' | 'edit_price' | 'edit_name'; itemId?: ItemId } | { open: false }
+  >({ open: false })
 
   if (error) return <SessionExpiredScreen />
   if (!session) return <div role="status" className="p-6">Loading…</div>
@@ -213,19 +240,44 @@ export function CollaborativeClaimingView({
         {session.items.map((item) => {
           const claimsForItem = session.claims?.items?.[item.id] ?? {}
           return (
-            <li key={item.id}>
-              <ClaimableItemCard
-                item={item}
-                claimsForItem={claimsForItem}
-                myPersonId={selectedPersonId}
-                peopleById={peopleById}
-                onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
-                hasError={!!itemErrors[item.id]}
-              />
+            <li key={item.id} className="flex items-stretch gap-2">
+              <div className="flex-1">
+                <ClaimableItemCard
+                  item={item}
+                  claimsForItem={claimsForItem}
+                  myPersonId={selectedPersonId}
+                  peopleById={peopleById}
+                  onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
+                  hasError={!!itemErrors[item.id]}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label={`Request edit for ${item.name}`}
+                onClick={() =>
+                  setEditFormState({ open: true, type: 'edit_price', itemId: item.id })
+                }
+                className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border hover:bg-zinc-100"
+                data-testid={`edit-pencil-${item.id}`}
+              >
+                <Pencil size={16} />
+              </button>
             </li>
           )
         })}
       </ul>
+
+      {/* Add item button */}
+      <div className="px-6 pb-[80px]">
+        <button
+          type="button"
+          onClick={() => setEditFormState({ open: true, type: 'add' })}
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-dashed border-border text-[14px] text-zinc-600 hover:bg-zinc-50"
+          data-testid="add-item-button"
+        >
+          <Plus size={16} /> Add item
+        </button>
+      </div>
 
       {/* Fixed "I'm done" bar */}
       <div
@@ -239,6 +291,53 @@ export function CollaborativeClaimingView({
           I&rsquo;m done
         </Button>
       </div>
+
+      {/* Host FAB */}
+      {isHost && (
+        <button
+          type="button"
+          onClick={() => setHostPanelOpen(true)}
+          aria-label="Open host controls"
+          data-testid="host-panel-fab"
+          className="fixed bottom-24 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-amber-600 text-white shadow-lg hover:bg-amber-700"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
+        >
+          <ClipboardList size={24} />
+          {pendingCount > 0 && (
+            <span
+              className="absolute -top-1 -right-1 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-amber-700 px-1 text-[14px] font-semibold text-white"
+              data-testid="host-panel-fab-badge"
+            >
+              {pendingCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* HostPanel and EditRequestForm */}
+      {isHost && (
+        <HostPanel
+          session={session}
+          sessionId={sessionId}
+          hostToken={hostTokenParam ?? ''}
+          peopleById={peopleById}
+          mutate={mutate}
+          open={hostPanelOpen}
+          onOpenChange={setHostPanelOpen}
+        />
+      )}
+      {editFormState.open && (
+        <EditRequestForm
+          sessionId={sessionId}
+          personId={selectedPersonId}
+          items={session.items}
+          open
+          onClose={() => setEditFormState({ open: false })}
+          mutate={mutate}
+          initialType={editFormState.type}
+          initialItemId={editFormState.itemId}
+        />
+      )}
     </main>
   )
 }
