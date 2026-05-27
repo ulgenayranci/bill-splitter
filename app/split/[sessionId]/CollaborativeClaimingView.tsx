@@ -12,6 +12,10 @@ import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
 import { HostPanel } from '@/components/split/HostPanel'
 import { EditRequestForm } from '@/components/split/EditRequestForm'
+import { ReviewHostAssignedScreen } from '@/components/split/ReviewHostAssignedScreen'
+import { TipScreen } from '@/components/split/TipScreen'
+import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
+import { computePersonShareFromClaims } from '@/lib/billMath'
 
 const fetcher = (url: string): Promise<SessionPayload> =>
   fetch(url).then((r) => {
@@ -24,7 +28,7 @@ interface CollaborativeClaimingViewProps {
   hostTokenParam: string | null
 }
 
-type Phase = 'claiming' | 'done-placeholder'
+type Phase = 'claiming' | 'review' | 'tip' | 'results'
 
 export function CollaborativeClaimingView({
   sessionId,
@@ -77,6 +81,15 @@ export function CollaborativeClaimingView({
 
   if (error) return <SessionExpiredScreen />
   if (!session) return <div role="status" className="p-6">Loading…</div>
+
+  // Helper: check if this person has any host-assigned items in the current session
+  function hasHostAssignedItems(): boolean {
+    if (!session || !selectedPersonId) return false
+    return session.items.some((item) => {
+      const claim = session.claims?.items?.[item.id]?.[selectedPersonId]
+      return claim?.assignedBy === 'host' && claim.qty > 0
+    })
+  }
 
   async function handleSelect(personId: PersonId) {
     try {
@@ -158,7 +171,7 @@ export function CollaborativeClaimingView({
   }
 
   async function handleDone() {
-    if (!selectedPersonId) return
+    if (!selectedPersonId || !session) return
     setDoneError(null)
     try {
       const res = await fetch(`/api/session/${sessionId}/done`, {
@@ -168,25 +181,39 @@ export function CollaborativeClaimingView({
       })
       if (!res.ok) throw new Error(`done route returned ${res.status}`)
       await mutate()
-      setPhase('done-placeholder')
+      // Compute whether this person has any host-assigned claims
+      const hasHostAssigned = session.items.some((item) => {
+        const claim = session.claims?.items?.[item.id]?.[selectedPersonId]
+        return claim?.assignedBy === 'host' && claim.qty > 0
+      })
+      setPhase(hasHostAssigned ? 'review' : 'tip')
     } catch (err) {
       console.error('Done submission failed:', err)
       setDoneError("Couldn't submit — tap to retry")
     }
   }
 
-  async function handleBackFromDone() {
+  async function handleBackToClaiming() {
     if (!selectedPersonId) return
     try {
       await fetch(`/api/session/${sessionId}/done`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personId: selectedPersonId, done: false }),
+        body: JSON.stringify({ personId: selectedPersonId, undone: true }),
       })
       await mutate()
-      setPhase('claiming')
     } catch {
-      setPhase('claiming') // best-effort
+      // best-effort — local state still flips back
+    }
+    setPhase('claiming')
+  }
+
+  function handleBackFromTip() {
+    if (hasHostAssignedItems()) {
+      setPhase('review')
+    } else {
+      // No host-assigned items — Back from Tip returns all the way to claiming.
+      void handleBackToClaiming()
     }
   }
 
@@ -202,19 +229,42 @@ export function CollaborativeClaimingView({
   const me = session.people.find((p) => p.id === selectedPersonId)
   if (!me) return <SessionExpiredScreen />
 
-  // PLACEHOLDER for review/tip/results — Plan 06 replaces this.
-  if (phase === 'done-placeholder') {
+  // Compute the person's itemSubtotal once (used by TipScreen and PersonResultsScreen)
+  const personalShare = computePersonShareFromClaims(
+    selectedPersonId,
+    session.items,
+    session.claims?.items ?? {},
+    session.tips?.[selectedPersonId] ?? 0
+  )
+
+  if (phase === 'review') {
     return (
-      <main className="mx-auto flex min-h-screen max-w-[480px] flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <h1 className="text-[20px] font-semibold">Done — Review/Tip/Results UI lands in Plan 06</h1>
-        <p className="text-[14px] text-zinc-500">
-          (D-08: tapping &ldquo;Back to claiming&rdquo; un-marks done and returns full edit rights.)
-        </p>
-        <Button onClick={handleBackFromDone} className="h-12 bg-amber-600 hover:bg-amber-700">
-          Back to claiming
-        </Button>
-      </main>
+      <ReviewHostAssignedScreen
+        session={session}
+        sessionId={sessionId}
+        personId={selectedPersonId}
+        onAcceptAll={() => setPhase('tip')}
+        onBack={() => void handleBackToClaiming()}
+        mutate={mutate}
+      />
     )
+  }
+
+  if (phase === 'tip') {
+    return (
+      <TipScreen
+        sessionId={sessionId}
+        personId={selectedPersonId}
+        itemSubtotalCents={personalShare.itemSubtotal}
+        onTipConfirmed={() => setPhase('results')}
+        onBack={handleBackFromTip}
+        mutate={mutate}
+      />
+    )
+  }
+
+  if (phase === 'results') {
+    return <PersonResultsScreen session={session} personId={selectedPersonId} />
   }
 
   return (

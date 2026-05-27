@@ -89,38 +89,34 @@ describe('CollaborativeClaimingView', () => {
     expect(options.optimisticData).toBeDefined()
   })
 
-  it("Test 6: I'm done posts done:true to /done then shows the placeholder", async () => {
+  // Updated Test 6: no host-assigned items → straight to TipScreen
+  it("Test 6 (no host-assigned items): I'm done jumps to Tip screen", async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
     await waitFor(() => {
-      expect(screen.getByText(/done.*review.*tip.*results/i)).toBeDefined()
+      expect(screen.getByText('Add a tip?')).toBeDefined()
     })
-    // Verify the done request body included done:true
-    const calls = doneFetch.mock.calls
-    const lastCall = calls[calls.length - 1]
-    const init = lastCall[1] as RequestInit
-    const parsed = JSON.parse(init.body as string)
-    expect(parsed.done).toBe(true)
   })
 
-  it('Test 7: Back to claiming posts done:false to /done', async () => {
+  // Updated Test 7: back from Tip without host items → POSTs undone:true and returns to claiming
+  it('Test 7 (back from Tip without host items): POSTs undone:true and returns to claiming', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
-    await waitFor(() => expect(screen.getByText(/done.*review/i)).toBeDefined())
+    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
 
     const backFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', backFetch)
-    fireEvent.click(screen.getByRole('button', { name: /back to claiming/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }))
     await waitFor(() => {
       const calls = backFetch.mock.calls
       const lastCall = calls[calls.length - 1]
       const init = lastCall[1] as RequestInit
       const parsed = JSON.parse(init.body as string)
-      expect(parsed.done).toBe(false)
+      expect(parsed.undone).toBe(true)
     })
   })
 
@@ -186,5 +182,108 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.getByTestId('edit-request-form')).toBeDefined()
     // add field set — item name input visible
     expect(screen.getByLabelText('Item name')).toBeDefined()
+  })
+
+  // New Phase 6 tests
+  it("Test 15 (host-assigned items → Review): I'm done routes to ReviewHostAssignedScreen", async () => {
+    const sessionWithHost = {
+      ...SESSION_FIXTURE,
+      claims: {
+        ...SESSION_FIXTURE.claims,
+        items: {
+          i1: { p1: { qty: 1, assignedBy: 'host' as const } },
+        },
+      },
+    }
+    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => {
+      expect(screen.getByText('Review assigned items')).toBeDefined()
+    })
+  })
+
+  it('Test 16 (Accept all → Tip): clicking Accept all transitions to TipScreen', async () => {
+    const sessionWithHost = {
+      ...SESSION_FIXTURE,
+      claims: {
+        ...SESSION_FIXTURE.claims,
+        items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
+      },
+    }
+    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: /Accept all and continue/i }))
+    await waitFor(() => {
+      expect(screen.getByText('Add a tip?')).toBeDefined()
+    })
+  })
+
+  it('Test 17 (Back from Review → claiming with undone:true)', async () => {
+    const sessionWithHost = {
+      ...SESSION_FIXTURE,
+      claims: {
+        ...SESSION_FIXTURE.claims,
+        items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
+      },
+    }
+    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
+    const backFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', backFetch)
+    fireEvent.click(screen.getByRole('button', { name: /Back to claiming/i }))
+    await waitFor(() => {
+      const lastCall = backFetch.mock.calls[backFetch.mock.calls.length - 1]
+      const body = JSON.parse((lastCall[1] as RequestInit).body as string)
+      expect(body.undone).toBe(true)
+    })
+  })
+
+  it('Test 18 (Confirm tip → Results): clicking Confirm tip transitions to PersonResultsScreen', async () => {
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    const tipFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', tipFetch)
+    fireEvent.click(screen.getByRole('button', { name: /Confirm tip/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/You.?re all set/)).toBeDefined()
+    })
+  })
+
+  it('Test 19 (Back from Tip with host items → Review, no /done POST)', async () => {
+    const sessionWithHost = {
+      ...SESSION_FIXTURE,
+      claims: {
+        ...SESSION_FIXTURE.claims,
+        items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
+      },
+    }
+    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: /Accept all and continue/i }))
+    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    const backFetch = vi.fn()
+    vi.stubGlobal('fetch', backFetch)
+    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }))
+    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
+    // No fetch should have been made — going from Tip back to Review is local-only
+    expect(backFetch).not.toHaveBeenCalled()
   })
 })
