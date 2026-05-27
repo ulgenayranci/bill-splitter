@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
-import type { SessionPayload } from '@/lib/sessionSchema'
 
 export const maxDuration = 10
 
@@ -24,6 +23,25 @@ local assignedBy = ARGV[4]
 if not session.claims then session.claims = {} end
 if not session.claims.items then session.claims.items = {} end
 if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
+
+-- CR-03: Atomic bounds check — compute totalClaimed for this item inside Lua so the
+-- check and the write are a single atomic operation. A pre-Lua GET check would allow
+-- two concurrent callers to both pass the bounds check before either write completes.
+if qty > 0 then
+  -- Find item.quantity from the live session state
+  local itemQuantity = 0
+  for _, item in ipairs(session.items or {}) do
+    if item.id == itemId then itemQuantity = item.quantity or 1; break end
+  end
+  -- Sum all claimants' qty except the current person (who is being replaced)
+  local othersQty = 0
+  for pid, entry in pairs(session.claims.items[itemId]) do
+    if pid ~= personId then
+      othersQty = othersQty + (entry.qty or 0)
+    end
+  end
+  if othersQty + qty > itemQuantity then return 'qty_exceeded' end
+end
 
 if qty == 0 then
   session.claims.items[itemId][personId] = nil
@@ -125,23 +143,9 @@ export async function POST(
 
   try {
     if (action === 'qty') {
-      // Bounds check: qty must be <= item.quantity. Requires reading session first.
-      // This is a separate GET (not inside Lua) — acceptable because the bound check
-      // is informational and the Lua write is still atomic. If a race causes a stale
-      // bound read, the worst case is the qty is allowed slightly above; the UI also
-      // clamps. See RESEARCH Open Question 2.
-      const session = await redis.get<SessionPayload>(`session:${sessionId}`)
-      if (!session) {
-        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
-      }
-      const targetItem = session.items.find((it) => it.id === itemId)
-      if (!targetItem) {
-        return NextResponse.json({ error: 'Invalid itemId' }, { status: 400 })
-      }
-      if ((qty as number) > targetItem.quantity) {
-        return NextResponse.json({ error: 'qty exceeds item.quantity' }, { status: 400 })
-      }
-
+      // CR-03: bounds check now lives inside QTY_CLAIM_SCRIPT (atomic with the write).
+      // A pre-Lua GET + TS bounds check had a race window — two callers could both pass
+      // the check before either write completed, yielding totalClaimed > item.quantity.
       const assignedBy = 'self' // Host-assigned writes use resolve-dispute or resolve-edit, not /claim
       const result = await redis.eval(
         QTY_CLAIM_SCRIPT,
@@ -153,6 +157,9 @@ export async function POST(
       }
       if (result === 'invalid_session') {
         return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+      }
+      if (result === 'qty_exceeded') {
+        return NextResponse.json({ error: 'qty exceeds available quantity' }, { status: 409 })
       }
       return NextResponse.json({ ok: true })
     }
