@@ -5,11 +5,11 @@ import { useBillStore } from '@/stores/useBillStore'
 
 afterEach(() => { cleanup(); useBillStore.getState().reset() })
 
-describe('WizardShell — Phase 4 step order (D-04)', () => {
-  it('renders 5 progress strip segments', () => {
+describe('WizardShell — Phase 6 (4 steps)', () => {
+  it('renders 4 progress strip segments', () => {
     const { container } = render(<WizardShell><div data-testid="content" /></WizardShell>)
     const segments = container.querySelectorAll('div.flex-1.bg-amber-600, div.flex-1.bg-zinc-200')
-    expect(segments.length).toBe(5)
+    expect(segments.length).toBe(4)
   })
 
   it('STEP_LABELS contains Assign / Share not Assign', () => {

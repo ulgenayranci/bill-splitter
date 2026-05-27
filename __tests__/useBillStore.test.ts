@@ -84,12 +84,6 @@ describe('useBillStore', () => {
     expect(useBillStore.getState().assignments[item.id]).toEqual(['p3'])
   })
 
-  it('setTipPercent updates tipPercent to 20; default initial value is 18', () => {
-    expect(useBillStore.getState().tipPercent).toBe(18)
-    useBillStore.getState().setTipPercent(20)
-    expect(useBillStore.getState().tipPercent).toBe(20)
-  })
-
   it('setStep updates step to 3; default initial value is 1', () => {
     expect(useBillStore.getState().step).toBe(1)
     useBillStore.getState().setStep(3)
@@ -99,7 +93,6 @@ describe('useBillStore', () => {
   it('reset returns store to initial state', () => {
     useBillStore.getState().addPerson('Alice')
     useBillStore.getState().addItem('Pizza', 1000)
-    useBillStore.getState().setTipPercent(20)
     useBillStore.getState().setStep(3)
     useBillStore.getState().reset()
     const state = useBillStore.getState()
@@ -107,7 +100,6 @@ describe('useBillStore', () => {
     expect(state.people).toEqual([])
     expect(state.items).toEqual([])
     expect(state.assignments).toEqual({})
-    expect(state.tipPercent).toBe(18)
   })
 
   // ----- Phase 2 additions -----
@@ -218,11 +210,6 @@ describe('syncStatus + sessionId (Phase 4)', () => {
     expect(useBillStore.getState().sessionId).toBeNull()
   })
 
-  it('setSyncStatus("waiting") updates syncStatus to "waiting"', () => {
-    useBillStore.getState().setSyncStatus('waiting')
-    expect(useBillStore.getState().syncStatus).toBe('waiting')
-  })
-
   it('setSyncStatus("results") updates syncStatus to "results"', () => {
     useBillStore.getState().setSyncStatus('results')
     expect(useBillStore.getState().syncStatus).toBe('results')
@@ -239,8 +226,8 @@ describe('syncStatus + sessionId (Phase 4)', () => {
     expect(useBillStore.getState().sessionId).toBeNull()
   })
 
-  it('after setSyncStatus("waiting") + setSessionId("abc"), reset() returns both to idle/null', () => {
-    useBillStore.getState().setSyncStatus('waiting')
+  it('after setSyncStatus("results") + setSessionId("abc"), reset() returns both to idle/null', () => {
+    useBillStore.getState().setSyncStatus('results')
     useBillStore.getState().setSessionId('abc')
     useBillStore.getState().reset()
     expect(useBillStore.getState().syncStatus).toBe('idle')

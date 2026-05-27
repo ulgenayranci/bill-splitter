@@ -10,14 +10,13 @@ import type { PersonId, Item, ItemId } from '@/stores/useBillStore'
 import {
   computePersonTotals,
   computeSubtotalCents,
-  computeTipCents,
   formatCents,
 } from '@/lib/billMath'
-import { HostWaitingScreen } from './HostWaitingScreen'
+import { ShareLinkButton } from './ShareLinkButton'
 
 /**
  * Compute a single person's share of an item using the largest-remainder method.
- * This is a UI display helper — same math as computePersonTotals but per item.
+ * Wizard-local UI helper — matches computePersonTotals math but per item.
  */
 function personItemShare(
   item: Item,
@@ -36,38 +35,29 @@ export function ResultsStep() {
   const people = useBillStore((s) => s.people)
   const items = useBillStore((s) => s.items)
   const assignments = useBillStore((s) => s.assignments)
-  const tipPercent = useBillStore((s) => s.tipPercent)
   const setStep = useBillStore((s) => s.setStep)
-  const syncStatus = useBillStore((s) => s.syncStatus)
-  const sessionId = useBillStore((s) => s.sessionId)
   const reset = useBillStore((s) => s.reset)
 
   const [expandedPersonId, setExpandedPersonId] = useState<PersonId | null>(null)
   const [copied, setCopied] = useState(false)
 
-  // Route to HostWaitingScreen when host has started sharing session
-  if (syncStatus === 'waiting' && sessionId) {
-    return <HostWaitingScreen sessionId={sessionId} />
-  }
-
-  // Compute totals once per render
-  const totals = computePersonTotals(people, items, assignments, tipPercent)
+  // Phase 6: ResultsStep is the wizard's OFFLINE split path. No tip in the wizard
+  // (D-17 removed the tip step). Tip is per-person, set after Share → /split flow.
+  // To preserve the existing largest-remainder math, pass tipPercent=0.
+  const totals = computePersonTotals(people, items, assignments, 0)
   const subtotalCents = computeSubtotalCents(items)
-  const tipCents = computeTipCents(subtotalCents, tipPercent)
-  const totalBillCents = subtotalCents + tipCents
+  const totalBillCents = subtotalCents // no tip in wizard
 
   const handleCardClick = (personId: PersonId) => {
     setExpandedPersonId((prev) => (prev === personId ? null : personId))
   }
 
   async function handleCopy() {
-    const { people: ps, items: is, assignments: as_, tipPercent: tp } =
-      useBillStore.getState()
-    const totals = computePersonTotals(ps, is, as_, tp)
+    const { people: ps, items: is, assignments: as_ } = useBillStore.getState()
+    const localTotals = computePersonTotals(ps, is, as_, 0)
     const subtotal = computeSubtotalCents(is)
-    const tip = computeTipCents(subtotal, tp)
-    const lines = ps.map((p) => `${p.name} owes ${formatCents(totals[p.id] ?? 0)}`)
-    lines.push(`Total: ${formatCents(subtotal + tip)}`)
+    const lines = ps.map((p) => `${p.name} owes ${formatCents(localTotals[p.id] ?? 0)}`)
+    lines.push(`Total: ${formatCents(subtotal)}`)
     const text = lines.join('\n')
 
     let success = false
@@ -97,35 +87,26 @@ export function ResultsStep() {
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      {/* Heading */}
       <h1 className="text-[20px] font-semibold leading-[1.2]">
         Here&apos;s what each person owes
       </h1>
 
-      {/* Back button */}
+      {/* Back button — Phase 6 wizard has no tip step; back goes to Assign (step 3) */}
       <Button
         variant="outline"
-        onClick={() => setStep(4)}
+        onClick={() => setStep(3)}
         className="h-12 self-start px-6"
+        aria-label="Back to assign"
       >
-        Back to tip
+        Back to assign
       </Button>
 
-      {/* Per-person cards */}
       <ul className="flex flex-col gap-3">
-        {people.map((person, personIndex) => {
+        {people.map((person) => {
           const isExpanded = expandedPersonId === person.id
           const personTotal = totals[person.id] ?? 0
-
-          // Compute tip share for this person
-          const tipBase = Math.floor(tipCents / people.length)
-          const tipRemainder = tipCents % people.length
-          const tipShare = tipBase + (personIndex < tipRemainder ? 1 : 0)
-
-          // Items this person has a share in
-          const personItems = items.filter(
-            (item) =>
-              (assignments[item.id] ?? []).includes(person.id)
+          const personItems = items.filter((item) =>
+            (assignments[item.id] ?? []).includes(person.id)
           )
 
           return (
@@ -134,39 +115,27 @@ export function ResultsStep() {
                 className="cursor-pointer px-4 py-3 gap-0"
                 onClick={() => handleCardClick(person.id)}
               >
-                {/* Card header row */}
                 <div className="flex items-center gap-3">
-                  {/* Avatar circle */}
                   <div
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[person.colorIndex]}`}
                     aria-hidden="true"
                   >
                     {person.name.charAt(0).toUpperCase()}
                   </div>
-
-                  {/* Name + total */}
                   <div className="flex flex-1 items-center justify-between">
-                    <span className="text-[20px] font-semibold">
-                      {person.name}
-                    </span>
-                    <span
-                      className={`text-[28px] font-semibold text-amber-600`}
-                    >
+                    <span className="text-[20px] font-semibold">{person.name}</span>
+                    <span className="text-[28px] font-semibold text-amber-600">
                       {formatCents(personTotal)}
                     </span>
                   </div>
-
-                  {/* Chevron */}
                   <ChevronDown
                     size={20}
                     className={`shrink-0 text-zinc-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                   />
                 </div>
 
-                {/* Expanded content */}
                 {isExpanded && (
                   <div className="mt-3 flex flex-col gap-2">
-                    {/* Item lines */}
                     {personItems.map((item) => {
                       const share = personItemShare(item, person.id, assignments)
                       return (
@@ -179,16 +148,7 @@ export function ResultsStep() {
                         </div>
                       )
                     })}
-
-                    {/* Tip share line */}
-                    <div className="flex justify-between text-[14px] text-zinc-600">
-                      <span>Tip</span>
-                      <span>{formatCents(tipShare)}</span>
-                    </div>
-
                     <Separator />
-
-                    {/* Line total */}
                     <div className="flex justify-between text-[14px] font-semibold">
                       <span>Total</span>
                       <span>{formatCents(personTotal)}</span>
@@ -201,7 +161,6 @@ export function ResultsStep() {
         })}
       </ul>
 
-      {/* Unclaimed items section (D-13) */}
       {(() => {
         const unclaimedItems = items.filter(
           (i) => !(assignments[i.id] && assignments[i.id].length > 0)
@@ -223,7 +182,6 @@ export function ResultsStep() {
         )
       })()}
 
-      {/* Fixed bottom strip */}
       <div
         className="fixed bottom-0 left-0 right-0 flex flex-col gap-3 bg-zinc-100 dark:bg-zinc-900 p-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
@@ -249,14 +207,11 @@ export function ResultsStep() {
               </>
             )}
           </Button>
-          <Button
-            variant="outline"
-            onClick={reset}
-            className="h-12 flex-1"
-          >
+          <Button variant="outline" onClick={reset} className="h-12 flex-1">
             Start over
           </Button>
         </div>
+        <ShareLinkButton />
       </div>
     </div>
   )

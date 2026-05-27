@@ -7,7 +7,7 @@ interface WizardShellProps {
   children: React.ReactNode
 }
 
-const STEP_LABELS = ['Add People', 'Add Items', 'Assign / Share', 'Tip', 'Results']
+const STEP_LABELS = ['Add People', 'Add Items', 'Assign / Share', 'Results']
 
 export function WizardShell({ children }: WizardShellProps) {
   const step = useBillStore((s) => s.step)
@@ -24,11 +24,11 @@ export function WizardShell({ children }: WizardShellProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const handleHashChange = () => {
-      const match = window.location.hash.match(/#step-([1-5])/)
+      const match = window.location.hash.match(/#step-([1-4])/)
       if (match) {
         const num = Number(match[1])
-        if (num >= 1 && num <= 5) {
-          setStep(num as 1 | 2 | 3 | 4 | 5)
+        if (num >= 1 && num <= 4) {
+          setStep(num as 1 | 2 | 3 | 4)
         }
       }
     }
@@ -37,8 +37,11 @@ export function WizardShell({ children }: WizardShellProps) {
   }, [setStep])
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-background" style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
-      {/* Progress strip — 4px tall per UI-SPEC */}
+    <div
+      className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-background"
+      style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}
+    >
+      {/* Progress strip — 4px tall, 4 segments */}
       <div className="flex h-1 w-full px-5">
         {STEP_LABELS.map((_, idx) => (
           <div
