@@ -64,3 +64,49 @@ export function computePersonTotals(
 
   return totals
 }
+
+/**
+ * Phase 6 proportional share for a single person, derived from the multi-claimant
+ * claims model. Formula (D-03):
+ *   share = round(item.priceCents * myQty / totalClaimedQty)
+ * If totalClaimedQty is 0, the item contributes nothing (no division by zero).
+ * Per-person tip is added by the caller via the tipCents arg (D-07).
+ */
+export function computePersonShareFromClaims(
+  personId: PersonId,
+  items: Item[],
+  claimsItems: Record<ItemId, Record<PersonId, { qty: number }>>,
+  tipCents: number
+): {
+  itemSubtotal: number
+  tip: number
+  total: number
+  lineItems: Array<{ item: Item; shareCents: number }>
+} {
+  const lineItems: Array<{ item: Item; shareCents: number }> = []
+  let itemSubtotal = 0
+
+  for (const item of items) {
+    const claimsForItem = claimsItems[item.id] ?? {}
+    const myEntry = claimsForItem[personId]
+    const myQty = myEntry?.qty ?? 0
+    if (myQty === 0) continue
+
+    const totalQty = Object.values(claimsForItem).reduce(
+      (sum, entry) => sum + (entry?.qty ?? 0),
+      0
+    )
+    if (totalQty === 0) continue // defense-in-depth (Pitfall 2)
+
+    const shareCents = Math.round((item.priceCents * myQty) / totalQty)
+    itemSubtotal += shareCents
+    lineItems.push({ item, shareCents })
+  }
+
+  return {
+    itemSubtotal,
+    tip: tipCents,
+    total: itemSubtotal + tipCents,
+    lineItems,
+  }
+}

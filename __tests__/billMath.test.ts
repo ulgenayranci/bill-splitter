@@ -5,6 +5,7 @@ import {
   computeSubtotalCents,
   computeTipCents,
   computePersonTotals,
+  computePersonShareFromClaims,
 } from '@/lib/billMath'
 import type { Item, Person } from '@/stores/useBillStore'
 
@@ -141,5 +142,74 @@ describe('computePersonTotals', () => {
     // Just verify conservation
     const sum = Object.values(totals).reduce((s, v) => s + v, 0)
     expect(sum).toBe(1000 + tipTotal)
+  })
+})
+
+describe('computePersonShareFromClaims', () => {
+  const makeItem = (id: string, priceCents: number, quantity = 1): Item => ({
+    id, name: id, priceCents, quantity,
+  })
+
+  it('single claimant qty=1: returns full price', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r.itemSubtotal).toBe(1000)
+    expect(r.total).toBe(1000)
+    expect(r.lineItems).toHaveLength(1)
+    expect(r.lineItems[0].shareCents).toBe(1000)
+  })
+
+  it('two claimants qty=1 each: equal split', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r.itemSubtotal).toBe(500)
+  })
+
+  it('qty=2 of total qty=3: 2/3 of price', () => {
+    const items = [makeItem('i1', 900, 3)]
+    const claims = { i1: { p1: { qty: 2 }, p2: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r.itemSubtotal).toBe(600)
+  })
+
+  it('zero claimants on item: contributes nothing (no divide by zero)', () => {
+    const items = [makeItem('i1', 500)]
+    const claims = {}
+    const r = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r.itemSubtotal).toBe(0)
+    expect(r.lineItems).toHaveLength(0)
+  })
+
+  it("person didn't claim: lineItems empty", () => {
+    const items = [makeItem('i1', 500)]
+    const claims = { i1: { p2: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r.itemSubtotal).toBe(0)
+    expect(r.lineItems).toHaveLength(0)
+  })
+
+  it('tip added to subtotal', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 180)
+    expect(r.tip).toBe(180)
+    expect(r.total).toBe(1180)
+  })
+
+  it('proportional rounding: 3-way share of 1000 → 333 per person', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r.itemSubtotal).toBe(333)
+  })
+
+  it('no tax: total === itemSubtotal + tip only', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 } } }
+    const r = computePersonShareFromClaims('p1', items, claims, 200)
+    expect(r.total).toBe(r.itemSubtotal + r.tip)
+    expect(r.total).toBe(1200)
   })
 })
