@@ -35,7 +35,27 @@ findings:
   warning: 9
   info: 3
   total: 17
-status: issues_found
+status: fixes_applied
+fixed_at: 2026-05-27T00:00:00Z
+fixes_applied:
+  - CR-01
+  - CR-02
+  - CR-03
+  - CR-04
+  - CR-05
+  - WR-01
+  - WR-02
+  - WR-03
+  - WR-04
+  - WR-05
+  - WR-06
+  - WR-07
+  - WR-08
+  - WR-09
+fixes_not_applied:
+  - IN-01
+  - IN-02
+  - IN-03
 ---
 
 # Phase 06: Code Review Report
