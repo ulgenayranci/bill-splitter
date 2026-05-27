@@ -70,17 +70,27 @@ export function EditRequestForm({
     setError(null)
     setSubmitting(true)
     try {
+      // WR-09: assert parseCents returns a valid value before submitting.
+      // The submit button should already be disabled when prices are invalid,
+      // but using ?? 0 as a fallback would silently send priceCents:0 if the
+      // guard logic ever diverges from parseCents in a future change.
       let payload: Record<string, unknown>
       if (type === 'add') {
-        payload = {
-          name: name.trim(),
-          priceCents: parseCents(priceText) ?? 0,
-          quantity,
+        const priceCents = parseCents(priceText)
+        if (priceCents === null) {
+          setError('Invalid price — please enter a valid amount')
+          return
         }
+        payload = { name: name.trim(), priceCents, quantity }
       } else if (type === 'remove') {
         payload = { itemId }
       } else if (type === 'edit_price') {
-        payload = { itemId, newPriceCents: parseCents(newPriceText) ?? 0 }
+        const newPriceCents = parseCents(newPriceText)
+        if (newPriceCents === null) {
+          setError('Invalid price — please enter a valid amount')
+          return
+        }
+        payload = { itemId, newPriceCents }
       } else {
         payload = { itemId, newName: newNameText.trim() }
       }

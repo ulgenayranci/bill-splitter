@@ -42,10 +42,13 @@ export function TipScreen({
     setCustomPercentText(String(percent))
   }
 
+  // WR-08: cap custom tip at 100% to prevent nonsensical values being sent to the server.
+  const MAX_TIP_PERCENT = 100
+
   function applyCustom(text: string) {
     setCustomPercentText(text)
     const parsed = Number(text)
-    if (Number.isFinite(parsed) && parsed >= 0) {
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= MAX_TIP_PERCENT) {
       const cents = Math.round((itemSubtotalCents * parsed) / 100)
       setTipCents(cents)
     } else if (text === '') {

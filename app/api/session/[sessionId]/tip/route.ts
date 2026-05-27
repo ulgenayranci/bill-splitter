@@ -26,6 +26,12 @@ export async function POST(
   if (typeof tipCents !== 'number' || !Number.isInteger(tipCents) || tipCents < 0) {
     return NextResponse.json({ error: 'Invalid tipCents: must be integer >= 0' }, { status: 400 })
   }
+  // WR-08: server-side cap to prevent overflow and nonsensical tip amounts.
+  // 100_000 cents = $1,000 — a generous upper bound for any real restaurant bill.
+  const MAX_TIP_CENTS = 100_000
+  if (tipCents > MAX_TIP_CENTS) {
+    return NextResponse.json({ error: 'tipCents exceeds maximum allowed value' }, { status: 400 })
+  }
 
   try {
     const session = await redis.get<SessionPayload>(`session:${sessionId}`)
