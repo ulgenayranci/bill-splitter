@@ -1,5 +1,9 @@
 'use client'
 
+// Phase 6 (D-13): Identity-only picker. Host is NOT pre-locked — host identity
+// derives from URL hostToken match in CollaborativeClaimingView, not from being
+// the first person in session.people. No 'taken by host' special treatment.
+
 import { Card } from '@/components/ui/card'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'

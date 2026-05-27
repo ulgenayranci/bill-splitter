@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import type { SessionPayload } from '@/lib/sessionSchema'
@@ -9,13 +9,16 @@ const mockSession: SessionPayload = {
     { id: 'p2', name: 'Bob', colorIndex: 1 },
     { id: 'p3', name: 'Carol', colorIndex: 2 },
   ],
-  items: [{ id: 'i1', name: 'Pizza', priceCents: 1500 }],
-  tipPercent: 18,
+  items: [{ id: 'i1', name: 'Pizza', priceCents: 1500, quantity: 1 }],
+  hostToken: 'host-token-abc',
   claims: {
     items: {},
     personSlots: { p2: true }, // Bob's slot is taken
     donePeople: {},
   },
+  tips: {},
+  editRequests: {},
+  disputes: {},
   createdAt: Date.now(),
 }
 
@@ -56,5 +59,13 @@ describe('PersonSlotPicker', () => {
     // Bob's slot is taken
     fireEvent.click(screen.getByLabelText(/Bob \(taken\)/i))
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('Test 5 (D-13): The first person in session.people is not pre-locked when their slot is unclaimed', () => {
+    // Default mockSession has only Bob's slot taken; Alice (index 0) is NOT taken
+    render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
+    const aliceCard = screen.getByLabelText(/Claim slot Alice/i)
+    expect(aliceCard.className).not.toMatch(/opacity-50/)
+    expect(aliceCard.getAttribute('aria-disabled')).not.toBe('true')
   })
 })
