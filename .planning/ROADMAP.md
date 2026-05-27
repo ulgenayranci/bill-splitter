@@ -114,7 +114,7 @@
   8. "I'm done" is a soft checkpoint — back button returns to claiming with full edit rights
   9. Each person sets their own tip (starts at 0%) independently after claiming
   10. Each person sees their own total immediately after tip confirmation — no waiting for others
-**Plans:** TBD
+**Plans:** 2/6 plans executed
 **UI hint**: yes
 
 ### Phase 5: Polish & Hardening
@@ -139,5 +139,5 @@
 | 2. OCR Pipeline | 3/3 | Complete | 2026-05-09 |
 | 3. AI Expansion + Disambiguation | 3/3 | Complete   | 2026-05-10 |
 | 4. Shareable Links | 0/3 | Not started | - |
-| 6. Collaborative Bill Claiming | 0/0 | Not started | - |
+| 6. Collaborative Bill Claiming | 2/6 | In Progress|  |
 | 5. Polish & Hardening | 0/2 | Not started | - |

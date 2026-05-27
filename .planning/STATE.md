@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-05-27T15:23:54.334Z"
+last_updated: "2026-05-27T15:29:11.926Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 21
-  completed_plans: 16
-  percent: 76
+  completed_plans: 17
+  percent: 81
 ---
 
 # Project State
@@ -31,11 +31,11 @@ progress:
 ## Current Position
 
 Phase: 06 (Collaborative Bill Claiming) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 **Status:** Ready to execute
 
 ```
-Progress: [████████░░] 76%
+Progress: [████████░░] 81%
 Phase 1 █████ Phase 2 █████ Phase 3 ░░░░░ Phase 4 ░░░░░ Phase 5
 ```
 
@@ -60,6 +60,7 @@ Phase 1 █████ Phase 2 █████ Phase 3 ░░░░░ Phase 4 
 | Phase 03 P02 | 4 min | 3 tasks | 3 files |
 | Phase 03 P03 | 12 min | 3 tasks | 4 files |
 | Phase 06 P01 | 442 | 4 tasks | 13 files |
+| Phase 06 P02 | 3 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Phase 1 █████ Phase 2 █████ Phase 3 ░░░░░ Phase 4 
 | D-09 fallback: soft GPT failures return 200 + empty displayName | Client falls back to AI's best guess pre-filling edit field — no dead-end error screen | Phase 3 |
 | act() required for harness state swap in jsdom tests | React 19 throws if state updates triggering re-renders are not wrapped in act(); the plan template omitted this — fixed in DisambiguationDialog tests | Phase 3 |
 | Menu photos discarded after /api/clarify call | Data URI created in handleMenuFileChange, sent once, never stored in Zustand (D-10 + T-03-CL-06) | Phase 3 |
+| redis.eval() Lua for atomic claim writes (not redis.multi) | multi() is NOT atomic on Upstash REST (RESEARCH Pitfall 1); Lua eval is required for concurrent claim safety | Phase 6 |
+| done route uses done: boolean (not undone: true) | Wave 0 test contract sends done:boolean; tests are ground truth over plan prose | Phase 6 |
+| Claim action defaults to 'qty' when itemId present | Wave 0 tests send { personId, itemId, qty } without action field; inference avoids 400 on valid bodies | Phase 6 |
 
 ### Architecture Commitments
 
@@ -109,7 +113,7 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-05-27T15:23:54.327Z
-**Stopped at:** Phase 5 UI-SPEC approved
-**Next action:** /gsd-verify-work (Phase 3 manual UAT: two-phase loading overlay, mobile camera open, full disambiguation flow)
-**Context notes:** Phase 3 complete. All 3 plans done. 151 tests passing, 0 regressions. Key deliverables: /api/clarify vision route, DisambiguationDialog 4-state machine, AddItemsStep routing predicate. OCR-04 requirement satisfied end-to-end.
+**Last session:** 2026-05-27T15:28:00Z
+**Stopped at:** Completed Phase 06 Plan 02
+**Next action:** Execute Phase 06 Plan 03 (new routes: tip, editRequest, dispute)
+**Context notes:** Phase 6 Plan 02 complete. All 4 Wave-1 route test files green (23/23). Key deliverables: hostToken minting in POST /api/session, redis.eval Lua atomic claim writes (QTY_CLAIM_SCRIPT + SLOT_CLAIM_SCRIPT), soft-checkpoint done route with done:boolean toggle.
