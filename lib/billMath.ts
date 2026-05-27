@@ -14,7 +14,14 @@ export function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
 }
 
-/** Sum of all item priceCents. */
+/**
+ * Sum of all item total prices.
+ *
+ * WR-03 / IN-02: `item.priceCents` is the **full line price** for the item (not per-unit).
+ * For a single-qty item this equals the unit price. For multi-qty items, the OCR pipeline
+ * and `addItem` store both store the total line price (e.g., 3 beers × $5 → priceCents=1500).
+ * This function intentionally does NOT multiply by `item.quantity` — that would double-count.
+ */
 export function computeSubtotalCents(items: Item[]): number {
   return items.reduce((s, i) => s + i.priceCents, 0)
 }
@@ -69,6 +76,13 @@ export function computePersonTotals(
  * Phase 6 proportional share for a single person, derived from the multi-claimant
  * claims model. Formula (D-03):
  *   share = round(item.priceCents * myQty / totalClaimedQty)
+ *
+ * WR-03: `item.priceCents` is the **full line price** (not per-unit). For a 3-qty item
+ * worth $15 total, priceCents=1500. If 2 of 3 units are claimed by this person:
+ *   share = round(1500 * 2 / 3) = 1000 ✓
+ * This is correct because priceCents already represents the total, not a unit price.
+ * Do NOT multiply by item.quantity here — that would over-charge proportionally.
+ *
  * If totalClaimedQty is 0, the item contributes nothing (no division by zero).
  * Per-person tip is added by the caller via the tipCents arg (D-07).
  */

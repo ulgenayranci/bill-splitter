@@ -38,7 +38,7 @@ export function PersonSlotPicker({ session, onSelect }: PersonSlotPickerProps) {
                 ].join(' ')}
               >
                 <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[person.colorIndex]}`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[person.colorIndex % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
                   aria-hidden="true"
                 >
                   {person.name.charAt(0).toUpperCase()}

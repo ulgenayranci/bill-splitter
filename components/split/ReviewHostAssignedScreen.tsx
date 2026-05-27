@@ -201,14 +201,29 @@ export function ReviewHostAssignedScreen({
         className="fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] border-t border-border bg-background px-6 py-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
-        <Button
-          type="button"
-          className="h-12 w-full bg-amber-600 hover:bg-amber-700"
-          onClick={onAcceptAll}
-          aria-label="Accept all and continue"
-        >
-          Accept all and continue
-        </Button>
+        {/* WR-05: disable "Accept all" while any dispute is pending to prevent advancing
+            with unresolved contests. The per-item isDisputePending state is the source of truth. */}
+        {Object.keys(pendingDisputeByItem).length > 0 ? (
+          <Button
+            type="button"
+            className="h-12 w-full"
+            disabled
+            aria-label="Waiting for host to resolve disputes"
+            data-testid="accept-all-waiting"
+          >
+            Waiting for host…
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+            onClick={onAcceptAll}
+            aria-label="Accept all and continue"
+            data-testid="accept-all-button"
+          >
+            Accept all and continue
+          </Button>
+        )}
       </div>
     </main>
   )
