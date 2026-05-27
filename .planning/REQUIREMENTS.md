@@ -30,7 +30,7 @@
 ### Results
 
 - [x] **RESULTS-01**: App shows final breakdown of what each person owes
-- [ ] **RESULTS-02**: User can share a link so each person claims their own items on their own phone
+- [x] **RESULTS-02**: User can share a link so each person claims their own items on their own phone
 
 ---
 
@@ -69,5 +69,5 @@
 | OCR-03 | Phase 2 | Complete |
 | OCR-02 | Phase 3 | Complete |
 | OCR-04 | Phase 3 | Complete |
-| RESULTS-02 | Phase 4 | pending |
+| RESULTS-02 | Phase 4 | Complete |
 | ITEMS-04 | Phase 5 | pending |

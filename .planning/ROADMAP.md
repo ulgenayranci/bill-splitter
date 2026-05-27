@@ -15,6 +15,7 @@
 - [x] **Phase 2: OCR Pipeline** - Photo capture, GPT-4o-mini extraction, and editable item confirmation *(completed 2026-05-09)*
 - [x] **Phase 3: AI Expansion + Disambiguation** - Abbreviation expansion, confidence display, and menu photo / manual fallback (completed 2026-05-10)
 - [ ] **Phase 4: Shareable Links** - Session API, Upstash Redis, and per-person item claiming via shared URL
+- [ ] **Phase 6: Collaborative Bill Claiming** - Full redesign: real-time collaborative claiming, shared items, quantity stepper, host approval flow, per-person tips
 - [ ] **Phase 5: Polish & Hardening** - Unassigned-item warnings, mobile UX, error handling, and copy summary
 
 ---
@@ -97,6 +98,25 @@
   - [x] 04-03-PLAN.md — Client vertical slice: ShareLinkButton, HostWaitingScreen (SWR 3s polling), /split/[sessionId] page, PersonSlotPicker, ClaimableItemCard (D-08 taken-by dimming), GuestDoneScreen (D-11 personal total), SessionExpiredScreen (RESULTS-02)
 **UI hint**: yes
 
+### Phase 6: Collaborative Bill Claiming
+**Goal**: All participants — including the host — join the same live session and simultaneously claim what they ordered, with quantity support, shared items, host approval for edits, and per-person tips.
+**Mode:** mvp
+**Depends on**: Phase 4
+**Requirements**: RESULTS-02
+**Success Criteria** (what must be TRUE):
+  1. Host is redirected to the shared session after generating the link (no separate waiting screen)
+  2. Host's link includes a durable token so host privileges survive browser close/reopen
+  3. Any participant can claim any item; multiple people can share the same item with proportional cost split
+  4. Items with quantity > 1 (e.g. "Beer x3") show a stepper so each person sets how many they had
+  5. Unclaimed units are flagged to the host for manual assignment
+  6. Anyone can submit an edit request (add/remove/rename/reprice); host approves or rejects
+  7. Host-assigned items are flagged on the review screen before tip; person can dispute and bounce back to host
+  8. "I'm done" is a soft checkpoint — back button returns to claiming with full edit rights
+  9. Each person sets their own tip (starts at 0%) independently after claiming
+  10. Each person sees their own total immediately after tip confirmation — no waiting for others
+**Plans:** TBD
+**UI hint**: yes
+
 ### Phase 5: Polish & Hardening
 **Goal**: Edge cases are caught, the mobile experience is smooth, and users can share the result outside the app.
 **Mode:** mvp
@@ -119,4 +139,5 @@
 | 2. OCR Pipeline | 3/3 | Complete | 2026-05-09 |
 | 3. AI Expansion + Disambiguation | 3/3 | Complete   | 2026-05-10 |
 | 4. Shareable Links | 0/3 | Not started | - |
+| 6. Collaborative Bill Claiming | 0/0 | Not started | - |
 | 5. Polish & Hardening | 0/2 | Not started | - |
