@@ -69,7 +69,7 @@ describe('ShareLinkButton — Phase 6', () => {
     await waitFor(() => expect(routerPushMock).toHaveBeenCalled())
     expect(setSessionIdMock).toHaveBeenCalledWith('s1')
     expect(setHostTokenMock).toHaveBeenCalledWith('host-token-abc')
-    expect(routerPushMock).toHaveBeenCalledWith('/split/s1?hostToken=host-token-abc')
+    expect(routerPushMock).toHaveBeenCalledWith('/split/s1#hostToken=host-token-abc')
   })
 
   it('Test 4 (no setStep / setSyncStatus): router.push is used, not step/syncStatus', async () => {

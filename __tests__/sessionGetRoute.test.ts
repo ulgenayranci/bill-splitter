@@ -45,13 +45,16 @@ const baseSession = {
 }
 
 describe('GET /api/session/[sessionId]', () => {
-  it('Test 1: Returns 200 + full session JSON when redis.get returns a Phase 6 payload (with hostToken)', async () => {
+  it('Test 1: Returns 200 + session JSON with hostToken stripped (CR-01)', async () => {
     mockGet.mockResolvedValue(baseSession)
     const { status, json } = await callGET('test-session-id')
     expect(status).toBe(200)
-    expect((json as typeof baseSession).hostToken).toBe('host-token-abc')
+    // CR-01: hostToken must NOT be returned to clients — it's a host capability secret
+    expect((json as Record<string, unknown>).hostToken).toBeUndefined()
     expect((json as typeof baseSession).tips).toEqual({})
     expect((json as typeof baseSession).editRequests).toEqual({})
+    // Other safe fields should still be present
+    expect((json as typeof baseSession).people).toHaveLength(2)
   })
 
   it('Test 2: Returns 404 + { error: "Session not found" } when redis.get returns null', async () => {

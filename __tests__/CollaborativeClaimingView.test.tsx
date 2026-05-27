@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { CollaborativeClaimingView } from '@/app/split/[sessionId]/CollaborativeClaimingView'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import type { PublicSessionPayload } from '@/lib/sessionSchema'
 
 const mutateMock = vi.fn()
 const useSWRMock = vi.fn()
@@ -10,7 +10,9 @@ vi.mock('swr', () => ({
   mutate: (...args: unknown[]) => mutateMock(...args),
 }))
 
-const SESSION_FIXTURE: SessionPayload = {
+// CR-01: SESSION_FIXTURE uses PublicSessionPayload — no hostToken.
+// CR-05: host identity is derived from hostPersonId, not from comparing hostToken to URL param.
+const SESSION_FIXTURE: PublicSessionPayload = {
   people: [
     { id: 'p1', name: 'Alice', colorIndex: 0 },
     { id: 'p2', name: 'Bob', colorIndex: 1 },
@@ -20,7 +22,6 @@ const SESSION_FIXTURE: SessionPayload = {
     { id: 'i2', name: 'Pitcher', priceCents: 2400, quantity: 4 },
   ],
   claims: { items: {}, personSlots: {}, donePeople: {} },
-  hostToken: 'host-token-abc',
   hostPersonId: undefined,
   tips: {},
   editRequests: {},
@@ -28,44 +29,90 @@ const SESSION_FIXTURE: SessionPayload = {
   createdAt: Date.now(),
 }
 
+// HOST_SESSION_FIXTURE: has Alice (p1) as the identified host.
+// Used in tests that expect the host badge, FAB, and HostPanel to be visible.
+const HOST_SESSION_FIXTURE: PublicSessionPayload = {
+  ...SESSION_FIXTURE,
+  hostPersonId: 'p1',
+}
+
 describe('CollaborativeClaimingView', () => {
   beforeEach(() => {
     useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
-    mutateMock.mockResolvedValue(undefined)
+    mutateMock.mockResolvedValue(SESSION_FIXTURE)
   })
 
   afterEach(() => {
+    // Reset hash so host-token state doesn't leak between tests
+    window.location.hash = ''
     vi.unstubAllGlobals()
     vi.clearAllMocks()
     cleanup()
   })
 
-  async function selectAlice(hostTokenParam: string | null = null) {
+  /**
+   * selectAlice — renders the component and clicks Alice's slot.
+   *
+   * @param opts.asHost   - if true, sets window.location.hash to a valid hostToken
+   *                        and mocks SWR to return HOST_SESSION_FIXTURE (hostPersonId='p1').
+   * @param opts.session  - optional session override (merged with SESSION_FIXTURE).
+   */
+  async function selectAlice(opts: { asHost?: boolean; session?: Partial<PublicSessionPayload> } = {}) {
+    if (opts.asHost) {
+      // CR-05: token is now in URL fragment, not query param
+      window.location.hash = '#hostToken=host-token-abc'
+      useSWRMock.mockReturnValue({
+        data: opts.session ? { ...HOST_SESSION_FIXTURE, ...opts.session } : HOST_SESSION_FIXTURE,
+        error: undefined,
+        mutate: mutateMock,
+      })
+      mutateMock.mockResolvedValue(opts.session ? { ...HOST_SESSION_FIXTURE, ...opts.session } : HOST_SESSION_FIXTURE)
+    } else if (opts.session) {
+      useSWRMock.mockReturnValue({
+        data: { ...SESSION_FIXTURE, ...opts.session },
+        error: undefined,
+        mutate: mutateMock,
+      })
+      mutateMock.mockResolvedValue({ ...SESSION_FIXTURE, ...opts.session })
+    }
     const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', slotFetch)
-    render(<CollaborativeClaimingView sessionId="s1" hostTokenParam={hostTokenParam} />)
+    // CR-05: no hostTokenParam prop — component reads from window.location.hash
+    render(<CollaborativeClaimingView sessionId="s1" />)
     fireEvent.click(screen.getByRole('button', { name: /alice/i }))
     await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     return slotFetch
   }
 
-  it('Test 1: shows host badge when hostTokenParam matches session.hostToken', async () => {
-    await selectAlice('host-token-abc')
+  it('Test 1: shows host badge when hash contains hostToken and session.hostPersonId matches', async () => {
+    // CR-01/CR-05: isHost now derived from hostPersonId, not from session.hostToken comparison
+    await selectAlice({ asHost: true })
     expect(screen.getByTestId('host-badge')).toBeDefined()
   })
 
-  it('Test 2: hides host badge when hostTokenParam is null', async () => {
-    await selectAlice(null)
+  it('Test 2: hides host badge when no hash token (guest)', async () => {
+    await selectAlice()
     expect(screen.queryByTestId('host-badge')).toBeNull()
   })
 
-  it('Test 3: hides host badge when hostTokenParam does not match', async () => {
-    await selectAlice('wrong-token')
+  it('Test 3: hides host badge when session.hostPersonId does not match selectedPersonId', async () => {
+    // Even if hash has a token, isHost=false if hostPersonId points to a different person
+    window.location.hash = '#hostToken=host-token-abc'
+    useSWRMock.mockReturnValue({
+      data: { ...SESSION_FIXTURE, hostPersonId: 'p2' }, // Bob is host, not Alice
+      error: undefined,
+      mutate: mutateMock,
+    })
+    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', slotFetch)
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /alice/i }))
+    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     expect(screen.queryByTestId('host-badge')).toBeNull()
   })
 
-  it('Test 4: slot claim posts hostToken in body when hostTokenParam present', async () => {
-    const slotFetch = await selectAlice('host-token-abc')
+  it('Test 4: slot claim posts hostToken in body when hash contains hostToken', async () => {
+    const slotFetch = await selectAlice({ asHost: true })
     // The /claim call was the first fetch — inspect body
     const call = slotFetch.mock.calls[0]
     const init = call[1] as RequestInit
@@ -100,8 +147,8 @@ describe('CollaborativeClaimingView', () => {
     })
   })
 
-  // Updated Test 7: back from Tip without host items → POSTs undone:true and returns to claiming
-  it('Test 7 (back from Tip without host items): POSTs undone:true and returns to claiming', async () => {
+  // CR-04: was POSTs undone:true, now POSTs done:false
+  it('Test 7 (back from Tip without host items): POSTs done:false and returns to claiming', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
@@ -116,7 +163,9 @@ describe('CollaborativeClaimingView', () => {
       const lastCall = calls[calls.length - 1]
       const init = lastCall[1] as RequestInit
       const parsed = JSON.parse(init.body as string)
-      expect(parsed.undone).toBe(true)
+      // CR-04: must send done:false, not undone:true
+      expect(parsed.done).toBe(false)
+      expect(parsed.undone).toBeUndefined()
     })
   })
 
@@ -135,20 +184,19 @@ describe('CollaborativeClaimingView', () => {
     })
   })
 
-  it('Test 9 (FAB host-only): when hostTokenParam matches session.hostToken, FAB renders', async () => {
-    await selectAlice('host-token-abc')
+  it('Test 9 (FAB host-only): when hash has hostToken and hostPersonId matches, FAB renders', async () => {
+    await selectAlice({ asHost: true })
     expect(screen.getByTestId('host-panel-fab')).toBeDefined()
   })
 
-  it('Test 10 (FAB hidden for guests): when hostTokenParam is null, no FAB renders', async () => {
-    await selectAlice(null)
+  it('Test 10 (FAB hidden for guests): when no hash token, no FAB renders', async () => {
+    await selectAlice()
     expect(screen.queryByTestId('host-panel-fab')).toBeNull()
   })
 
   it('Test 11 (FAB badge): pendingCount reflects pending editRequests + unclaimed + disputes', async () => {
-    // Override the SWR mock to return a session with pending entries.
-    const sessionWithPending = {
-      ...SESSION_FIXTURE,
+    const sessionWithPending: PublicSessionPayload = {
+      ...HOST_SESSION_FIXTURE,
       editRequests: {
         r1: { personId: 'p1', type: 'remove', payload: { itemId: 'i1' }, status: 'pending', createdAt: 1 },
       },
@@ -157,19 +205,25 @@ describe('CollaborativeClaimingView', () => {
       },
     }
     useSWRMock.mockReturnValue({ data: sessionWithPending, error: undefined, mutate: mutateMock })
-    await selectAlice('host-token-abc')
+    mutateMock.mockResolvedValue(sessionWithPending)
+    window.location.hash = '#hostToken=host-token-abc'
+    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', slotFetch)
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /alice/i }))
+    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     // i1 (qty 1, claimed 0) + i2 (qty 4, claimed 0) = 2 unclaimed; + 1 edit + 1 dispute = 4
     expect(screen.getByTestId('host-panel-fab-badge').textContent?.trim()).toBe('4')
   })
 
   it('Test 12 (FAB opens HostPanel): tapping FAB shows host-panel', async () => {
-    await selectAlice('host-token-abc')
+    await selectAlice({ asHost: true })
     fireEvent.click(screen.getByTestId('host-panel-fab'))
     expect(screen.getByTestId('host-panel')).toBeDefined()
   })
 
   it('Test 13 (per-item pencil opens EditRequestForm in edit_price mode)', async () => {
-    await selectAlice(null)
+    await selectAlice()
     fireEvent.click(screen.getByTestId('edit-pencil-i1'))
     expect(screen.getByTestId('edit-request-form')).toBeDefined()
     // edit_price field set — newPriceCents input visible
@@ -177,16 +231,16 @@ describe('CollaborativeClaimingView', () => {
   })
 
   it('Test 14 (Add item button opens EditRequestForm in add mode)', async () => {
-    await selectAlice(null)
+    await selectAlice()
     fireEvent.click(screen.getByTestId('add-item-button'))
     expect(screen.getByTestId('edit-request-form')).toBeDefined()
     // add field set — item name input visible
     expect(screen.getByLabelText('Item name')).toBeDefined()
   })
 
-  // New Phase 6 tests
+  // WR-07: mutate() return value drives the host-assigned routing — not stale session closure.
   it("Test 15 (host-assigned items → Review): I'm done routes to ReviewHostAssignedScreen", async () => {
-    const sessionWithHost = {
+    const sessionWithHost: PublicSessionPayload = {
       ...SESSION_FIXTURE,
       claims: {
         ...SESSION_FIXTURE.claims,
@@ -195,8 +249,10 @@ describe('CollaborativeClaimingView', () => {
         },
       },
     }
+    // WR-07: mutateMock must return the updated session so handleDone sees host-assigned items
+    mutateMock.mockResolvedValue(sessionWithHost)
     useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice()
+    await selectAlice({ session: sessionWithHost })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
@@ -206,15 +262,16 @@ describe('CollaborativeClaimingView', () => {
   })
 
   it('Test 16 (Accept all → Tip): clicking Accept all transitions to TipScreen', async () => {
-    const sessionWithHost = {
+    const sessionWithHost: PublicSessionPayload = {
       ...SESSION_FIXTURE,
       claims: {
         ...SESSION_FIXTURE.claims,
         items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
       },
     }
+    mutateMock.mockResolvedValue(sessionWithHost)
     useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice()
+    await selectAlice({ session: sessionWithHost })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
@@ -225,16 +282,18 @@ describe('CollaborativeClaimingView', () => {
     })
   })
 
-  it('Test 17 (Back from Review → claiming with undone:true)', async () => {
-    const sessionWithHost = {
+  // CR-04: was checking undone:true, now checks done:false
+  it('Test 17 (Back from Review → claiming with done:false)', async () => {
+    const sessionWithHost: PublicSessionPayload = {
       ...SESSION_FIXTURE,
       claims: {
         ...SESSION_FIXTURE.claims,
         items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
       },
     }
+    mutateMock.mockResolvedValue(sessionWithHost)
     useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice()
+    await selectAlice({ session: sessionWithHost })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
@@ -245,7 +304,9 @@ describe('CollaborativeClaimingView', () => {
     await waitFor(() => {
       const lastCall = backFetch.mock.calls[backFetch.mock.calls.length - 1]
       const body = JSON.parse((lastCall[1] as RequestInit).body as string)
-      expect(body.undone).toBe(true)
+      // CR-04: must send done:false, not undone:true
+      expect(body.done).toBe(false)
+      expect(body.undone).toBeUndefined()
     })
   })
 
@@ -264,15 +325,16 @@ describe('CollaborativeClaimingView', () => {
   })
 
   it('Test 19 (Back from Tip with host items → Review, no /done POST)', async () => {
-    const sessionWithHost = {
+    const sessionWithHost: PublicSessionPayload = {
       ...SESSION_FIXTURE,
       claims: {
         ...SESSION_FIXTURE.claims,
         items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
       },
     }
+    mutateMock.mockResolvedValue(sessionWithHost)
     useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice()
+    await selectAlice({ session: sessionWithHost })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))

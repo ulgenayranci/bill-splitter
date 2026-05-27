@@ -100,7 +100,7 @@ describe('ReviewHostAssignedScreen', () => {
     expect(body).toEqual({ personId: 'p1', itemId: 'i1' })
     await waitFor(() => {
       expect(screen.getByTestId('review-pending-i1')).toBeDefined()
-      expect(screen.getByText(/Waiting for host/i)).toBeDefined()
+      const waitingEls = screen.getAllByText(/Waiting for host/i); expect(waitingEls.length).toBeGreaterThanOrEqual(1)
     })
   })
 

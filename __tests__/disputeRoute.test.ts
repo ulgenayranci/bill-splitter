@@ -37,7 +37,8 @@ async function callPOSTWithParams(sessionId: string, body: unknown): Promise<{ s
 const baseSession = {
   people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }, { id: 'p2', name: 'Bob', colorIndex: 1 }],
   items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
-  claims: { items: {}, personSlots: {}, donePeople: {} },
+  // CR-02: personSlots must be set for dispute/done/tip to succeed
+  claims: { items: {}, personSlots: { p1: true, p2: true }, donePeople: {} },
   hostToken: 'host-token-abc',
   hostPersonId: undefined,
   tips: {},
