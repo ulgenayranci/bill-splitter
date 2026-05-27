@@ -7,7 +7,7 @@ import type { Person, Item } from '@/stores/useBillStore'
 export const maxDuration = 10
 
 function isValidPeople(v: unknown): v is Person[] {
-  if (!Array.isArray(v)) return false
+  if (!Array.isArray(v) || v.length === 0) return false
   return v.every((p) => {
     if (!p || typeof p !== 'object') return false
     const r = p as Record<string, unknown>
@@ -20,7 +20,7 @@ function isValidPeople(v: unknown): v is Person[] {
 }
 
 function isValidItems(v: unknown): v is Item[] {
-  if (!Array.isArray(v)) return false
+  if (!Array.isArray(v) || v.length === 0) return false
   return v.every((i) => {
     if (!i || typeof i !== 'object') return false
     const r = i as Record<string, unknown>
@@ -28,7 +28,9 @@ function isValidItems(v: unknown): v is Item[] {
       typeof r.id === 'string' &&
       typeof r.name === 'string' &&
       Number.isInteger(r.priceCents) &&
-      (r.priceCents as number) > 0
+      (r.priceCents as number) > 0 &&
+      Number.isInteger(r.quantity) &&     // Phase 6: quantity required
+      (r.quantity as number) > 0
     )
   })
 }
@@ -48,27 +50,24 @@ export async function POST(request: Request) {
   if (!isValidItems(b.items)) {
     return NextResponse.json({ error: 'Invalid items' }, { status: 400 })
   }
-  const tipPercent = b.tipPercent
-  if (
-    typeof tipPercent !== 'number' ||
-    !Number.isFinite(tipPercent) ||
-    tipPercent < 0 ||
-    tipPercent > 999
-  ) {
-    return NextResponse.json({ error: 'Invalid tipPercent' }, { status: 400 })
-  }
+  // tipPercent intentionally not validated/stored — Phase 6 per-person tips (D-07)
 
   try {
     const sessionId = nanoid()
+    const hostToken = nanoid()                          // D-02: server-generated, 21-char URL-safe
     const payload: SessionPayload = {
       people: b.people,
       items: b.items,
-      tipPercent,
       claims: { items: {}, personSlots: {}, donePeople: {} },
+      hostToken,
+      hostPersonId: undefined,
+      tips: {},
+      editRequests: {},
+      disputes: {},
       createdAt: Date.now(),
     }
     await redis.set(`session:${sessionId}`, JSON.stringify(payload), { ex: 86400 })
-    return NextResponse.json({ sessionId })
+    return NextResponse.json({ sessionId, hostToken })
   } catch (err) {
     console.error('Session create error:', err)
     return NextResponse.json({ error: 'Session creation failed' }, { status: 500 })
