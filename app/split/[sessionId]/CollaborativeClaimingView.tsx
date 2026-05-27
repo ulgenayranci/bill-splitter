@@ -183,12 +183,13 @@ export function CollaborativeClaimingView({
         body: JSON.stringify({ personId: selectedPersonId, done: true }),
       })
       if (!res.ok) throw new Error(`done route returned ${res.status}`)
-      await mutate()
-      // Compute whether this person has any host-assigned claims
-      const hasHostAssigned = session.items.some((item) => {
-        const claim = session.claims?.items?.[item.id]?.[selectedPersonId]
+      // WR-07: read from the mutate() return value, not the stale `session` closure.
+      // `session` is captured at render time and doesn't reflect the post-mutate state.
+      const updated = await mutate()
+      const hasHostAssigned = updated?.items.some((item) => {
+        const claim = updated.claims?.items?.[item.id]?.[selectedPersonId]
         return claim?.assignedBy === 'host' && claim.qty > 0
-      })
+      }) ?? false
       setPhase(hasHostAssigned ? 'review' : 'tip')
     } catch (err) {
       console.error('Done submission failed:', err)
@@ -199,14 +200,20 @@ export function CollaborativeClaimingView({
   async function handleBackToClaiming() {
     if (!selectedPersonId) return
     try {
-      await fetch(`/api/session/${sessionId}/done`, {
+      // CR-04: send `done: false` (not `undone: true`). The route requires a boolean `done`
+      // field and returns 400 if it is absent. Sending `undone: true` silently failed,
+      // leaving the server state as donePeople[personId]=true while the UI showed 'claiming'.
+      const res = await fetch(`/api/session/${sessionId}/done`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personId: selectedPersonId, undone: true }),
+        body: JSON.stringify({ personId: selectedPersonId, done: false }),
       })
+      if (!res.ok) {
+        console.error('handleBackToClaiming: done route returned', res.status)
+      }
       await mutate()
-    } catch {
-      // best-effort — local state still flips back
+    } catch (err) {
+      console.error('handleBackToClaiming failed:', err)
     }
     setPhase('claiming')
   }
