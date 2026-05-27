@@ -1,0 +1,58 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-03",
+  "levels": [
+    {
+      "id": "3",
+      "name": "Build with GSD",
+      "description": "Learn spec-driven development with the GSD framework",
+      "modules": [
+        {
+          "id": "3.1",
+          "title": "What is GSD",
+          "slug": "what-is-gsd",
+          "path": "lesson-modules/3.1-what-is-gsd/CLAUDE.md",
+          "command": "start-3-1",
+          "description": "Context rot, fresh subagents, and installing GSD",
+          "estimatedMinutes": 15
+        },
+        {
+          "id": "3.2",
+          "title": "Start a Project",
+          "slug": "start-project",
+          "path": "lesson-modules/3.2-start-project/CLAUDE.md",
+          "command": "start-3-2",
+          "description": "Run /gsd:new-project and tour the .planning folder",
+          "estimatedMinutes": 15
+        },
+        {
+          "id": "3.3",
+          "title": "Plan the Build",
+          "slug": "plan-build",
+          "path": "lesson-modules/3.3-plan-build/CLAUDE.md",
+          "command": "start-3-3",
+          "description": "Run /gsd:plan-phase and understand atomic plans",
+          "estimatedMinutes": 15
+        },
+        {
+          "id": "3.4",
+          "title": "Execute",
+          "slug": "execute",
+          "path": "lesson-modules/3.4-execute/CLAUDE.md",
+          "command": "start-3-4",
+          "description": "Run /gsd:execute-phase and watch fresh subagents build",
+          "estimatedMinutes": 20
+        },
+        {
+          "id": "3.5",
+          "title": "Verify & Beyond",
+          "slug": "verify-beyond",
+          "path": "lesson-modules/3.5-verify-beyond/CLAUDE.md",
+          "command": "start-3-5",
+          "description": "Verification, quick mode, and when to use GSD",
+          "estimatedMinutes": 15
+        }
+      ]
+    }
+  ]
+}

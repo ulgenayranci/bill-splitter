@@ -215,6 +215,7 @@ export function AddItemsStep() {
             name: ei.displayName,
             rawName: ei.rawName,
             priceCents: ei.priceCents,
+            quantity: 1,
             confidence: ei.confidence,
           })),
         )

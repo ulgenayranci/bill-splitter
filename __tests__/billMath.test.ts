@@ -84,7 +84,7 @@ describe('computeTipCents', () => {
 
 describe('computePersonTotals', () => {
   const makePerson = (id: string): Person => ({ id, name: id, colorIndex: 0 })
-  const makeItem = (id: string, priceCents: number): Item => ({ id, name: id, priceCents })
+  const makeItem = (id: string, priceCents: number): Item => ({ id, name: id, priceCents, quantity: 1 })
 
   it('single item assigned to one person: credits full price', () => {
     const people = [makePerson('alice')]

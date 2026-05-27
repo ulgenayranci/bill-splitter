@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Pencil, Plus, ClipboardList } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
-import type { PublicSessionPayload } from '@/lib/sessionSchema'
+import type { PublicSessionPayload, SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
@@ -135,13 +135,13 @@ export function CollaborativeClaimingView({
     } else {
       claimsForItem[personId] = { qty: newQty, assignedBy: 'self' as const }
     }
-    const nextItems: SessionPayload['claims']['items'] = { ...session.claims?.items }
+    const nextItems: PublicSessionPayload['claims']['items'] = { ...session.claims?.items }
     if (Object.keys(claimsForItem).length === 0) {
       delete nextItems[itemId]
     } else {
       nextItems[itemId] = claimsForItem
     }
-    const optimistic: SessionPayload = {
+    const optimistic: PublicSessionPayload = {
       ...session,
       claims: {
         items: nextItems,

@@ -14,9 +14,8 @@ updated: 2026-05-23T16:30:00Z
 
 ### 1. Host share flow
 expected: POST to Redis succeeds, share URL appears in HostWaitingScreen, clipboard copy button copies URL to clipboard
-result: blocked
-blocked_by: third-party
-reason: "Requires Vercel deployment with Upstash Redis configured. Will test on live URL."
+result: pass
+tested: 2026-05-26
 
 ### 2. Guest claiming flow
 expected: PersonSlotPicker shows taken slots dimmed, ClaimableItemCard cycles through 3 states, GuestDoneScreen shows only the guest's own total (not full bill)
@@ -39,10 +38,10 @@ reason: "Requires Vercel deployment with Upstash Redis configured. Will test on 
 ## Summary
 
 total: 4
-passed: 0
+passed: 1
 issues: 0
 pending: 0
 skipped: 0
-blocked: 4
+blocked: 3
 
 ## Gaps

@@ -9,6 +9,7 @@ function lowItem(overrides: Partial<Item> = {}): Item {
     id: 'i1',
     name: 'Chicken Sandwich',
     priceCents: 1299,
+    quantity: 1,
     rawName: 'CHKN SAND',
     confidence: 'low',
     ...overrides,

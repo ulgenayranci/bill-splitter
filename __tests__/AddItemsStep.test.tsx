@@ -299,7 +299,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('renders a "Review" badge for items with confidence "low"', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'BRGR', confidence: 'low' },
+      { id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1, rawName: 'BRGR', confidence: 'low' },
     ])
     renderInProvider(<AddItemsStep />)
     expect(screen.getByText(/^Review$/)).toBeDefined()
@@ -307,7 +307,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('renders a "Review" badge for items with confidence "ambiguous"', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Mystery', priceCents: 500, rawName: 'XYZ', confidence: 'ambiguous' },
+      { id: 'i1', name: 'Mystery', priceCents: 500, quantity: 1, rawName: 'XYZ', confidence: 'ambiguous' },
     ])
     renderInProvider(<AddItemsStep />)
     expect(screen.getByText(/^Review$/)).toBeDefined()
@@ -315,7 +315,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('does NOT render a "Review" badge for items with confidence "high"', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Coke', priceCents: 250, confidence: 'high' },
+      { id: 'i1', name: 'Coke', priceCents: 250, quantity: 1, confidence: 'high' },
     ])
     renderInProvider(<AddItemsStep />)
     expect(screen.queryByText(/^Review$/)).toBeNull()
@@ -365,7 +365,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('tapping a Review item row opens the disambiguation dialog', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'BRGR', confidence: 'low' },
+      { id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1, rawName: 'BRGR', confidence: 'low' },
     ])
     renderInProvider(<AddItemsStep />)
     const row = screen.getByTestId('item-row-0')
@@ -375,7 +375,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('disambiguation dialog presents both "Type name" and "Take menu photo" buttons', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'BRGR', confidence: 'low' },
+      { id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1, rawName: 'BRGR', confidence: 'low' },
     ])
     renderInProvider(<AddItemsStep />)
     fireEvent.click(screen.getByTestId('item-row-0'))
@@ -385,7 +385,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('"Type name" reveals an editable input pre-filled with the current name', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Chicken Sandwich', priceCents: 1299, rawName: 'CHKN SAND', confidence: 'low' },
+      { id: 'i1', name: 'Chicken Sandwich', priceCents: 1299, quantity: 1, rawName: 'CHKN SAND', confidence: 'low' },
     ])
     renderInProvider(<AddItemsStep />)
     fireEvent.click(screen.getByTestId('item-row-0'))
@@ -396,7 +396,7 @@ describe('AddItemsStep — Phase 3 expansion + disambiguation', () => {
 
   it('saving an edited name in the dialog calls updateItem and dismisses the Review badge', () => {
     useBillStore.getState().setItems([
-      { id: 'i1', name: 'Chicken Sandwich', priceCents: 1299, rawName: 'CHKN SAND', confidence: 'low' },
+      { id: 'i1', name: 'Chicken Sandwich', priceCents: 1299, quantity: 1, rawName: 'CHKN SAND', confidence: 'low' },
     ])
     renderInProvider(<AddItemsStep />)
     fireEvent.click(screen.getByTestId('item-row-0'))

@@ -115,3 +115,15 @@ None — no external service configuration required.
 ---
 *Phase: 06-collaborative-bill-claiming*
 *Completed: 2026-05-27*
+
+## Self-Check: PASSED
+
+- components/split/HostPanel.tsx: FOUND
+- components/split/EditRequestForm.tsx: FOUND
+- app/split/[sessionId]/CollaborativeClaimingView.tsx: FOUND
+- .planning/phases/06-collaborative-bill-claiming/06-05-SUMMARY.md: FOUND
+- Commit a039019 (Task 1): FOUND
+- Commit c281fff (Task 2): FOUND
+- Commit 2285759 (Task 3): FOUND
+- Commit 15af5e1 (metadata): FOUND
+- All 36 component tests: PASSED

@@ -681,22 +681,23 @@ mockEval.mockResolvedValue('OK')
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Lua + cjson on Upstash**
+1. **Lua + cjson on Upstash** — RESOLVED via Wave 0 smoke test
    - What we know: `@upstash/redis` exports `EvalCommand`; Upstash advertises Redis compatibility; Lua is standard Redis
    - What's unclear: Does Upstash's REST API pass Lua scripts to real Redis with `cjson` available, or does it have a restricted scripting environment?
-   - Recommendation: Write a smoke test in Wave 0 that runs a minimal `cjson.decode/encode` Lua script against the actual Upstash instance. If `cjson` is unavailable, fallback is optimistic retry (GET → check → SET with conflict detection in JavaScript).
+   - **Resolution:** Plan 01 Task 5 (new) adds `lib/lua-smoke.test.ts` that runs `redis.eval("return cjson.encode({ok=1})", 0)` against the real Upstash instance during the Wave 0 test pass. If cjson is unavailable the smoke test fails loudly with instructions to switch the claim/resolve-* routes to a GET → compare → SET fallback. This gate runs BEFORE Plan 02 implements any Lua-backed write path, so the architectural risk is closed before code depending on it lands.
+   - Fallback (if cjson unavailable): optimistic retry loop (GET → check → SET with conflict detection in JavaScript) — documented in Plan 02 as the contingency path. Not implemented unless the smoke test fails.
 
-2. **Qty stepper max enforcement**
+2. **Qty stepper max enforcement** — RESOLVED in Plan 02
    - What we know: Max = `item.quantity` (D-04). Person can claim 0 to N where N = item.quantity.
    - What's unclear: Should the server enforce `sum(all claimed qty for itemId) <= item.quantity`? Or is over-claiming allowed (host sees flagged unclaimed units if under; no flag if over)?
-   - Recommendation: Server should enforce `my_qty <= item.quantity` per person. Total claimed > quantity is allowed (multiple people legitimately ordered the same beer). Flag condition is `sum < quantity` (under-claimed), not `sum > quantity`.
+   - **Resolution:** Plan 02's claim route enforces `my_qty <= item.quantity` per person server-side (returns 400 on violation). Total claimed > quantity is allowed (multiple people legitimately ordered the same beer). The unclaimed-flag condition in HostPanel (Plan 05) is `sum < quantity` (under-claimed only), never `sum > quantity`. ClaimableItemCard's stepper (Plan 04) also clamps locally at `[0, item.quantity]` for fast feedback.
 
-3. **Edit request: "remove" type — what happens to existing claims on that item?**
+3. **Edit request: "remove" type — what happens to existing claims on that item?** — RESOLVED in Plan 03
    - What we know: Remove request removes the item from `session.items`. [CONTEXT.md D-11]
    - What's unclear: When the host approves a remove request, what happens to `claims.items[itemId]`? Should existing claims be deleted?
-   - Recommendation: Yes — host approval of a "remove" request should atomically delete both `session.items[idx]` and `session.claims.items[itemId]`. Implement in the `resolve-edit` route.
+   - **Resolution:** Plan 03 Task 2 (`resolve-edit` route) atomically deletes both `session.items[idx]` and `session.claims.items[itemId]` when approving a remove request. Test 2 of `__tests__/resolveEditRoute.test.ts` (scaffolded in Plan 01 Task 4) verifies the dual deletion: "approve remove also deletes session.claims.items[itemId] alongside removing from session.items".
 
 ---
 
@@ -733,6 +734,7 @@ Step 2.6: SKIPPED (no new external dependencies — all required tools already i
 | RESULTS-02 | PersonTipScreen: sets tip cents in Redis and shows personal total | component | `npx vitest run PersonTipScreen` | ❌ Wave 0 — new |
 | RESULTS-02 | ClaimableItemCard: qty stepper shows for item.quantity > 1; clamps to [0, quantity] | component | `npx vitest run ClaimableItemCard` | ❌ Wave 0 — rewrite |
 | RESULTS-02 | `computePersonShareFromClaims`: proportional math conserves cents, handles zero claims | unit | `npx vitest run billMath` | ❌ Wave 0 — extend |
+| RESULTS-02 | Lua + cjson smoke test passes against real Upstash before any claim/resolve-* writes land | integration | `npx vitest run lua-smoke` | ❌ Wave 0 — NEW (resolves Open Question 1) |
 
 ### Sampling Rate
 - **Per task commit:** `npx vitest run --reporter=verbose`
@@ -756,6 +758,7 @@ Step 2.6: SKIPPED (no new external dependencies — all required tools already i
 - [ ] New `__tests__/HostPanel.test.tsx` — edit requests, unclaimed units, disputes
 - [ ] New `__tests__/PersonDoneReviewScreen.test.tsx`
 - [ ] Delete `__tests__/HostWaitingScreen.test.tsx` (component deleted)
+- [ ] New `lib/lua-smoke.test.ts` — Lua + cjson availability gate against real Upstash (Open Question 1 resolution)
 
 **Note on pre-existing test failures:** `npx vitest run` currently shows 16 failures in `AddItemsStep`, `AssignItemsStep`, and `SetTipStep` tests. These are pre-existing failures unrelated to Phase 6. Wave 0 should not introduce new failures but need not fix the pre-existing ones (they are a separate concern). [VERIFIED: running test suite during research]
 

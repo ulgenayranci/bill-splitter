@@ -22,7 +22,7 @@ export interface HostPanelProps {
   sessionId: string
   hostToken: string
   peopleById: Record<PersonId, Person>
-  mutate: () => Promise<unknown>
+  mutate: () => Promise<PublicSessionPayload | undefined>
   open: boolean
   onOpenChange: (open: boolean) => void
 }

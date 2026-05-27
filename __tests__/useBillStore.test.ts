@@ -169,7 +169,7 @@ describe('Phase 3 store extensions', () => {
   })
 
   it('setItems replaces state.items with the supplied array exactly', () => {
-    const newItems = [{ id: 'i1', name: 'Burger', priceCents: 1299, rawName: 'CK', confidence: 'low' as const }]
+    const newItems = [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1, rawName: 'CK', confidence: 'low' as const }]
     useBillStore.getState().setItems(newItems)
     const items = useBillStore.getState().items
     expect(items).toHaveLength(1)
@@ -181,7 +181,7 @@ describe('Phase 3 store extensions', () => {
   })
 
   it('updateItem sets confidence to "high" (clears Review badge)', () => {
-    useBillStore.getState().setItems([{ id: 'i1', name: 'Burger', priceCents: 1299, confidence: 'low' }])
+    useBillStore.getState().setItems([{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1, confidence: 'low' }])
     useBillStore.getState().updateItem('i1', 'Burger', 1299)
     expect(useBillStore.getState().items[0].confidence).toBe('high')
   })
