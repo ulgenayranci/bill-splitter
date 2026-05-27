@@ -15,7 +15,7 @@
 - [x] **Phase 2: OCR Pipeline** - Photo capture, GPT-4o-mini extraction, and editable item confirmation *(completed 2026-05-09)*
 - [x] **Phase 3: AI Expansion + Disambiguation** - Abbreviation expansion, confidence display, and menu photo / manual fallback (completed 2026-05-10)
 - [ ] **Phase 4: Shareable Links** - Session API, Upstash Redis, and per-person item claiming via shared URL
-- [ ] **Phase 6: Collaborative Bill Claiming** - Full redesign: real-time collaborative claiming, shared items, quantity stepper, host approval flow, per-person tips
+- [x] **Phase 6: Collaborative Bill Claiming** - Full redesign: real-time collaborative claiming, shared items, quantity stepper, host approval flow, per-person tips (completed 2026-05-27)
 - [ ] **Phase 5: Polish & Hardening** - Unassigned-item warnings, mobile UX, error handling, and copy summary
 
 ---
@@ -114,7 +114,7 @@
   8. "I'm done" is a soft checkpoint — back button returns to claiming with full edit rights
   9. Each person sets their own tip (starts at 0%) independently after claiming
   10. Each person sees their own total immediately after tip confirmation — no waiting for others
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 **UI hint**: yes
 
 ### Phase 5: Polish & Hardening
@@ -139,5 +139,5 @@
 | 2. OCR Pipeline | 3/3 | Complete | 2026-05-09 |
 | 3. AI Expansion + Disambiguation | 3/3 | Complete   | 2026-05-10 |
 | 4. Shareable Links | 0/3 | Not started | - |
-| 6. Collaborative Bill Claiming | 5/6 | In Progress|  |
+| 6. Collaborative Bill Claiming | 6/6 | Complete   | 2026-05-27 |
 | 5. Polish & Hardening | 0/2 | Not started | - |
