@@ -6,11 +6,11 @@
 
 import { Card } from '@/components/ui/card'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
 
 interface PersonSlotPickerProps {
-  session: SessionPayload
+  session: PublicSessionPayload
   onSelect: (personId: PersonId) => void | Promise<void>
 }
 

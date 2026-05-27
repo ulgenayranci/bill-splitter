@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Pencil, Plus, ClipboardList } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
@@ -17,7 +17,7 @@ import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import { computePersonShareFromClaims } from '@/lib/billMath'
 
-const fetcher = (url: string): Promise<SessionPayload> =>
+const fetcher = (url: string): Promise<PublicSessionPayload> =>
   fetch(url).then((r) => {
     if (!r.ok) throw new Error('session_not_found')
     return r.json()
@@ -40,14 +40,17 @@ export function CollaborativeClaimingView({
   const [phase, setPhase] = useState<Phase>('claiming')
 
   const swrKey = `/api/session/${sessionId}`
-  const { data: session, error, mutate } = useSWR<SessionPayload>(swrKey, fetcher, {
+  const { data: session, error, mutate } = useSWR<PublicSessionPayload>(swrKey, fetcher, {
     refreshInterval: 3000,
     revalidateOnFocus: false,
   })
 
+  // CR-01: hostToken is no longer returned by the GET endpoint (stripped server-side).
+  // Derive isHost from hostPersonId (set by the server when the host claims their slot).
+  // hostTokenParam is still used when claiming the slot so the server can set hostPersonId.
   const isHost = useMemo(
-    () => hostTokenParam !== null && session?.hostToken === hostTokenParam,
-    [hostTokenParam, session?.hostToken]
+    () => hostTokenParam !== null && selectedPersonId !== null && session?.hostPersonId === selectedPersonId,
+    [hostTokenParam, selectedPersonId, session?.hostPersonId]
   )
 
   const peopleById = useMemo<Record<PersonId, Person>>(() => {

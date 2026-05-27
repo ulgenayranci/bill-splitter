@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { formatCents } from '@/lib/billMath'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId } from '@/stores/useBillStore'
 
 export interface ReviewHostAssignedScreenProps {
-  session: SessionPayload
+  session: PublicSessionPayload
   sessionId: string
   personId: PersonId
   onAcceptAll: () => void

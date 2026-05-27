@@ -6,11 +6,11 @@ import {
   computePersonShareFromClaims,
   formatCents,
 } from '@/lib/billMath'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
 
 export interface PersonResultsScreenProps {
-  session: SessionPayload
+  session: PublicSessionPayload
   personId: PersonId
 }
 

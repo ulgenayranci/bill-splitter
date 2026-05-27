@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import { formatCents } from '@/lib/billMath'
 import type {
-  SessionPayload,
+  PublicSessionPayload,
   EditRequest,
   EditPayload,
   Dispute,
@@ -18,7 +18,7 @@ import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 type TabId = 'edit_requests' | 'unclaimed' | 'disputes'
 
 export interface HostPanelProps {
-  session: SessionPayload
+  session: PublicSessionPayload
   sessionId: string
   hostToken: string
   peopleById: Record<PersonId, Person>
@@ -470,7 +470,7 @@ export function HostPanel({
 
 // ---- Sub-rows -----------------------------------------------------------
 
-function describeEdit(req: EditRequest, sessionItems: SessionPayload['items']): string {
+function describeEdit(req: EditRequest, sessionItems: PublicSessionPayload['items']): string {
   const p = req.payload as EditPayload
   if (req.type === 'add' && 'name' in p) {
     return `Add "${p.name}" — ${formatCents(p.priceCents)} × ${p.quantity}`
@@ -492,7 +492,7 @@ interface EditRequestRowProps {
   requestId: string
   request: EditRequest
   personName: string
-  sessionItems: SessionPayload['items']
+  sessionItems: PublicSessionPayload['items']
   error?: string
   isPending: boolean
   rejectConfirming: boolean
@@ -579,7 +579,7 @@ function EditRequestRow({
 interface DisputeRowProps {
   disputeId: string
   dispute: Dispute
-  sessionItems: SessionPayload['items']
+  sessionItems: PublicSessionPayload['items']
   sessionPeople: Person[]
   peopleById: Record<PersonId, Person>
   error?: string

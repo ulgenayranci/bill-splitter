@@ -41,7 +41,9 @@ export interface SessionPayload {
   people: Person[]
   items: Item[]
   claims: SessionClaims
-  /** Durable host capability token (D-02). Generated server-side at POST /api/session. */
+  /** Durable host capability token (D-02). Generated server-side at POST /api/session.
+   *  NEVER returned by GET /api/session — stripped before the response is sent (CR-01).
+   *  Only present in Redis and in the POST /api/session creation response. */
   hostToken: string
   /** Set when the host picks their identity slot (D-13). */
   hostPersonId?: PersonId
@@ -54,3 +56,10 @@ export interface SessionPayload {
   createdAt: number
   // NOTE: tipPercent intentionally removed (D-17). Phase 4 sessions are incompatible.
 }
+
+/**
+ * The safe subset of SessionPayload returned by GET /api/session/[sessionId].
+ * hostToken is stripped server-side (CR-01) — clients must never see it.
+ * Use this type for SWR fetcher return types and client component props.
+ */
+export type PublicSessionPayload = Omit<SessionPayload, 'hostToken'>
