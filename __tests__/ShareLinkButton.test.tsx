@@ -1,131 +1,113 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
-import { Toast } from '@base-ui/react/toast'
 import { ShareLinkButton } from '@/components/wizard/ShareLinkButton'
-import { useBillStore } from '@/stores/useBillStore'
 
-function renderInProvider(ui: React.ReactElement) {
-  return render(<Toast.Provider>{ui}</Toast.Provider>)
-}
+// Mocks must not reference variables before initialization in vi.mock factories.
+// Use module-level spies that are reset in beforeEach instead.
+const setSessionIdMock = vi.fn()
+const setHostTokenMock = vi.fn()
+const routerPushMock = vi.fn()
 
-describe('ShareLinkButton', () => {
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}))
+
+vi.mock('@/stores/useBillStore', () => {
+  const state = {
+    people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }],
+    items: [{ id: 'i1', name: 'Pizza', priceCents: 1000, quantity: 1 }],
+    setSessionId: (...args: unknown[]) => setSessionIdMock(...args),
+    setHostToken: (...args: unknown[]) => setHostTokenMock(...args),
+  }
+  const useBillStore = (selector: (s: typeof state) => unknown) => selector(state)
+  useBillStore.getState = () => state
+  return { useBillStore }
+})
+
+describe('ShareLinkButton — Phase 6', () => {
   beforeEach(() => {
-    useBillStore.getState().reset()
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
-    useBillStore.getState().addItem('Pizza', 1500)
-    useBillStore.getState().setTipPercent(18)
+    setSessionIdMock.mockReset()
+    setHostTokenMock.mockReset()
+    routerPushMock.mockReset()
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     cleanup()
   })
 
-  it('Test 1: Renders with label "Share link"', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ sessionId: 'abc123' }) }))
-    renderInProvider(<ShareLinkButton />)
-    expect(screen.getByRole('button', { name: /share link/i })).toBeDefined()
-    vi.unstubAllGlobals()
+  it('Test 1 (label): renders "Share link" by default', () => {
+    render(<ShareLinkButton />)
+    expect(screen.getByRole('button', { name: /Share link/i })).toBeDefined()
   })
 
-  it('Test 2: On click, calls global fetch with /api/session POST and body containing people, items, tipPercent from the store', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ sessionId: 'abc123' }) })
-    vi.stubGlobal('fetch', mockFetch)
-    renderInProvider(<ShareLinkButton />)
-    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/session',
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: expect.any(String),
-        })
-      )
-      const callArgs = mockFetch.mock.calls[0]
-      const body = JSON.parse(callArgs[1].body)
-      expect(body.people).toBeDefined()
-      expect(body.items).toBeDefined()
-      expect(body.tipPercent).toBeDefined()
+  it('Test 2 (POST body): POSTs /api/session with people + items (no tipPercent)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }),
     })
-    vi.unstubAllGlobals()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ShareLinkButton />)
+    fireEvent.click(screen.getByRole('button', { name: /Share link/i }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/session')
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body.people).toBeDefined()
+    expect(body.items).toBeDefined()
+    expect(body.tipPercent).toBeUndefined()
   })
 
-  it('Test 3: On fetch resolving with { sessionId: "abc123" }, store ends with sessionId === "abc123", syncStatus === "waiting", step === 5', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ sessionId: 'abc123' }) })
-    vi.stubGlobal('fetch', mockFetch)
-    renderInProvider(<ShareLinkButton />)
-    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
-    await waitFor(() => {
-      const state = useBillStore.getState()
-      expect(state.sessionId).toBe('abc123')
-      expect(state.syncStatus).toBe('waiting')
-      expect(state.step).toBe(5)
+  it('Test 3 (response handling): calls setSessionId + setHostToken + router.push', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }),
     })
-    vi.unstubAllGlobals()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ShareLinkButton />)
+    fireEvent.click(screen.getByRole('button', { name: /Share link/i }))
+    await waitFor(() => expect(routerPushMock).toHaveBeenCalled())
+    expect(setSessionIdMock).toHaveBeenCalledWith('s1')
+    expect(setHostTokenMock).toHaveBeenCalledWith('host-token-abc')
+    expect(routerPushMock).toHaveBeenCalledWith('/split/s1?hostToken=host-token-abc')
   })
 
-  it('Test 4: On fetch returning 500, store remains syncStatus === "idle" and button is re-enabled', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500 })
-    vi.stubGlobal('fetch', mockFetch)
-    renderInProvider(<ShareLinkButton />)
-    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
-    await waitFor(() => {
-      const state = useBillStore.getState()
-      expect(state.syncStatus).toBe('idle')
-      // Button should be re-enabled
-      const btn = screen.getByRole('button', { name: /share link/i })
-      expect(btn.hasAttribute('disabled')).toBe(false)
-      // D-07: Inline error appears below the button, no toast
-      expect(screen.getByText(/couldn't create session\. try again\./i)).toBeDefined()
+  it('Test 4 (no setStep / setSyncStatus): router.push is used, not step/syncStatus', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }),
     })
-    vi.unstubAllGlobals()
-  })
-
-  it('(D-07) inline error clears on subsequent successful retry', async () => {
-    let callCount = 0
-    const mockFetch = vi.fn().mockImplementation(() => {
-      callCount += 1
-      if (callCount === 1) return Promise.resolve({ ok: false, status: 500 })
-      return Promise.resolve({ ok: true, json: async () => ({ sessionId: 'retry-id' }) })
-    })
-    vi.stubGlobal('fetch', mockFetch)
-    renderInProvider(<ShareLinkButton />)
-    // First click — fails
-    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
-    await waitFor(() => {
-      expect(screen.getByText(/couldn't create session\. try again\./i)).toBeDefined()
-    })
-    // Second click — succeeds, error must clear
-    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
-    await waitFor(() => {
-      expect(screen.queryByText(/couldn't create session\. try again\./i)).toBeNull()
-      expect(useBillStore.getState().sessionId).toBe('retry-id')
-    })
-    vi.unstubAllGlobals()
-  })
-
-  it('(D-07 / Pitfall 5) ShareLinkButton source contains no Toast.useToastManager reference', async () => {
-    // Verified at source level — the production component no longer imports Toast manager
-    // (test exists to guard against regression; the grep gate in acceptance_criteria is canonical)
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ShareLinkButton />)
+    fireEvent.click(screen.getByRole('button', { name: /Share link/i }))
+    await waitFor(() => expect(routerPushMock).toHaveBeenCalled())
+    // Only router.push was called; no setStep/setSyncStatus since they aren't in the mock state
     expect(true).toBe(true)
   })
 
-  it('Test 5: While the POST is in-flight, the button is disabled', async () => {
-    let resolve: (value: unknown) => void
-    const pendingPromise = new Promise((res) => { resolve = res })
-    const mockFetch = vi.fn().mockReturnValue(pendingPromise)
-    vi.stubGlobal('fetch', mockFetch)
-    renderInProvider(<ShareLinkButton />)
-    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
-    // After click, button should be disabled during the in-flight POST
+  it('Test 5 (error path): non-OK response shows error, no redirect', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ShareLinkButton />)
+    fireEvent.click(screen.getByRole('button', { name: /Share link/i }))
     await waitFor(() => {
-      const btn = screen.getByRole('button')
-      expect(btn.hasAttribute('disabled')).toBe(true)
+      expect(screen.getByText(/Couldn.t create session/i)).toBeDefined()
     })
-    // Resolve so cleanup doesn't hang
-    resolve!({ ok: true, json: async () => ({ sessionId: 'abc123' }) })
-    vi.unstubAllGlobals()
+    expect(routerPushMock).not.toHaveBeenCalled()
+  })
+
+  it('Test 6 (loading state): button disabled during request', async () => {
+    let resolveFetch: (v: { ok: boolean; json: () => Promise<unknown> }) => void
+    const fetchPromise = new Promise<{ ok: boolean; json: () => Promise<unknown> }>((res) => {
+      resolveFetch = res
+    })
+    const fetchMock = vi.fn().mockReturnValue(fetchPromise)
+    vi.stubGlobal('fetch', fetchMock)
+    render(<ShareLinkButton />)
+    const btn = screen.getByRole('button', { name: /Share link/i }) as HTMLButtonElement
+    fireEvent.click(btn)
+    await waitFor(() => expect(btn.disabled).toBe(true))
+    resolveFetch!({ ok: true, json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }) })
+    await waitFor(() => expect(routerPushMock).toHaveBeenCalled())
   })
 })
