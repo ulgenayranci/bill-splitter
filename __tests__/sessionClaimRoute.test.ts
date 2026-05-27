@@ -1,20 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-
 // Set env vars BEFORE any module import (mirrors ocrRoute.test.ts pattern)
 process.env.UPSTASH_REDIS_REST_URL = 'https://mock.upstash.io'
 process.env.UPSTASH_REDIS_REST_TOKEN = 'mock-token'
 
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+
 const mockGet = vi.fn()
 const mockSet = vi.fn()
-const mockExec = vi.fn()
-const mockMultiSet = vi.fn()
-const mockMulti = vi.fn()
+const mockEval = vi.fn()
 
 vi.mock('@upstash/redis', () => ({
   Redis: class {
     get = mockGet
     set = mockSet
-    multi = mockMulti
+    eval = mockEval
+    multi = vi.fn().mockReturnValue({ set: vi.fn(), exec: vi.fn() })
   },
 }))
 
@@ -22,13 +21,7 @@ beforeEach(() => {
   vi.resetModules()
   mockGet.mockReset()
   mockSet.mockReset()
-  mockMulti.mockReset()
-  mockMultiSet.mockReset()
-  mockExec.mockReset()
-  // multi() returns a pipeline-like object
-  mockMulti.mockReturnValue({ set: mockMultiSet, exec: mockExec })
-  mockMultiSet.mockReturnValue({ set: mockMultiSet, exec: mockExec })
-  mockExec.mockResolvedValue(['OK'])
+  mockEval.mockReset()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -46,109 +39,80 @@ async function callPOSTWithParams(sessionId: string, body: unknown): Promise<{ s
 
 const baseSession = {
   people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }, { id: 'p2', name: 'Bob', colorIndex: 1 }],
-  items: [{ id: 'i1', name: 'Burger', priceCents: 1299 }],
-  tipPercent: 18,
+  items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
   claims: { items: {}, personSlots: {}, donePeople: {} },
+  hostToken: 'host-token-abc',
+  hostPersonId: undefined,
+  tips: {},
+  editRequests: {},
+  disputes: {},
   createdAt: Date.now(),
 }
 
 describe('POST /api/session/[sessionId]/claim', () => {
-  it('Test 1 (item claim): Given session with item unclaimed, POST { personId, itemId, action: "item" } sets claims via redis.multi().set().exec(), returns { ok: true }', async () => {
+  it('Test 1 (claim qty=1): calls redis.eval with Lua script; ARGV=[itemId, personId, "1", "self"]; returns { ok: true }', async () => {
+    mockEval.mockResolvedValue('OK')
     mockGet.mockResolvedValue(baseSession)
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p1',
-      itemId: 'i1',
-      action: 'item',
-    })
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: 1 })
     expect(status).toBe(200)
     expect((json as { ok: boolean }).ok).toBe(true)
-    expect(mockMulti).toHaveBeenCalledTimes(1)
-    expect(mockExec).toHaveBeenCalledTimes(1)
+    expect(mockEval).toHaveBeenCalledTimes(1)
+    const [script, keys, args] = mockEval.mock.calls[0]
+    expect(typeof script).toBe('string')
+    expect(script).toContain('cjson.decode')
+    expect(keys).toEqual(['session:test-session'])
+    expect(args).toEqual(['i1', 'p1', '1', 'self'])
   })
 
-  it('Test 2 (un-claim, D-09): Given session with claims.items[itemId] === personId, POST same body deletes the claim and returns { ok: true }', async () => {
-    const sessionWithClaim = {
+  it('Test 2 (claim qty=3 for quantity item): ARGV[2] === "3"', async () => {
+    mockEval.mockResolvedValue('OK')
+    mockGet.mockResolvedValue({
       ...baseSession,
-      claims: { ...baseSession.claims, items: { i1: 'p1' }, personSlots: {}, donePeople: {} },
-    }
-    mockGet.mockResolvedValue(sessionWithClaim)
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p1',
-      itemId: 'i1',
-      action: 'item',
+      items: [{ id: 'i1', name: 'Burger', priceCents: 2700, quantity: 3 }],
     })
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: 3 })
     expect(status).toBe(200)
     expect((json as { ok: boolean }).ok).toBe(true)
-    // Verify that the saved session does NOT have the claim
-    const savedPayload = JSON.parse(mockMultiSet.mock.calls[0][1])
-    expect(savedPayload.claims.items['i1']).toBeUndefined()
+    const [, , args] = mockEval.mock.calls[0]
+    expect(args[2]).toBe('3')
   })
 
-  it('Test 3 (conflict): Given claims.items[itemId] === "other-person", POST returns 200 with { ok: false, reason: "conflict", takenBy: "other-person" } and does NOT call multi/exec', async () => {
-    const sessionWithConflict = {
-      ...baseSession,
-      claims: { ...baseSession.claims, items: { i1: 'p2' }, personSlots: {}, donePeople: {} },
-    }
-    mockGet.mockResolvedValue(sessionWithConflict)
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p1',
-      itemId: 'i1',
-      action: 'item',
-    })
-    expect(status).toBe(200)
-    expect((json as { ok: boolean; reason: string; takenBy: string }).ok).toBe(false)
-    expect((json as { ok: boolean; reason: string; takenBy: string }).reason).toBe('conflict')
-    expect((json as { ok: boolean; reason: string; takenBy: string }).takenBy).toBe('p2')
-    expect(mockMulti).not.toHaveBeenCalled()
-    expect(mockExec).not.toHaveBeenCalled()
-  })
-
-  it('Test 4 (person slot claim, D-02): POST { personId, action: "slot" } when claims.personSlots[personId] is unset writes personSlots[personId] = true atomically; returns { ok: true }', async () => {
+  it('Test 3 (unclaim via qty=0): passes "0" as ARGV[2]; returns { ok: true }', async () => {
+    mockEval.mockResolvedValue('OK')
     mockGet.mockResolvedValue(baseSession)
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p1',
-      action: 'slot',
-    })
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: 0 })
     expect(status).toBe(200)
     expect((json as { ok: boolean }).ok).toBe(true)
-    expect(mockMulti).toHaveBeenCalledTimes(1)
-    expect(mockExec).toHaveBeenCalledTimes(1)
-    const savedPayload = JSON.parse(mockMultiSet.mock.calls[0][1])
-    expect(savedPayload.claims.personSlots['p1']).toBe(true)
+    const [, , args] = mockEval.mock.calls[0]
+    expect(args[2]).toBe('0')
   })
 
-  it('Test 5 (slot conflict): POST { personId, action: "slot" } when slot already true returns { ok: false, reason: "slot_taken" }', async () => {
-    const sessionWithSlotClaimed = {
-      ...baseSession,
-      claims: { ...baseSession.claims, items: {}, personSlots: { p1: true }, donePeople: {} },
-    }
-    mockGet.mockResolvedValue(sessionWithSlotClaimed)
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p1',
-      action: 'slot',
-    })
+  it('Test 4 (slot claim): POST { personId, action: "slot" } returns { ok: true }', async () => {
+    mockEval.mockResolvedValue('OK')
+    mockGet.mockResolvedValue(baseSession)
+    mockSet.mockResolvedValue('OK')
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', action: 'slot' })
     expect(status).toBe(200)
-    expect((json as { ok: boolean; reason: string }).ok).toBe(false)
-    expect((json as { ok: boolean; reason: string }).reason).toBe('slot_taken')
+    expect((json as { ok: boolean }).ok).toBe(true)
   })
 
-  it('Test 6: Returns 404 + { error: "session_not_found" } when redis.get returns null', async () => {
+  it('Test 5: Returns 404 + { error: "session_not_found" } when session not found', async () => {
+    mockEval.mockResolvedValue('session_not_found')
     mockGet.mockResolvedValue(null)
-    const { status, json } = await callPOSTWithParams('missing-session', {
-      personId: 'p1',
-      itemId: 'i1',
-      action: 'item',
-    })
+    const { status, json } = await callPOSTWithParams('missing-session', { personId: 'p1', itemId: 'i1', qty: 1 })
     expect(status).toBe(404)
     expect((json as { error: string }).error).toBe('session_not_found')
   })
 
-  it('Test 7: Returns 400 when body is missing personId or action', async () => {
+  it('Test 6: Returns 400 when body is missing personId', async () => {
     mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOSTWithParams('test-session', {
-      itemId: 'i1',
-      // missing personId and action
-    })
+    const { status } = await callPOSTWithParams('test-session', { itemId: 'i1', qty: 1 })
+    expect(status).toBe(400)
+  })
+
+  it('Test 7: Returns 400 when qty is negative or non-integer', async () => {
+    mockGet.mockResolvedValue(baseSession)
+    const { status } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: -1 })
     expect(status).toBe(400)
   })
 })

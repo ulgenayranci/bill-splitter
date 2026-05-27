@@ -6,7 +6,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const mockGet = vi.fn()
 const mockSet = vi.fn()
-const mockMulti = vi.fn()
 
 vi.mock('@upstash/redis', () => ({
   Redis: class {
@@ -20,13 +19,12 @@ beforeEach(() => {
   vi.resetModules()
   mockGet.mockReset()
   mockSet.mockReset()
-  mockMulti.mockReset()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
 async function callPOSTWithParams(sessionId: string, body: unknown): Promise<{ status: number; json: unknown }> {
-  const { POST } = await import('@/app/api/session/[sessionId]/done/route')
-  const req = new Request(`http://localhost/api/session/${sessionId}/done`, {
+  const { POST } = await import('@/app/api/session/[sessionId]/tip/route')
+  const req = new Request(`http://localhost/api/session/${sessionId}/tip`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: typeof body === 'string' ? body : JSON.stringify(body),
@@ -39,7 +37,7 @@ async function callPOSTWithParams(sessionId: string, body: unknown): Promise<{ s
 const baseSession = {
   people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }, { id: 'p2', name: 'Bob', colorIndex: 1 }],
   items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
-  claims: { items: {}, personSlots: { p1: true }, donePeople: {} },
+  claims: { items: {}, personSlots: {}, donePeople: {} },
   hostToken: 'host-token-abc',
   hostPersonId: undefined,
   tips: {},
@@ -48,48 +46,48 @@ const baseSession = {
   createdAt: Date.now(),
 }
 
-describe('POST /api/session/[sessionId]/done', () => {
-  it('Test 1: POST { personId, done: true } sets claims.donePeople[personId] = true via redis.set, returns { ok: true }', async () => {
+describe('POST /api/session/[sessionId]/tip', () => {
+  it('Test 1: POST { personId, tipCents: 200 } sets session.tips[personId] = 200 via redis.set, returns { ok: true }', async () => {
     mockGet.mockResolvedValue(baseSession)
     mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', done: true })
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', tipCents: 200 })
     expect(status).toBe(200)
     expect((json as { ok: boolean }).ok).toBe(true)
     expect(mockSet).toHaveBeenCalledTimes(1)
     const savedPayload = JSON.parse(mockSet.mock.calls[0][1])
-    expect(savedPayload.claims.donePeople['p1']).toBe(true)
+    expect(savedPayload.tips['p1']).toBe(200)
   })
 
-  it('Test 2: POST { personId, done: false } sets claims.donePeople[personId] = false (soft checkpoint per D-08), returns { ok: true }', async () => {
-    const sessionWithDone = {
-      ...baseSession,
-      claims: { ...baseSession.claims, donePeople: { p1: true } },
-    }
-    mockGet.mockResolvedValue(sessionWithDone)
+  it('Test 2: POST { personId, tipCents: 0 } is valid (zero tip per D-07), returns { ok: true }', async () => {
+    mockGet.mockResolvedValue(baseSession)
     mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', done: false })
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', tipCents: 0 })
     expect(status).toBe(200)
     expect((json as { ok: boolean }).ok).toBe(true)
-    const savedPayload = JSON.parse(mockSet.mock.calls[0][1])
-    expect(savedPayload.claims.donePeople['p1']).toBe(false)
   })
 
-  it('Test 3: Returns 404 when session not found', async () => {
+  it('Test 3: Returns 400 when tipCents is negative', async () => {
+    mockGet.mockResolvedValue(baseSession)
+    const { status } = await callPOSTWithParams('test-session', { personId: 'p1', tipCents: -1 })
+    expect(status).toBe(400)
+  })
+
+  it('Test 4: Returns 400 when tipCents is not an integer', async () => {
+    mockGet.mockResolvedValue(baseSession)
+    const { status } = await callPOSTWithParams('test-session', { personId: 'p1', tipCents: 1.5 })
+    expect(status).toBe(400)
+  })
+
+  it('Test 5: Returns 400 when personId not in session.people', async () => {
+    mockGet.mockResolvedValue(baseSession)
+    const { status } = await callPOSTWithParams('test-session', { personId: 'p999', tipCents: 100 })
+    expect(status).toBe(400)
+  })
+
+  it('Test 6: Returns 404 when session not found', async () => {
     mockGet.mockResolvedValue(null)
-    const { status, json } = await callPOSTWithParams('missing-session', { personId: 'p1', done: true })
+    const { status, json } = await callPOSTWithParams('missing-session', { personId: 'p1', tipCents: 200 })
     expect(status).toBe(404)
-    expect(json).toBeDefined()
-  })
-
-  it('Test 4: Returns 400 when personId missing', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOSTWithParams('test-session', { done: true })
-    expect(status).toBe(400)
-  })
-
-  it('Test 5: Returns 400 when done field missing or not boolean', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOSTWithParams('test-session', { personId: 'p1' })
-    expect(status).toBe(400)
+    expect((json as { error: string }).error).toBeDefined()
   })
 })
