@@ -4,6 +4,8 @@ import type { Item, ItemId, Person, PersonId } from '@/stores/useBillStore'
 export interface ClaimEntry {
   qty: number
   assignedBy: 'self' | 'host'
+  /** true once a guest has explicitly accepted a host-assigned item on ReviewHostAssignedScreen */
+  accepted?: boolean
 }
 
 /** Payload shape varies by EditRequest.type — kept as a flat union for storage simplicity. */

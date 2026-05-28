@@ -100,12 +100,12 @@ export function CollaborativeClaimingView({
   if (error) return <SessionExpiredScreen />
   if (!session) return <div role="status" className="p-6">Loading…</div>
 
-  // Helper: check if this person has any host-assigned items in the current session
+  // Helper: check if this person has any host-assigned items not yet accepted
   function hasHostAssignedItems(): boolean {
     if (!session || !selectedPersonId) return false
     return session.items.some((item) => {
       const claim = session.claims?.items?.[item.id]?.[selectedPersonId]
-      return claim?.assignedBy === 'host' && claim.qty > 0
+      return claim?.assignedBy === 'host' && claim.qty > 0 && !claim.accepted
     })
   }
 
@@ -205,7 +205,7 @@ export function CollaborativeClaimingView({
       const updated = await mutate(() => fetcher(swrKey))
       const hasHostAssigned = updated?.items.some((item) => {
         const claim = updated.claims?.items?.[item.id]?.[selectedPersonId]
-        return claim?.assignedBy === 'host' && claim.qty > 0
+        return claim?.assignedBy === 'host' && claim.qty > 0 && !claim.accepted
       }) ?? false
       setPhase(hasHostAssigned ? 'review' : 'tip')
     } catch (err) {

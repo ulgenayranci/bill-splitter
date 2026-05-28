@@ -73,13 +73,38 @@ describe('ReviewHostAssignedScreen', () => {
     expect(screen.getByRole('button', { name: /Dispute Pizza/i })).toBeDefined()
   })
 
-  it('Test 3 (accept one): tapping Accept marks item locally, no fetch', () => {
-    const fetchMock = vi.fn()
+  it('Test 3 (accept one): tapping Accept POSTs /accept and calls mutate', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    })
     vi.stubGlobal('fetch', fetchMock)
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: /Accept Pizza/i }))
-    expect(screen.getByText('Accepted')).toBeDefined()
-    expect(fetchMock).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('/api/session/s1/accept')
+    const body = JSON.parse((init as RequestInit).body as string)
+    expect(body).toEqual({ personId: 'p1', itemId: 'i1' })
+    expect(mutateMock).toHaveBeenCalled()
+  })
+
+  it('Test 3b (accept persistence): accepted items (accepted:true in session) are excluded from the list', () => {
+    const session = makeSession({
+      claims: {
+        items: {
+          i1: { p1: { qty: 1, assignedBy: 'host', accepted: true } },
+          i2: { p2: { qty: 1, assignedBy: 'self' } },
+        },
+        personSlots: { p1: true, p2: true },
+        donePeople: { p1: true },
+      },
+    })
+    renderScreen({ session })
+    expect(screen.queryByTestId('review-row-i1')).toBeNull()
   })
 
   it('Test 4 (dispute): POSTs /dispute and shows Waiting for host… state', async () => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Check, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -32,19 +32,16 @@ export function ReviewHostAssignedScreen({
   onBack,
   mutate,
 }: ReviewHostAssignedScreenProps) {
-  // Track which items this person has personally accepted (local state — not persisted)
-  const [acceptedItems, setAcceptedItems] = useState<Record<ItemId, boolean>>({})
   // Track which items have a pending dispute in flight (mapped to disputeId once created)
   const [pendingDisputeByItem, setPendingDisputeByItem] = useState<Record<ItemId, string>>({})
   const [errorByItem, setErrorByItem] = useState<Record<ItemId, string>>({})
 
   // Derive the list of host-assigned items for this person from the session payload.
-  // An item is host-assigned for this person if claims.items[itemId][personId].assignedBy === 'host'
-  // AND no pending dispute exists yet (resolved disputes return the item to claiming, not here).
+  // Excludes items already accepted (persisted accepted:true) and items with resolved disputes.
   const hostAssignedItems: HostAssignedItem[] = []
   for (const item of session.items) {
     const claim = session.claims?.items?.[item.id]?.[personId]
-    if (!claim || claim.assignedBy !== 'host' || claim.qty <= 0) continue
+    if (!claim || claim.assignedBy !== 'host' || claim.qty <= 0 || claim.accepted) continue
 
     // Compute proportional share (matches computePersonShareFromClaims logic)
     const claimsForItem = session.claims?.items?.[item.id] ?? {}
@@ -107,8 +104,21 @@ export function ReviewHostAssignedScreen({
     }
   }
 
-  function handleAcceptOne(itemId: ItemId) {
-    setAcceptedItems((prev) => ({ ...prev, [itemId]: true }))
+  async function handleAcceptOne(itemId: ItemId) {
+    try {
+      const res = await fetch(`/api/session/${sessionId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personId, itemId }),
+      })
+      if (!res.ok) {
+        setErrorByItem((prev) => ({ ...prev, [itemId]: "Couldn't save — tap to retry" }))
+        return
+      }
+      await mutate()
+    } catch {
+      setErrorByItem((prev) => ({ ...prev, [itemId]: "Couldn't save — tap to retry" }))
+    }
   }
 
   return (
@@ -133,7 +143,6 @@ export function ReviewHostAssignedScreen({
 
         <ul className="flex flex-col gap-2" data-testid="review-list">
           {hostAssignedItems.map(({ itemId, itemName, shareCents }) => {
-            const isAccepted = acceptedItems[itemId] === true
             const isDisputePending = pendingDisputeByItem[itemId] !== undefined
             const itemError = errorByItem[itemId]
             return (
@@ -160,17 +169,12 @@ export function ReviewHostAssignedScreen({
                     />
                     <span className="text-[14px] text-zinc-400">Waiting for host…</span>
                   </div>
-                ) : isAccepted ? (
-                  <div className="flex items-center gap-2 text-amber-600">
-                    <Check size={16} aria-hidden="true" />
-                    <span className="text-[14px]">Accepted</span>
-                  </div>
                 ) : (
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       className="h-11 flex-1 bg-amber-600 hover:bg-amber-700"
-                      onClick={() => handleAcceptOne(itemId)}
+                      onClick={() => void handleAcceptOne(itemId)}
                       aria-label={`Accept ${itemName}`}
                     >
                       Accept
