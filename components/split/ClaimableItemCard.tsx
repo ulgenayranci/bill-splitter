@@ -144,11 +144,10 @@ export function ClaimableItemCard({
         </div>
       )}
 
-      {/* Multi-claimant avatar stack — shown when more than one person has claimed */}
+      {/* Shared-with label — names of everyone who claimed this item */}
       {otherClaimantEntries.length > 0 && (
         <div
-          className="flex items-center gap-1"
-          aria-label={`Also claimed by ${visibleOthers.map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}`}
+          className="flex items-center gap-2"
           data-testid="claimant-stack"
         >
           {visibleOthers.map(([pid]) => {
@@ -157,15 +156,19 @@ export function ClaimableItemCard({
             return (
               <span
                 key={pid}
-                className={`inline-block h-4 w-4 rounded-full ${colorClass} ring-2 ring-background`}
+                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass}`}
                 aria-hidden="true"
                 title={person?.name ?? ''}
-              />
+              >
+                {(person?.name ?? '?').charAt(0).toUpperCase()}
+              </span>
             )
           })}
-          {overflowCount > 0 && (
-            <span className="text-[14px] text-zinc-500">+{overflowCount}</span>
-          )}
+          <span className="text-[13px] text-zinc-500" data-testid="claimant-names">
+            {mine ? 'Sharing with ' : 'Claimed by '}
+            {visibleOthers.map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}
+            {overflowCount > 0 && ` +${overflowCount} more`}
+          </span>
         </div>
       )}
 

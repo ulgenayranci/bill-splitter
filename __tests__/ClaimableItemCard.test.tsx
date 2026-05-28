@@ -61,9 +61,8 @@ describe('ClaimableItemCard — Phase 6', () => {
         onQtyChange={onQtyChange}
       />
     )
-    const stack = screen.getByTestId('claimant-stack')
-    expect(stack).toBeDefined()
-    expect(stack.getAttribute('aria-label')).toMatch(/Bob/)
+    expect(screen.getByTestId('claimant-stack')).toBeDefined()
+    expect(screen.getByTestId('claimant-names').textContent).toMatch(/Bob/)
   })
 
   it('Test 4 (qty>1): shows qty stepper, not toggle', () => {
@@ -163,6 +162,6 @@ describe('ClaimableItemCard — Phase 6', () => {
         onQtyChange={vi.fn()}
       />
     )
-    expect(screen.getByText(/^\+1$/)).toBeDefined()
+    expect(screen.getByTestId('claimant-names').textContent).toMatch(/\+1 more/)
   })
 })
