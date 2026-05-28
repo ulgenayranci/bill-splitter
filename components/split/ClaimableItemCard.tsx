@@ -17,7 +17,7 @@ interface ClaimableItemCardProps {
   hasError?: boolean
 }
 
-const MAX_VISIBLE_AVATARS = 3
+const MAX_VISIBLE_AVATARS = 5
 
 export function ClaimableItemCard({
   item,
@@ -33,11 +33,13 @@ export function ClaimableItemCard({
   const mine = myQty > 0
   const isHostAssigned = myEntry?.assignedBy === 'host'
 
-  const otherClaimantEntries = Object.entries(claimsForItem).filter(
-    ([pid, entry]) => pid !== myPersonId && entry.qty > 0
-  )
-  const visibleOthers = otherClaimantEntries.slice(0, MAX_VISIBLE_AVATARS)
-  const overflowCount = Math.max(0, otherClaimantEntries.length - MAX_VISIBLE_AVATARS)
+  // All claimants with qty > 0 — current user first, then others
+  const allClaimantEntries = [
+    ...Object.entries(claimsForItem).filter(([pid, entry]) => pid === myPersonId && entry.qty > 0),
+    ...Object.entries(claimsForItem).filter(([pid, entry]) => pid !== myPersonId && entry.qty > 0),
+  ]
+  const visibleClaimants = allClaimantEntries.slice(0, MAX_VISIBLE_AVATARS)
+  const overflowCount = Math.max(0, allClaimantEntries.length - MAX_VISIBLE_AVATARS)
 
   // Total qty claimed across everyone — for "X of N claimed" display on multi-qty items
   const totalClaimedQty = Object.values(claimsForItem).reduce(
@@ -144,30 +146,34 @@ export function ClaimableItemCard({
         </div>
       )}
 
-      {/* Shared-with label — names of everyone who claimed this item */}
-      {otherClaimantEntries.length > 0 && (
+      {/* Shared-with row — shown whenever anyone other than me has claimed this item */}
+      {allClaimantEntries.some(([pid]) => pid !== myPersonId) && (
         <div
-          className="flex items-center gap-2"
+          className="flex items-center gap-1"
           data-testid="claimant-stack"
         >
-          {visibleOthers.map(([pid]) => {
+          {visibleClaimants.map(([pid]) => {
             const person = peopleById[pid]
+            const isMe = pid === myPersonId
             const colorClass = AVATAR_COLORS[(person?.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]
             return (
               <span
                 key={pid}
-                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass}`}
-                aria-hidden="true"
-                title={person?.name ?? ''}
+                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass} ${isMe ? 'ring-2 ring-amber-600 ring-offset-1' : ''}`}
+                title={isMe ? 'You' : (person?.name ?? '')}
               >
-                {(person?.name ?? '?').charAt(0).toUpperCase()}
+                {isMe ? 'Y' : (person?.name ?? '?').charAt(0).toUpperCase()}
               </span>
             )
           })}
-          <span className="text-[13px] text-zinc-500" data-testid="claimant-names">
-            {mine ? 'Sharing with ' : 'Claimed by '}
-            {visibleOthers.map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}
-            {overflowCount > 0 && ` +${overflowCount} more`}
+          {overflowCount > 0 && (
+            <span className="text-[13px] text-zinc-400">+{overflowCount}</span>
+          )}
+          <span className="ml-1 text-[13px] text-zinc-500" data-testid="claimant-names">
+            {mine
+              ? `You + ${allClaimantEntries.filter(([pid]) => pid !== myPersonId).slice(0, 2).map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}${allClaimantEntries.length > 3 ? ` +${allClaimantEntries.length - 3} more` : ''}`
+              : `${visibleClaimants.map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}${overflowCount > 0 ? ` +${overflowCount} more` : ''}`
+            }
           </span>
         </div>
       )}

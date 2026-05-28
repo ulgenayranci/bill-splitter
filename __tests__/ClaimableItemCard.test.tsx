@@ -145,23 +145,32 @@ describe('ClaimableItemCard — Phase 6', () => {
     expect(card).not.toBeNull()
   })
 
-  it('Test 9 (overflow): 4+ other claimants — shows 3 avatars + "+N"', () => {
+  it('Test 9 (overflow): 6+ other claimants — shows 5 avatars + "+N" overflow', () => {
     const claims: Record<PersonId, ClaimEntry> = {
       p2: { qty: 1, assignedBy: 'self' },
       p3: { qty: 1, assignedBy: 'self' },
       p4: { qty: 1, assignedBy: 'self' },
-      // and Eve below
       eve: { qty: 1, assignedBy: 'self' },
+      frank: { qty: 1, assignedBy: 'self' },
+      grace: { qty: 1, assignedBy: 'self' },
     }
     render(
       <ClaimableItemCard
         item={singleQtyItem}
         claimsForItem={claims}
         myPersonId="p1"
-        peopleById={{ ...peopleById, eve: { id: 'eve', name: 'Eve', colorIndex: 4 } }}
+        peopleById={{
+          ...peopleById,
+          eve: { id: 'eve', name: 'Eve', colorIndex: 4 },
+          frank: { id: 'frank', name: 'Frank', colorIndex: 5 },
+          grace: { id: 'grace', name: 'Grace', colorIndex: 6 },
+        }}
         onQtyChange={vi.fn()}
       />
     )
-    expect(screen.getByTestId('claimant-names').textContent).toMatch(/\+1 more/)
+    // 6 others, cap is 5 → overflow count = 1
+    const stack = screen.getByTestId('claimant-stack')
+    expect(stack.querySelectorAll('span[title]').length).toBe(5)
+    expect(stack.textContent).toMatch(/\+1/)
   })
 })
