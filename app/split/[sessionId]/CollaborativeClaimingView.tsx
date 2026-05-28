@@ -291,7 +291,7 @@ export function CollaborativeClaimingView({
   }
 
   if (phase === 'results') {
-    return <PersonResultsScreen session={session} personId={selectedPersonId} />
+    return <PersonResultsScreen session={session} personId={selectedPersonId} onBack={() => setPhase('tip')} />
   }
 
   return (

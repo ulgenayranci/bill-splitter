@@ -43,8 +43,8 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
           message: {
             content: JSON.stringify({
               items: [
-                { name: 'Burger', priceCents: 1299 },
-                { name: 'Fries', priceCents: 499 },
+                { name: 'Burger', priceCents: 1299, quantity: 1 },
+                { name: 'Fries', priceCents: 499, quantity: 2 },
               ],
             }),
           },
@@ -57,8 +57,8 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(status).toBe(200)
     expect(json).toEqual({
       items: [
-        { name: 'Burger', priceCents: 1299 },
-        { name: 'Fries', priceCents: 499 },
+        { name: 'Burger', priceCents: 1299, quantity: 1 },
+        { name: 'Fries', priceCents: 499, quantity: 2 },
       ],
     })
     expect(createMock).toHaveBeenCalledTimes(1)

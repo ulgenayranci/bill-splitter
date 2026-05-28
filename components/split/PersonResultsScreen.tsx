@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronLeft } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import {
@@ -12,9 +13,10 @@ import type { PersonId } from '@/stores/useBillStore'
 export interface PersonResultsScreenProps {
   session: PublicSessionPayload
   personId: PersonId
+  onBack?: () => void
 }
 
-export function PersonResultsScreen({ session, personId }: PersonResultsScreenProps) {
+export function PersonResultsScreen({ session, personId, onBack }: PersonResultsScreenProps) {
   const person = session.people.find((p) => p.id === personId)
   if (!person) return null
 
@@ -29,6 +31,17 @@ export function PersonResultsScreen({ session, personId }: PersonResultsScreenPr
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
       <div className="flex flex-col gap-4 px-6 py-8">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1 self-start text-[14px] text-zinc-500 hover:text-zinc-800"
+            aria-label="Back to tip"
+          >
+            <ChevronLeft size={16} />
+            Back
+          </button>
+        )}
         <h1 className="text-[20px] font-semibold leading-[1.2]">You&rsquo;re all set!</h1>
 
         <div className="flex items-center gap-3">

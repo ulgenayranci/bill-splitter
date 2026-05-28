@@ -35,9 +35,10 @@ interface EditState {
   name: string
   price: string
   priceError: string | null
+  quantity: string
 }
 
-const EMPTY_EDIT: EditState = { id: null, name: '', price: '', priceError: null }
+const EMPTY_EDIT: EditState = { id: null, name: '', price: '', priceError: null, quantity: '1' }
 
 export function AddItemsStep() {
   const items = useBillStore((s) => s.items)
@@ -89,13 +90,14 @@ export function AddItemsStep() {
     setEditState(EMPTY_EDIT)
   }
 
-  const handleEditItemClick = (item: { id: ItemId; name: string; priceCents: number }) => {
+  const handleEditItemClick = (item: { id: ItemId; name: string; priceCents: number; quantity: number }) => {
     if (editState?.id === item.id) return // already editing
     setEditState({
       id: item.id,
       name: item.name,
       price: (item.priceCents / 100).toFixed(2),
       priceError: null,
+      quantity: String(item.quantity ?? 1),
     })
   }
 
@@ -116,10 +118,11 @@ export function AddItemsStep() {
       return
     }
     const nameVal = editState.name.trim() || 'Item'
+    const qty = Math.max(1, Math.min(99, parseInt(editState.quantity, 10) || 1))
     if (editState.id === null) {
-      addItem(nameVal, priceResult.cents)
+      addItem(nameVal, priceResult.cents, qty)
     } else {
-      updateItem(editState.id, nameVal, priceResult.cents)
+      updateItem(editState.id, nameVal, priceResult.cents, qty)
     }
     setEditState(null)
   }
@@ -147,7 +150,7 @@ export function AddItemsStep() {
       setBillImage(blobUrl)
       setOcrStatus('loading')
 
-      let ocrItems: { name: string; priceCents: number }[] | null = null
+      let ocrItems: { name: string; priceCents: number; quantity: number }[] | null = null
 
       try {
         const compressed = await imageCompression(file, {
@@ -172,7 +175,7 @@ export function AddItemsStep() {
         })
         if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
         const data = (await res.json()) as {
-          items: { name: string; priceCents: number }[]
+          items: { name: string; priceCents: number; quantity: number }[]
         }
         ocrItems = data.items
         if (ocrItems.length === 0) {
@@ -207,7 +210,7 @@ export function AddItemsStep() {
         })
         if (!expandRes.ok) throw new Error(`Expand route returned ${expandRes.status}`)
         const expandData = (await expandRes.json()) as {
-          items: { rawName: string; displayName: string; priceCents: number; confidence: 'high' | 'low' | 'ambiguous' }[]
+          items: { rawName: string; displayName: string; priceCents: number; confidence: 'high' | 'low' | 'ambiguous'; quantity: number }[]
         }
         setItems(
           expandData.items.map((ei) => ({
@@ -215,7 +218,7 @@ export function AddItemsStep() {
             name: ei.displayName,
             rawName: ei.rawName,
             priceCents: ei.priceCents,
-            quantity: 1,
+            quantity: ei.quantity ?? 1,
             confidence: ei.confidence,
           })),
         )
@@ -367,13 +370,33 @@ export function AddItemsStep() {
                       <span id="edit-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
                     )}
                   </div>
+                  <Input
+                    type="number"
+                    placeholder="Qty"
+                    value={editState!.quantity}
+                    inputMode="numeric"
+                    min={1}
+                    max={99}
+                    onChange={(e) => setEditState({ ...editState!, quantity: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommit() } }}
+                    className="h-10 text-base w-14 text-center"
+                    aria-label="Quantity"
+                  />
                   <button
                     type="button"
                     aria-label="Confirm"
                     onClick={handleCommit}
-                    className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
+                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
                   >
-                    <Check size={20} />
+                    <Check size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Cancel"
+                    onClick={handleCancel}
+                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
+                  >
+                    <X size={18} />
                   </button>
                 </Card>
                 {formHighlight && (
@@ -442,13 +465,33 @@ export function AddItemsStep() {
                     <span id="add-price-error" className="text-red-600 text-sm">{editState!.priceError}</span>
                   )}
                 </div>
+                <Input
+                  type="number"
+                  placeholder="Qty"
+                  value={editState!.quantity}
+                  inputMode="numeric"
+                  min={1}
+                  max={99}
+                  onChange={(e) => setEditState({ ...editState!, quantity: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCommit() } }}
+                  className="h-10 text-base w-14 text-center"
+                  aria-label="Quantity"
+                />
                 <button
                   type="button"
                   aria-label="Confirm"
                   onClick={handleCommit}
-                  className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
+                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
                 >
-                  <Check size={20} />
+                  <Check size={18} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Cancel"
+                  onClick={handleCancel}
+                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
+                >
+                  <X size={18} />
                 </button>
               </Card>
               {formHighlight && (

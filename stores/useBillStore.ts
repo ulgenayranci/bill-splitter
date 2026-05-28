@@ -58,7 +58,7 @@ interface BillState {
   removePerson: (id: PersonId) => void
   addItem: (name: string, priceCents: number, quantity?: number) => void
   removeItem: (id: ItemId) => void
-  updateItem: (id: ItemId, name: string, priceCents: number) => void
+  updateItem: (id: ItemId, name: string, priceCents: number, quantity?: number) => void
   setAssignment: (itemId: ItemId, personIds: PersonId[]) => void
   reset: () => void
 }
@@ -108,11 +108,11 @@ export const useBillStore = create<BillState>()((set) => ({
       return { items: s.items.filter((i) => i.id !== id), assignments: rest }
     }),
   setItems: (items) => set({ items }),
-  updateItem: (id, name, priceCents) =>
+  updateItem: (id, name, priceCents, quantity) =>
     set((s) => ({
       items: s.items.map((i) =>
         i.id === id
-          ? { ...i, name, priceCents, confidence: 'high' as const }
+          ? { ...i, name, priceCents, quantity: quantity ?? i.quantity, confidence: 'high' as const }
           : i
       ),
     })),

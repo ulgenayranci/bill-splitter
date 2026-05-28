@@ -135,7 +135,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Expand failed' }, { status: 500 })
     }
 
-    return NextResponse.json({ items: responseItems })
+    // Re-attach the original quantities from the input items. The LLM only sees
+    // name/priceCents — quantity is a passthrough field it doesn't need to touch.
+    const inputItems = items as Array<{ name: string; priceCents: number; quantity?: number }>
+    const itemsWithQty = responseItems.map((ri, idx) => ({
+      ...ri,
+      quantity: inputItems[idx]?.quantity ?? 1,
+    }))
+
+    return NextResponse.json({ items: itemsWithQty })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.
     console.error('Expand error:', err)

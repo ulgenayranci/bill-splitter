@@ -14,9 +14,10 @@ function getOpenAI(): OpenAI {
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
-{ "items": [{ "name": string, "priceCents": number }] }
+{ "items": [{ "name": string, "priceCents": number, "quantity": number }] }
 Rules:
-- priceCents must be an integer (e.g. $12.99 -> 1299)
+- priceCents must be an integer (e.g. $12.99 -> 1299). For items with quantity > 1, priceCents is the TOTAL price for all units.
+- quantity must be a positive integer (default 1 if not shown)
 - name should be a short readable description (3-6 words max)
 - Exclude subtotals, tax, tip, and total lines
 - If you cannot read an item clearly, include your best guess`
@@ -71,8 +72,9 @@ export async function POST(request: Request) {
                   properties: {
                     name: { type: 'string' },
                     priceCents: { type: 'integer' },
+                    quantity: { type: 'integer' },
                   },
-                  required: ['name', 'priceCents'],
+                  required: ['name', 'priceCents', 'quantity'],
                   additionalProperties: false,
                 },
               },
@@ -99,12 +101,19 @@ export async function POST(request: Request) {
       console.error('OCR error: response did not match expected schema')
       return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
     }
-    const items = ((parsed as { items: unknown[] }).items).filter(
-      (i): i is { name: string; priceCents: number } =>
-        typeof (i as Record<string, unknown>).name === 'string' &&
-        Number.isInteger((i as Record<string, unknown>).priceCents) &&
-        (i as { priceCents: number }).priceCents > 0,
-    )
+    const items = ((parsed as { items: unknown[] }).items)
+      .filter(
+        (i): i is { name: string; priceCents: number; quantity: number } =>
+          typeof (i as Record<string, unknown>).name === 'string' &&
+          Number.isInteger((i as Record<string, unknown>).priceCents) &&
+          (i as { priceCents: number }).priceCents > 0,
+      )
+      .map((i) => ({
+        name: i.name,
+        priceCents: i.priceCents,
+        // Default to 1 if quantity is missing/invalid (backward-compat with older prompts)
+        quantity: Number.isInteger(i.quantity) && i.quantity > 0 ? i.quantity : 1,
+      }))
     return NextResponse.json({ items })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.

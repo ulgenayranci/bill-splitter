@@ -533,18 +533,21 @@ function EditRequestRow({
           {describeEdit(request, sessionItems)}
         </span>
       </div>
+      {/* NNG convention: destructive/secondary on left, primary on right.
+          When confirming rejection, replace the entire button row so buttons
+          don't accumulate — show only Cancel + Confirm reject. */}
       <div className="flex gap-2">
-        <Button
-          type="button"
-          className="h-11 flex-1 bg-amber-600 hover:bg-amber-700"
-          disabled={isPending}
-          onClick={onApprove}
-          aria-label={`Approve edit request ${requestId}`}
-        >
-          {isPending ? <Loader2 size={16} className="animate-spin" /> : 'Approve'}
-        </Button>
         {rejectConfirming ? (
           <>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 flex-1"
+              onClick={onRejectCancel}
+              aria-label="Cancel reject"
+            >
+              Cancel
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -555,27 +558,29 @@ function EditRequestRow({
             >
               Confirm reject?
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11"
-              onClick={onRejectCancel}
-              aria-label="Cancel reject"
-            >
-              Cancel
-            </Button>
           </>
         ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 flex-1"
-            disabled={isPending}
-            onClick={onRejectFirstTap}
-            aria-label={`Reject edit request ${requestId}`}
-          >
-            Reject
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1"
+              disabled={isPending}
+              onClick={onRejectFirstTap}
+              aria-label={`Reject edit request ${requestId}`}
+            >
+              Reject
+            </Button>
+            <Button
+              type="button"
+              className="h-11 flex-1 bg-amber-600 hover:bg-amber-700"
+              disabled={isPending}
+              onClick={onApprove}
+              aria-label={`Approve edit request ${requestId}`}
+            >
+              {isPending ? <Loader2 size={16} className="animate-spin" /> : 'Approve'}
+            </Button>
+          </>
         )}
       </div>
       {error && <span className="text-[14px] text-red-600">{error}</span>}

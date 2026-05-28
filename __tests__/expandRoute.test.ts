@@ -45,10 +45,10 @@ describe('app/api/expand/route.ts (POST handler)', () => {
         },
       }],
     })
-    const { status, json } = await callPOST({ items: [{ name: 'CHKN SAND LG', priceCents: 1299 }] })
+    const { status, json } = await callPOST({ items: [{ name: 'CHKN SAND LG', priceCents: 1299, quantity: 3 }] })
     expect(status).toBe(200)
     expect(json).toEqual({
-      items: [{ rawName: 'CHKN SAND LG', displayName: 'Chicken Sandwich (Large)', priceCents: 1299, confidence: 'high' }],
+      items: [{ rawName: 'CHKN SAND LG', displayName: 'Chicken Sandwich (Large)', priceCents: 1299, confidence: 'high', quantity: 3 }],
     })
     const callArgs = createMock.mock.calls[0][0]
     expect(callArgs.model).toBe('gpt-4o-mini')
