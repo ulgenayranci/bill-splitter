@@ -33,14 +33,9 @@ if qty > 0 then
   for _, item in ipairs(session.items or {}) do
     if item.id == itemId then itemQuantity = item.quantity or 1; break end
   end
-  -- Sum all claimants' qty except the current person (who is being replaced)
-  local othersQty = 0
-  for pid, entry in pairs(session.claims.items[itemId]) do
-    if pid ~= personId then
-      othersQty = othersQty + (entry.qty or 0)
-    end
-  end
-  if othersQty + qty > itemQuantity then return 'qty_exceeded' end
+  -- Allow multiple people to claim the same item (proportional split in billMath).
+  -- Only reject if a single person tries to claim more than the item's total quantity.
+  if qty > itemQuantity then return 'qty_exceeded' end
 end
 
 if qty == 0 then

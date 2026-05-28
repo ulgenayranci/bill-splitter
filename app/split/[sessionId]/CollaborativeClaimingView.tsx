@@ -51,6 +51,15 @@ export function CollaborativeClaimingView({
     revalidateOnFocus: false,
   })
 
+  // Auto-restore host slot on page re-open: when hostToken is in the URL and
+  // the session already has hostPersonId set, skip the PersonSlotPicker entirely.
+  // Must be after useSWR so `session` is in scope for the dependency array.
+  useEffect(() => {
+    if (hostTokenParam && session?.hostPersonId && selectedPersonId === null) {
+      setSelectedPersonId(session.hostPersonId)
+    }
+  }, [hostTokenParam, session?.hostPersonId, selectedPersonId])
+
   // CR-01: hostToken is no longer returned by the GET endpoint (stripped server-side).
   // Derive isHost from hostPersonId (set by the server when the host claims their slot).
   // hostTokenParam is still used when claiming the slot so the server can set hostPersonId.
@@ -189,9 +198,11 @@ export function CollaborativeClaimingView({
         body: JSON.stringify({ personId: selectedPersonId, done: true }),
       })
       if (!res.ok) throw new Error(`done route returned ${res.status}`)
-      // WR-07: read from the mutate() return value, not the stale `session` closure.
-      // `session` is captured at render time and doesn't reflect the post-mutate state.
-      const updated = await mutate()
+      // WR-07: pass fetcher as the mutation function so SWR calls it and returns
+      // fresh data reliably. mutate() with no args can return undefined in production
+      // (deduped revalidation), causing hasHostAssigned to always be false and
+      // skipping ReviewHostAssignedScreen.
+      const updated = await mutate(() => fetcher(swrKey))
       const hasHostAssigned = updated?.items.some((item) => {
         const claim = updated.claims?.items?.[item.id]?.[selectedPersonId]
         return claim?.assignedBy === 'host' && claim.qty > 0
