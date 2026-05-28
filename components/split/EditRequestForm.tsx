@@ -125,7 +125,7 @@ export function EditRequestForm({
         role="dialog"
         aria-label="Request edit"
         data-testid="edit-request-form"
-        className="fixed bottom-0 left-0 right-0 z-50 mx-auto h-[90vh] max-w-[480px] overflow-hidden rounded-t-xl border-t border-border bg-background"
+        className="fixed bottom-0 left-0 right-0 z-50 mx-auto flex max-h-[90vh] max-w-[480px] flex-col overflow-hidden rounded-t-xl border-t border-border bg-background"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
@@ -163,7 +163,8 @@ export function EditRequestForm({
           ))}
         </div>
 
-        <div className="flex h-[calc(90vh-180px)] flex-col gap-4 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex flex-col gap-4">
           {type === 'add' && (
             <div className="flex flex-col gap-3" data-testid="add-fields">
               <label className="flex flex-col gap-1">
@@ -277,6 +278,7 @@ export function EditRequestForm({
               {error}
             </p>
           )}
+          </div>
         </div>
 
         <div className="border-t border-border px-6 py-4">
