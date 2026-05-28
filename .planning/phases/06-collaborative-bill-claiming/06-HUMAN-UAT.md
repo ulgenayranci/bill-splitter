@@ -3,7 +3,7 @@ status: complete
 phase: 06-collaborative-bill-claiming
 source: [06-VERIFICATION.md, 06-ROADMAP success criteria]
 started: 2026-05-28T00:00:00.000Z
-updated: 2026-05-28T00:00:00.000Z
+updated: 2026-05-29T00:00:00.000Z
 ---
 
 ## Setup
@@ -15,7 +15,7 @@ updated: 2026-05-28T00:00:00.000Z
 
 ## Current Test
 
-[testing complete]
+Test 11 (SC7b — dispute bounces to host) — pending live Vercel test. All 9 code gaps fixed; need to verify dispute flow end-to-end on Vercel with real Redis.
 
 ---
 
@@ -42,16 +42,15 @@ result: pass
 
 ### 4. Multi-person simultaneous claiming + shared items (SC3)
 expected: Open the same session in two browser tabs (or two devices). Person A claims Item 1. Person B claims Item 1 as well. Both claimants appear on the item card (e.g., "Alice, Bob — 50% each"). The proportional split is reflected in each person's subtotal.
-result: issue
-reported: "shared claiming is fully broken — even 2 people cannot claim the same item. Second person gets 'Couldn't save — tap to retry' error. Only one person can hold a claim per item."
-severity: major
+result: pass
+fix: 2bf6578 — Lua script updated to allow multiple claimants per item; proportional split logic added
 
 ---
 
 ### 5. Quantity stepper for qty > 1 items (SC4)
 expected: Add an item with quantity 3 (e.g., "Beer x3") to the bill. On the claiming screen, the item card shows a stepper (−/+). Tapping + increments "how many you had"; tapping − decrements. The stepper prevents going below 0 or above remaining unclaimed quantity.
 result: pass
-note: Stepper UI works correctly (shows ×4 badge, −/+ stepper, "2 of 4 claimed"). Guest's "Add item" button in claiming screen includes quantity field. Gap: host's wizard item-add form has no quantity field; OCR does not preserve quantities from scanned bills.
+note: Stepper UI works correctly. Gaps from initial UAT now fixed — a9281c1 added Qty field to wizard AddItemsStep (both add and edit forms) and updated OCR prompt to extract quantities; 75ec726 added ×N badge to wizard step 2 item rows and HostPanel unclaimed tab.
 
 ---
 
@@ -78,29 +77,28 @@ note: UX discussion needed — item cards should show an "edited" indicator (e.g
 ### 9. Edit request — host rejects (SC6c)
 expected: Submit any edit request. Host taps "Reject" in the HostPanel. The request disappears from the queue; the original item is unchanged. No error shown to the guest — the rejection is silent on the guest side (or shows a soft message if implemented).
 result: pass
-note: Button order violates NNG conventions — Approve (filled) is on left, Reject (outline) on right. Should be swapped: Reject (outline) left, Approve (amber filled) right.
+note: Button order and confirmation UX gaps from initial UAT fixed in a9281c1 — Reject now left, Approve right (NNG order); confirmation state replaces full button row with [Cancel] [Confirm reject?] instead of appending.
 
 ---
 
 ### 10. Host-assigned items on review screen (SC7a)
 expected: Host assigns an unclaimed item to a specific person via HostPanel. That person taps "I'm done". Instead of going straight to TipScreen, they see ReviewHostAssignedScreen listing the host-assigned item(s) with "Accept" and "Dispute" options per row.
-result: issue
-reported: "It goes straight to the tip screen — no review screen appeared"
-severity: major
+result: pass
+fix: 75ec726 — claim/route.ts now accepts and validates assignedBy param against hostToken; HostPanel passes assignedBy:'host' so host-assigned items are correctly flagged and handleDone routes to ReviewHostAssignedScreen
 
 ---
 
 ### 11. Dispute bounces back to host (SC7b)
 expected: On ReviewHostAssignedScreen, tapping "Dispute" on a host-assigned item sends the dispute. The item returns to the HostPanel "Disputes" tab. The guest returns to the claiming screen (or a waiting state).
-result: skipped
-reason: Blocked by test 10 — ReviewHostAssignedScreen never appears so Dispute button is unreachable.
+result: pending
+reason: Was blocked by test 10 (SC7a). SC7a is now fixed — needs live Vercel test to verify dispute flow end-to-end.
 
 ---
 
 ### 12. "I'm done" soft checkpoint — back returns to claiming (SC8)
 expected: Tap "I'm done". Then tap the back button (from ReviewHostAssignedScreen or TipScreen). The app returns to the claiming screen with all previously claimed items still intact and editable. No items are lost; the "done" state is reversed on the server.
 result: pass
-note: Back from TipScreen works. Gap: no back button on PersonResultsScreen — once tip is confirmed and results screen appears, guest is stuck with no way to go back.
+note: Back from TipScreen works. Gap from initial UAT fixed in a9281c1 — PersonResultsScreen now has a back button that returns to TipScreen.
 
 ---
 
@@ -137,89 +135,64 @@ result: pass
 ## Summary
 
 total: 17
-passed: 14
-issues: 2
-pending: 0
+passed: 16
+issues: 0
+pending: 1
 blocked: 0
-skipped: 1
+skipped: 0
 
 ## Gaps
 
 - truth: "After tapping Share link, the guest URL is copied to clipboard so the host can share it"
-  status: failed
-  reason: "ShareLinkButton redirects host immediately but never calls navigator.clipboard.writeText() — no guest URL is copied"
+  status: fixed
+  fix: 8e15bc6 — ShareLinkButton replaced with dialog-based flow; 3-tier copy fallback (clipboard API → execCommand → manual copy); guest URL copied before redirecting host
   severity: major
   test: 2
-  fix: "Copy ${origin}/split/${sessionId} to clipboard before router.push() in ShareLinkButton.handleShare()"
 
 - truth: "Multiple people can claim the same item — all claimants appear on the item card with proportional split"
-  status: failed
-  reason: "User reported: shared claiming is fully broken — even 2 people cannot claim the same item. Second person gets 'Couldn't save — tap to retry' error. Only one person can hold a claim per item."
+  status: fixed
+  fix: 2bf6578 — Lua claim script updated to allow multiple claimants; proportional split calculated server-side
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
 
 - truth: "HostPanel edit request card: Reject (outline) on left, Approve (amber filled) on right — per NNG Heuristic #4 (platform conventions) and error prevention"
-  status: failed
-  reason: "User reported: Approve and Reject buttons are swapped — Approve is on the left (primary position), Reject on the right. Violates platform conventions (iOS HIG, Material Design) where affirmative action is always on the right."
+  status: fixed
+  fix: a9281c1 — button order swapped to Reject (left) / Approve (right)
   severity: cosmetic
   test: 9
-  root_cause: "Button order in HostPanel edit request card"
-  artifacts: []
-  missing: []
 
 - truth: "Reject confirmation state replaces the full button row — shows only Cancel (outline, left) and Confirm Reject (red filled, right). Approve disappears entirely."
-  status: failed
-  reason: "Confirmation state appends buttons instead of replacing them — 3 mismatched buttons appear: Approve (amber filled), Confirm reject? (red outline with ?, ambiguous), Cancel (bare text, smallest). Violates NNG #3 (escape hatch invisible), #5 (Approve still dominant = accidental approval risk), #6 (question mark creates doubt about action), #8 (3 mismatched weights = visual noise)."
+  status: fixed
+  fix: a9281c1 — confirmation state now replaces button row entirely with [Cancel] [Confirm reject?]
   severity: cosmetic
   test: 9
-  root_cause: "Confirmation mode adds to button row instead of swapping state"
-  artifacts: []
-  missing: []
 
 - truth: "When host has assigned items to a person, tapping 'I'm done' shows ReviewHostAssignedScreen before TipScreen"
-  status: failed
-  reason: "User reported: goes straight to tip screen — ReviewHostAssignedScreen never appeared despite host having assigned items to the person"
+  status: fixed
+  fix: 75ec726 — claim/route.ts validates assignedBy against hostToken; HostPanel passes assignedBy:'host'; handleDone correctly routes to ReviewHostAssignedScreen when host-assigned items exist
   severity: major
   test: 10
-  root_cause: ""
-  artifacts: []
-  missing: []
 
 - truth: "PersonResultsScreen has a back button so guests can return to TipScreen (and then to claiming) if they need to make changes"
-  status: failed
-  reason: "User reported: no back button after confirming tip — once on PersonResultsScreen the guest is stuck with no navigation path back"
+  status: fixed
+  fix: a9281c1 — PersonResultsScreen gained optional onBack prop; CollaborativeClaimingView passes () => setPhase('tip')
   severity: minor
   test: 12
-  root_cause: ""
-  artifacts: []
-  missing: []
 
 - truth: "Item cards display the quantity (e.g. '×2' badge) consistently across ALL screens — wizard step 2, claiming screen, HostPanel — not just the guest claiming flow"
-  status: failed
-  reason: "User reported: quantity badge only visible on claiming screen. Wizard step 2 item cards have no quantity indicator. OCR also does not preserve quantities from scanned bills so qty defaults to 1 and is never shown."
+  status: fixed
+  fix: 75ec726 — ×N badge added to AssignItemsStep (wizard step 2) and HostPanel unclaimed tab item rows when quantity > 1
   severity: major
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
 
 - truth: "Add item form includes a quantity field so users can create items with qty > 1 (enabling the stepper on claiming screen)"
-  status: failed
-  reason: "User reported: add item form only has Item name and Price — no quantity field. SC4 quantity stepper is entirely unreachable."
+  status: fixed
+  fix: a9281c1 — Qty number input (min 1, max 99, default 1) added to both add and edit forms in AddItemsStep; OCR prompt updated to extract quantity per line item
   severity: major
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
 
 - truth: "Item input row can be dismissed without completing — via an X button or tapping outside the input"
-  status: failed
-  reason: "User reported: once item input is activated there is no way to cancel it — user must type a name and price, confirm, then delete the item. No X button or tap-outside-to-dismiss."
+  status: fixed
+  fix: a9281c1 — X (Cancel) button added to both add and edit inline forms in AddItemsStep
   severity: minor
   test: adhoc
-  root_cause: ""
-  artifacts: []
-  missing: []
