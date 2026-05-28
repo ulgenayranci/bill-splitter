@@ -51,22 +51,31 @@ describe('CollaborativeClaimingView', () => {
   })
 
   /**
-   * selectAlice — renders the component and clicks Alice's slot.
+   * selectAlice — renders the component and reaches Alice's claiming view.
    *
    * @param opts.asHost   - if true, sets window.location.hash to a valid hostToken
    *                        and mocks SWR to return HOST_SESSION_FIXTURE (hostPersonId='p1').
-   * @param opts.session  - optional session override (merged with SESSION_FIXTURE).
+   *                        The auto-restore useEffect in CollaborativeClaimingView will fire
+   *                        and call setSelectedPersonId('p1') without any slot-claim fetch,
+   *                        so NO click is performed here.
+   * @param opts.session  - optional session override (merged with the appropriate base fixture).
    */
   async function selectAlice(opts: { asHost?: boolean; session?: Partial<PublicSessionPayload> } = {}) {
+    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', slotFetch)
+
     if (opts.asHost) {
-      // CR-05: token is now in URL fragment, not query param
+      // CR-05: token is now in URL fragment, not query param.
+      // HOST_SESSION_FIXTURE.hostPersonId='p1' — triggers the auto-restore useEffect which
+      // calls setSelectedPersonId(session.hostPersonId) and skips the PersonSlotPicker.
       window.location.hash = '#hostToken=host-token-abc'
-      useSWRMock.mockReturnValue({
-        data: opts.session ? { ...HOST_SESSION_FIXTURE, ...opts.session } : HOST_SESSION_FIXTURE,
-        error: undefined,
-        mutate: mutateMock,
-      })
-      mutateMock.mockResolvedValue(opts.session ? { ...HOST_SESSION_FIXTURE, ...opts.session } : HOST_SESSION_FIXTURE)
+      const sessionData = opts.session ? { ...HOST_SESSION_FIXTURE, ...opts.session } : HOST_SESSION_FIXTURE
+      useSWRMock.mockReturnValue({ data: sessionData, error: undefined, mutate: mutateMock })
+      mutateMock.mockResolvedValue(sessionData)
+      // CR-05: no hostTokenParam prop — component reads from window.location.hash
+      render(<CollaborativeClaimingView sessionId="s1" />)
+      // No slot click needed — auto-restore handles selection
+      await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     } else if (opts.session) {
       useSWRMock.mockReturnValue({
         data: { ...SESSION_FIXTURE, ...opts.session },
@@ -74,13 +83,14 @@ describe('CollaborativeClaimingView', () => {
         mutate: mutateMock,
       })
       mutateMock.mockResolvedValue({ ...SESSION_FIXTURE, ...opts.session })
+      render(<CollaborativeClaimingView sessionId="s1" />)
+      fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
+      await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
+    } else {
+      render(<CollaborativeClaimingView sessionId="s1" />)
+      fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
+      await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     }
-    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', slotFetch)
-    // CR-05: no hostTokenParam prop — component reads from window.location.hash
-    render(<CollaborativeClaimingView sessionId="s1" />)
-    fireEvent.click(screen.getByRole('button', { name: /alice/i }))
-    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     return slotFetch
   }
 
@@ -95,25 +105,33 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByTestId('host-badge')).toBeNull()
   })
 
-  it('Test 3: hides host badge when session.hostPersonId does not match selectedPersonId', async () => {
-    // Even if hash has a token, isHost=false if hostPersonId points to a different person
+  it('Test 3: hides host badge when hash has token but session.hostPersonId is not set', async () => {
+    // Even with hostToken in the URL, isHost=false if session.hostPersonId is not yet set.
+    // (Using SESSION_FIXTURE with hostPersonId=undefined so the PersonSlotPicker renders —
+    //  a session with hostPersonId:'p2' would auto-restore Bob and skip Alice's slot entirely.)
     window.location.hash = '#hostToken=host-token-abc'
-    useSWRMock.mockReturnValue({
-      data: { ...SESSION_FIXTURE, hostPersonId: 'p2' }, // Bob is host, not Alice
-      error: undefined,
-      mutate: mutateMock,
-    })
-    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', slotFetch)
+    useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
     render(<CollaborativeClaimingView sessionId="s1" />)
-    fireEvent.click(screen.getByRole('button', { name: /alice/i }))
+    // Picker shows because SESSION_FIXTURE.hostPersonId=undefined (no auto-restore)
+    fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
     await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
+    // isHost = hostTokenParam(set) && selectedPersonId('p1') && (undefined === 'p1') = false
     expect(screen.queryByTestId('host-badge')).toBeNull()
   })
 
   it('Test 4: slot claim posts hostToken in body when hash contains hostToken', async () => {
-    const slotFetch = await selectAlice({ asHost: true })
-    // The /claim call was the first fetch — inspect body
+    // Simulate the FIRST visit: hash has hostToken but hostPersonId is not yet set in the
+    // session (the host hasn't claimed their slot yet). This prevents auto-restore from
+    // firing so the PersonSlotPicker renders and a real slot-claim fetch is made.
+    window.location.hash = '#hostToken=host-token-abc'
+    useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
+    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', slotFetch)
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    // Picker shows — SESSION_FIXTURE.hostPersonId=undefined, no auto-restore
+    fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
+    await waitFor(() => expect(slotFetch).toHaveBeenCalled())
     const call = slotFetch.mock.calls[0]
     const init = call[1] as RequestInit
     const parsed = JSON.parse(init.body as string)
@@ -196,6 +214,7 @@ describe('CollaborativeClaimingView', () => {
 
   it('Test 11 (FAB badge): pendingCount reflects pending editRequests + unclaimed + disputes', async () => {
     const sessionWithPending: PublicSessionPayload = {
+      // HOST_SESSION_FIXTURE.hostPersonId='p1' — auto-restore fires, no slot click needed
       ...HOST_SESSION_FIXTURE,
       editRequests: {
         r1: { personId: 'p1', type: 'remove', payload: { itemId: 'i1' }, status: 'pending', createdAt: 1 },
@@ -207,10 +226,9 @@ describe('CollaborativeClaimingView', () => {
     useSWRMock.mockReturnValue({ data: sessionWithPending, error: undefined, mutate: mutateMock })
     mutateMock.mockResolvedValue(sessionWithPending)
     window.location.hash = '#hostToken=host-token-abc'
-    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', slotFetch)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
     render(<CollaborativeClaimingView sessionId="s1" />)
-    fireEvent.click(screen.getByRole('button', { name: /alice/i }))
+    // No slot click — auto-restore selects Alice via hostPersonId='p1'
     await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     // i1 (qty 1, claimed 0) + i2 (qty 4, claimed 0) = 2 unclaimed; + 1 edit + 1 dispute = 4
     expect(screen.getByTestId('host-panel-fab-badge').textContent?.trim()).toBe('4')
