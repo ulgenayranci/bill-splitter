@@ -171,6 +171,8 @@ export function HostPanel({
             action: 'qty',
             itemId,
             qty: newQty,
+            assignedBy: 'host',
+            hostToken,
           }),
         })
         if (!res.ok) throw new Error(`assign failed: ${res.status}`)
@@ -342,7 +344,12 @@ export function HostPanel({
                 unclaimedRows.map((row) => (
                   <Card key={row.itemId} className="flex flex-col gap-2 px-4 py-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[16px] font-semibold">{row.itemName}</span>
+                      <span className="text-[16px] font-semibold">
+                        {row.itemName}
+                        {row.totalQty > 1 && (
+                          <span className="ml-2 text-[14px] font-normal text-zinc-500">×{row.totalQty}</span>
+                        )}
+                      </span>
                       <span className="text-[14px] text-zinc-500">
                         {row.remaining} of {row.totalQty} unclaimed
                       </span>

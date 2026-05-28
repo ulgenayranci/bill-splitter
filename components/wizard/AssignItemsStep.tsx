@@ -73,7 +73,12 @@ export function AssignItemsStep() {
               <Card className="flex flex-col gap-3 px-4 py-3">
                 {/* Item header */}
                 <div className="flex items-center justify-between">
-                  <span className="text-[16px] font-medium">{item.name}</span>
+                  <span className="text-[16px] font-medium">
+                    {item.name}
+                    {(item.quantity ?? 1) > 1 && (
+                      <span className="ml-2 text-[14px] font-normal text-zinc-500">×{item.quantity}</span>
+                    )}
+                  </span>
                   <div className="flex items-center gap-2">
                     {isShared && (
                       <Badge variant="secondary">Shared</Badge>

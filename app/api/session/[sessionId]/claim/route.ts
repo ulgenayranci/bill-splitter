@@ -19,6 +19,14 @@ local itemId = ARGV[1]
 local personId = ARGV[2]
 local qty = tonumber(ARGV[3])
 local assignedBy = ARGV[4]
+local claimerHostToken = ARGV[5]
+
+-- Only honour 'host' assignedBy when the caller proves host identity.
+if assignedBy == 'host' then
+  if claimerHostToken == '' or session.hostToken ~= claimerHostToken then
+    assignedBy = 'self'
+  end
+end
 
 if not session.claims then session.claims = {} end
 if not session.claims.items then session.claims.items = {} end
@@ -93,6 +101,7 @@ type ClaimBody = {
   itemId?: string
   qty?: number
   hostToken?: string
+  assignedBy?: 'self' | 'host'
 }
 
 function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; error: string } {
@@ -117,6 +126,9 @@ function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; 
   if (r.hostToken !== undefined && typeof r.hostToken !== 'string') {
     return { ok: false, error: 'Invalid hostToken' }
   }
+  if (r.assignedBy !== undefined && r.assignedBy !== 'self' && r.assignedBy !== 'host') {
+    return { ok: false, error: 'Invalid assignedBy' }
+  }
   return { ok: true, body: { ...r, action } as unknown as ClaimBody }
 }
 
@@ -134,18 +146,19 @@ export async function POST(
   }
   const v = validateBody(body)
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
-  const { personId, action, itemId, qty, hostToken } = v.body
+  const { personId, action, itemId, qty, hostToken, assignedBy: bodyAssignedBy } = v.body
 
   try {
     if (action === 'qty') {
       // CR-03: bounds check now lives inside QTY_CLAIM_SCRIPT (atomic with the write).
       // A pre-Lua GET + TS bounds check had a race window — two callers could both pass
       // the check before either write completed, yielding totalClaimed > item.quantity.
-      const assignedBy = 'self' // Host-assigned writes use resolve-dispute or resolve-edit, not /claim
+      // assignedBy defaults to 'self'; Lua validates 'host' against hostToken atomically.
+      const assignedBy = bodyAssignedBy ?? 'self'
       const result = await redis.eval(
         QTY_CLAIM_SCRIPT,
         [`session:${sessionId}`],
-        [itemId as string, personId, String(qty), assignedBy]
+        [itemId as string, personId, String(qty), assignedBy, hostToken ?? '']
       )
       if (result === 'session_not_found') {
         return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
