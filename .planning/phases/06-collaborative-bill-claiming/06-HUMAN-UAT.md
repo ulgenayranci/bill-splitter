@@ -15,7 +15,7 @@ updated: 2026-05-29T00:00:00.000Z
 
 ## Current Test
 
-Test 11 (SC7b — dispute bounces to host) — pending live Vercel test. All 9 code gaps fixed; need to verify dispute flow end-to-end on Vercel with real Redis.
+[testing complete — all 17 tests pass, acceptance persistence gap found and fixed post-UAT]
 
 ---
 
@@ -90,8 +90,7 @@ fix: 75ec726 — claim/route.ts now accepts and validates assignedBy param again
 
 ### 11. Dispute bounces back to host (SC7b)
 expected: On ReviewHostAssignedScreen, tapping "Dispute" on a host-assigned item sends the dispute. The item returns to the HostPanel "Disputes" tab. The guest returns to the claiming screen (or a waiting state).
-result: pending
-reason: Was blocked by test 10 (SC7a). SC7a is now fixed — needs live Vercel test to verify dispute flow end-to-end.
+result: pass
 
 ---
 
@@ -135,9 +134,9 @@ result: pass
 ## Summary
 
 total: 17
-passed: 16
+passed: 17
 issues: 0
-pending: 1
+pending: 0
 blocked: 0
 skipped: 0
 
@@ -196,3 +195,9 @@ skipped: 0
   fix: a9281c1 — X (Cancel) button added to both add and edit inline forms in AddItemsStep
   severity: minor
   test: adhoc
+
+- truth: "Host-assignment acceptance is durable — if a guest accepts an item then navigates back to claiming and taps done again, the accepted item does not reappear on ReviewHostAssignedScreen"
+  status: fixed
+  fix: ce9301b — added accepted?: boolean to ClaimEntry; new POST /api/session/[sessionId]/accept route writes accepted:true to Redis; ReviewHostAssignedScreen calls API on Accept instead of local state; hasHostAssignedItems + handleDone filter exclude accepted claims
+  severity: major
+  test: post-UAT Vercel
