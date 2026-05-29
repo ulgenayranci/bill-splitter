@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Check, X, Plus, ClipboardList, Clock } from 'lucide-react'
+import { Check, X, Plus, ClipboardList, Clock, Pencil } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import { parseCents, formatCents } from '@/lib/billMath'
 import type { PublicSessionPayload, SessionPayload } from '@/lib/sessionSchema'
@@ -21,7 +21,7 @@ import { computePersonShareFromClaims } from '@/lib/billMath'
 
 type InlineForm =
   | { kind: 'add'; name: string; price: string; qty: string; error: string | null }
-  | { kind: 'reprice'; itemId: ItemId; price: string; error: string | null }
+  | { kind: 'edit'; itemId: ItemId; name: string; price: string; originalName: string; originalPrice: string; error: string | null }
 
 const fetcher = (url: string): Promise<PublicSessionPayload> =>
   fetch(url).then((r) => {
@@ -253,27 +253,46 @@ export function CollaborativeClaimingView({
     if (!inlineForm || !selectedPersonId) return
     setInlineSubmitting(true)
     try {
-      let type: string
-      let payload: Record<string, unknown>
       if (inlineForm.kind === 'add') {
         const trimmed = inlineForm.name.trim()
         if (!trimmed) { setInlineForm({ ...inlineForm, error: 'Enter a name' }); return }
         const priceCents = parseCents(inlineForm.price)
         if (!priceCents || priceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price' }); return }
-        type = 'add'
-        payload = { name: trimmed, priceCents, quantity: Math.max(1, parseInt(inlineForm.qty, 10) || 1) }
+        const res = await fetch(`/api/session/${sessionId}/edit-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ personId: selectedPersonId, type: 'add',
+            payload: { name: trimmed, priceCents, quantity: Math.max(1, parseInt(inlineForm.qty, 10) || 1) } }),
+        })
+        if (!res.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
       } else {
+        // Send edit_name and/or edit_price requests for whatever changed
+        const trimmedName = inlineForm.name.trim()
+        if (!trimmedName) { setInlineForm({ ...inlineForm, error: 'Enter a name' }); return }
         const newPriceCents = parseCents(inlineForm.price)
         if (!newPriceCents || newPriceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price' }); return }
-        type = 'edit_price'
-        payload = { itemId: inlineForm.itemId, newPriceCents }
+        const nameChanged = trimmedName !== inlineForm.originalName
+        const priceChanged = inlineForm.price.trim() !== inlineForm.originalPrice
+        if (!nameChanged && !priceChanged) { setInlineForm(null); return }
+        if (nameChanged) {
+          const r = await fetch(`/api/session/${sessionId}/edit-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personId: selectedPersonId, type: 'edit_name',
+              payload: { itemId: inlineForm.itemId, newName: trimmedName } }),
+          })
+          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+        }
+        if (priceChanged) {
+          const r = await fetch(`/api/session/${sessionId}/edit-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personId: selectedPersonId, type: 'edit_price',
+              payload: { itemId: inlineForm.itemId, newPriceCents } }),
+          })
+          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+        }
       }
-      const res = await fetch(`/api/session/${sessionId}/edit-request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personId: selectedPersonId, type, payload }),
-      })
-      if (!res.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
       await mutate()
       setInlineForm(null)
     } catch {
@@ -355,64 +374,81 @@ export function CollaborativeClaimingView({
       <ul className="flex flex-col gap-2 px-6 py-4 pb-[160px]">
         {session.items.map((item) => {
           const claimsForItem = session.claims?.items?.[item.id] ?? {}
-          const isRepricing = inlineForm?.kind === 'reprice' && inlineForm.itemId === item.id
-          const pendingReprice = Object.values(session.editRequests ?? {}).find(
-            (r) => r.personId === selectedPersonId && r.type === 'edit_price' && r.status === 'pending' &&
+          const isEditing = inlineForm?.kind === 'edit' && inlineForm.itemId === item.id
+          const pendingEdit = Object.values(session.editRequests ?? {}).find(
+            (r) => r.personId === selectedPersonId && r.status === 'pending' &&
+              (r.type === 'edit_price' || r.type === 'edit_name') &&
               (r.payload as Record<string, unknown>).itemId === item.id
           )
+          const originalPrice = (item.priceCents / 100).toFixed(2)
           return (
             <li key={item.id} className="flex flex-col gap-1">
-              <div className="flex items-stretch gap-2">
-                <div className="flex-1">
-                  <ClaimableItemCard
-                    item={item}
-                    claimsForItem={claimsForItem}
-                    myPersonId={selectedPersonId}
-                    peopleById={peopleById}
-                    onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
-                    hasError={!!itemErrors[item.id]}
-                  />
-                </div>
-                {isRepricing ? (
-                  <div className="flex shrink-0 items-center gap-1 self-center">
-                    <Input
-                      value={inlineForm.price}
-                      onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null })}
-                      onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
-                      inputMode="decimal"
-                      placeholder="$0.00"
-                      className="h-10 w-24 text-base"
-                      autoFocus
-                      aria-label="New price"
-                    />
-                    <button type="button" aria-label="Confirm reprice" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                      className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100">
-                      <Check size={18} />
-                    </button>
-                    <button type="button" aria-label="Cancel reprice" onClick={() => setInlineForm(null)}
-                      className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100">
-                      <X size={18} />
-                    </button>
+              {isEditing ? (
+                <Card className="flex flex-row items-start gap-2 px-4 py-3">
+                  <div className="flex flex-1 flex-col gap-1">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Item name"
+                        aria-label="Item name"
+                        value={inlineForm.name}
+                        onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null })}
+                        className="flex-1 h-10 text-base"
+                        maxLength={100}
+                        autoFocus
+                      />
+                      <Input
+                        placeholder="Price"
+                        aria-label="New price"
+                        value={inlineForm.price}
+                        inputMode="decimal"
+                        onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
+                        className="h-10 w-24 text-base"
+                        maxLength={9}
+                      />
+                      <button type="button" aria-label="Confirm edit" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100">
+                        <Check size={18} />
+                      </button>
+                      <button type="button" aria-label="Cancel edit" onClick={() => setInlineForm(null)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100">
+                        <X size={18} />
+                      </button>
+                    </div>
+                    {inlineForm.error && <p className="text-[13px] text-red-600">{inlineForm.error}</p>}
                   </div>
-                ) : pendingReprice ? null : (
-                  <button
-                    type="button"
-                    aria-label={`Request reprice for ${item.name}`}
-                    onClick={() => setInlineForm({ kind: 'reprice', itemId: item.id, price: '', error: null })}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
-                    data-testid={`edit-pencil-${item.id}`}
-                  >
-                    <span className="text-[11px] font-medium">$?</span>
-                  </button>
-                )}
-              </div>
-              {(inlineForm?.kind === 'reprice' && inlineForm.itemId === item.id && inlineForm.error) && (
-                <p className="px-1 text-[13px] text-red-600">{inlineForm.error}</p>
+                </Card>
+              ) : (
+                <div className="flex items-stretch gap-2">
+                  <div className="flex-1">
+                    <ClaimableItemCard
+                      item={item}
+                      claimsForItem={claimsForItem}
+                      myPersonId={selectedPersonId}
+                      peopleById={peopleById}
+                      onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
+                      hasError={!!itemErrors[item.id]}
+                    />
+                  </div>
+                  {!pendingEdit && (
+                    <button
+                      type="button"
+                      aria-label={`Edit ${item.name}`}
+                      onClick={() => setInlineForm({ kind: 'edit', itemId: item.id,
+                        name: item.name, price: originalPrice,
+                        originalName: item.name, originalPrice, error: null })}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
+                      data-testid={`edit-pencil-${item.id}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                </div>
               )}
-              {pendingReprice && (
+              {pendingEdit && (
                 <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-[13px] text-amber-700">
                   <Clock size={13} />
-                  Reprice pending host approval
+                  Edit pending host approval
                 </div>
               )}
             </li>

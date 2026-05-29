@@ -240,14 +240,15 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.getByTestId('host-panel')).toBeDefined()
   })
 
-  it('Test 13 (per-item reprice button opens inline price input)', async () => {
+  it('Test 13 (per-item pencil opens inline edit form with name + price)', async () => {
     await selectAlice()
     fireEvent.click(screen.getByTestId('edit-pencil-i1'))
-    // inline reprice input appears in place of the button
+    // inline edit form shows name and price inputs pre-filled
+    expect(screen.getByLabelText('Item name')).toBeDefined()
     expect(screen.getByLabelText('New price')).toBeDefined()
-    // cancel closes it
-    fireEvent.click(screen.getByLabelText('Cancel reprice'))
-    expect(screen.queryByLabelText('New price')).toBeNull()
+    // cancel closes it, item card returns
+    fireEvent.click(screen.getByLabelText('Cancel edit'))
+    expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
   it('Test 14 (Add item button opens inline add form)', async () => {
