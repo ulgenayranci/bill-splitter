@@ -130,6 +130,11 @@ export function CollaborativeClaimingView({
       const data = (await res.json()) as { ok: boolean; reason?: string }
       if (data.ok) {
         setSelectedPersonId(personId)
+        const hasPreAssigned = session?.items.some((item) => {
+          const claim = session.claims?.items?.[item.id]?.[personId]
+          return claim?.assignedBy === 'host' && claim.qty > 0 && !claim.accepted
+        }) ?? false
+        if (hasPreAssigned) setPhase('review')
       } else {
         await mutate()
       }
