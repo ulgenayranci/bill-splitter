@@ -182,6 +182,9 @@ export function CollaborativeClaimingView({
       const data = (await res.json()) as { ok: boolean; reason?: string }
       if (data.ok) {
         setSelectedPersonId(personId)
+      } else if (data.reason === 'slot_taken') {
+        // Slot already claimed — guest is re-joining after a refresh or cleared storage.
+        setSelectedPersonId(personId)
       } else {
         await mutate()
       }
