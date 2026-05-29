@@ -5,7 +5,7 @@ import type { SessionPayload, EditRequest, EditPayload } from '@/lib/sessionSche
 
 export const maxDuration = 10
 
-const VALID_TYPES = ['add', 'remove', 'edit_price', 'edit_name'] as const
+const VALID_TYPES = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity'] as const
 type EditType = (typeof VALID_TYPES)[number]
 
 // EditRequestPayload is an alias for the discriminated EditPayload union with type tag
@@ -14,6 +14,7 @@ export type EditRequestPayload =
   | { type: 'remove'; itemId: string }
   | { type: 'edit_price'; itemId: string; newPriceCents: number }
   | { type: 'edit_name'; itemId: string; newName: string }
+  | { type: 'edit_quantity'; itemId: string; newQuantity: number }
 
 function validatePayload(
   type: EditType,
@@ -39,9 +40,13 @@ function validatePayload(
     if (!Number.isInteger(p.newPriceCents) || (p.newPriceCents as number) <= 0) return { ok: false, error: 'Invalid edit_price payload' }
     return { ok: true, payload: { itemId: p.itemId as string, newPriceCents: p.newPriceCents as number } }
   }
-  // edit_name
-  if (typeof p.newName !== 'string' || p.newName.length === 0) return { ok: false, error: 'Invalid edit_name payload' }
-  return { ok: true, payload: { itemId: p.itemId as string, newName: p.newName } }
+  if (type === 'edit_name') {
+    if (typeof p.newName !== 'string' || p.newName.length === 0) return { ok: false, error: 'Invalid edit_name payload' }
+    return { ok: true, payload: { itemId: p.itemId as string, newName: p.newName } }
+  }
+  // edit_quantity
+  if (!Number.isInteger(p.newQuantity) || (p.newQuantity as number) <= 0) return { ok: false, error: 'Invalid edit_quantity payload' }
+  return { ok: true, payload: { itemId: p.itemId as string, newQuantity: p.newQuantity as number } }
 }
 
 export async function POST(

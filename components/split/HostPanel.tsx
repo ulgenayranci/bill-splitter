@@ -499,6 +499,9 @@ function describeEdit(req: EditRequest, sessionItems: PublicSessionPayload['item
   if (req.type === 'edit_name' && 'newName' in p) {
     return `Rename "${itemName}" → "${p.newName}"`
   }
+  if (req.type === 'edit_quantity' && 'newQuantity' in p) {
+    return `Change qty of "${itemName}" → ×${p.newQuantity}`
+  }
   return 'Unknown edit'
 }
 

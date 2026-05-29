@@ -21,7 +21,7 @@ import { computePersonShareFromClaims } from '@/lib/billMath'
 
 type InlineForm =
   | { kind: 'add'; name: string; price: string; qty: string; error: string | null }
-  | { kind: 'edit'; itemId: ItemId; name: string; price: string; originalName: string; originalPrice: string; error: string | null }
+  | { kind: 'edit'; itemId: ItemId; name: string; price: string; qty: string; originalName: string; originalPrice: string; originalQty: string; error: string | null }
 
 const fetcher = (url: string): Promise<PublicSessionPayload> =>
   fetch(url).then((r) => {
@@ -273,7 +273,9 @@ export function CollaborativeClaimingView({
         if (!newPriceCents || newPriceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price' }); return }
         const nameChanged = trimmedName !== inlineForm.originalName
         const priceChanged = inlineForm.price.trim() !== inlineForm.originalPrice
-        if (!nameChanged && !priceChanged) { setInlineForm(null); return }
+        const newQty = Math.max(1, Math.min(99, parseInt(inlineForm.qty, 10) || 1))
+        const qtyChanged = String(newQty) !== inlineForm.originalQty
+        if (!nameChanged && !priceChanged && !qtyChanged) { setInlineForm(null); return }
         if (nameChanged) {
           const r = await fetch(`/api/session/${sessionId}/edit-request`, {
             method: 'POST',
@@ -289,6 +291,15 @@ export function CollaborativeClaimingView({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ personId: selectedPersonId, type: 'edit_price',
               payload: { itemId: inlineForm.itemId, newPriceCents } }),
+          })
+          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+        }
+        if (qtyChanged) {
+          const r = await fetch(`/api/session/${sessionId}/edit-request`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personId: selectedPersonId, type: 'edit_quantity',
+              payload: { itemId: inlineForm.itemId, newQuantity: newQty } }),
           })
           if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
         }
@@ -377,7 +388,7 @@ export function CollaborativeClaimingView({
           const isEditing = inlineForm?.kind === 'edit' && inlineForm.itemId === item.id
           const pendingEdit = Object.values(session.editRequests ?? {}).find(
             (r) => r.personId === selectedPersonId && r.status === 'pending' &&
-              (r.type === 'edit_price' || r.type === 'edit_name') &&
+              (r.type === 'edit_price' || r.type === 'edit_name' || r.type === 'edit_quantity') &&
               (r.payload as Record<string, unknown>).itemId === item.id
           )
           const originalPrice = (item.priceCents / 100).toFixed(2)
@@ -405,6 +416,18 @@ export function CollaborativeClaimingView({
                         onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
                         className="h-10 w-24 text-base"
                         maxLength={9}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Qty"
+                        aria-label="Quantity"
+                        value={inlineForm.qty}
+                        inputMode="numeric"
+                        min={1}
+                        max={99}
+                        onChange={(e) => setInlineForm({ ...inlineForm, qty: e.target.value, error: null })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
+                        className="h-10 w-14 text-base text-center"
                       />
                       <button type="button" aria-label="Confirm edit" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100">
@@ -435,8 +458,8 @@ export function CollaborativeClaimingView({
                       type="button"
                       aria-label={`Edit ${item.name}`}
                       onClick={() => setInlineForm({ kind: 'edit', itemId: item.id,
-                        name: item.name, price: originalPrice,
-                        originalName: item.name, originalPrice, error: null })}
+                        name: item.name, price: originalPrice, qty: String(item.quantity ?? 1),
+                        originalName: item.name, originalPrice, originalQty: String(item.quantity ?? 1), error: null })}
                       className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
                       data-testid={`edit-pencil-${item.id}`}
                     >

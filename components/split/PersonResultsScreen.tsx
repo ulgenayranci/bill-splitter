@@ -71,7 +71,12 @@ export function PersonResultsScreen({ session, personId, onBack }: PersonResults
               className="flex justify-between text-[14px]"
               data-testid={`results-row-${item.id}`}
             >
-              <span>{item.name}</span>
+              <span>
+                {item.name}
+                {(item.quantity ?? 1) > 1 && (
+                  <span className="ml-1 text-zinc-400">×{item.quantity}</span>
+                )}
+              </span>
               <span>{formatCents(shareCents)}</span>
             </li>
           ))}

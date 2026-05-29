@@ -143,7 +143,12 @@ export function ResultsStep() {
                           key={item.id}
                           className="flex justify-between text-[14px] text-zinc-600"
                         >
-                          <span>{item.name}</span>
+                          <span>
+                            {item.name}
+                            {(item.quantity ?? 1) > 1 && (
+                              <span className="ml-1 text-zinc-400">×{item.quantity}</span>
+                            )}
+                          </span>
                           <span>{formatCents(share)}</span>
                         </div>
                       )
@@ -171,7 +176,12 @@ export function ResultsStep() {
             <span className="text-[16px] font-semibold">Unclaimed items</span>
             {unclaimedItems.map((item) => (
               <div key={item.id} className="flex justify-between text-[14px]">
-                <span>{item.name}</span>
+                <span>
+                  {item.name}
+                  {(item.quantity ?? 1) > 1 && (
+                    <span className="ml-1 text-zinc-400">×{item.quantity}</span>
+                  )}
+                </span>
                 <span>{formatCents(item.priceCents)}</span>
               </div>
             ))}

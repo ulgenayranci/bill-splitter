@@ -413,7 +413,12 @@ export function AddItemsStep() {
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleItemRowClick(item) }}
                 data-testid={`item-row-${index}`}
               >
-                <span className="flex-1 text-[16px]">{item.name}</span>
+                <span className="flex-1 text-[16px]">
+                  {item.name}
+                  {(item.quantity ?? 1) > 1 && (
+                    <span className="ml-2 text-[14px] text-zinc-500">×{item.quantity}</span>
+                  )}
+                </span>
                 {(item.confidence === 'low' || item.confidence === 'ambiguous') && (
                   <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-medium">
                     Review

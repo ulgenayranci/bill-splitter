@@ -98,6 +98,11 @@ export async function POST(
       updatedItems = updatedItems.map((it) =>
         it.id === targetId ? { ...it, name: p.newName as string } : it
       )
+    } else if (editReq.type === 'edit_quantity') {
+      const targetId = p.itemId as string
+      updatedItems = updatedItems.map((it) =>
+        it.id === targetId ? { ...it, quantity: p.newQuantity as number } : it
+      )
     }
 
     const updated: SessionPayload = {

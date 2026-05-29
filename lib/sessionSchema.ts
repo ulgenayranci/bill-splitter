@@ -14,10 +14,11 @@ export type EditPayload =
   | { itemId: ItemId }
   | { itemId: ItemId; newPriceCents: number }
   | { itemId: ItemId; newName: string }
+  | { itemId: ItemId; newQuantity: number }
 
 export interface EditRequest {
   personId: PersonId
-  type: 'add' | 'remove' | 'edit_price' | 'edit_name'
+  type: 'add' | 'remove' | 'edit_price' | 'edit_name' | 'edit_quantity'
   payload: EditPayload
   status: 'pending' | 'approved' | 'rejected'
   createdAt: number
