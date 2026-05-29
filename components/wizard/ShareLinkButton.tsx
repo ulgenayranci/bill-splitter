@@ -43,13 +43,13 @@ export function ShareLinkButton() {
       setSessionError(null)
       // Phase 6: tipPercent is NOT sent — per D-07 tip is per-person, set after claiming.
       // Items now carry a required `quantity` field (Plan 01).
-      const { people, items } = useBillStore.getState()
+      const { people, items, assignments } = useBillStore.getState()
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const res = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ people, items }),
+        body: JSON.stringify({ people, items, assignments }),
         signal: abortRef.current.signal,
       })
       if (!res.ok) throw new Error(`Session creation failed: ${res.status}`)

@@ -52,13 +52,29 @@ export async function POST(request: Request) {
   }
   // tipPercent intentionally not validated/stored — Phase 6 per-person tips (D-07)
 
+  // Convert wizard assignments (Record<ItemId, PersonId[]>) into session claims so
+  // host pre-assignments are visible to guests when they join.
+  const rawAssignments = b.assignments
+  const prePopulatedClaims: Record<string, Record<string, { qty: number; assignedBy: 'host' }>> = {}
+  if (rawAssignments && typeof rawAssignments === 'object' && !Array.isArray(rawAssignments)) {
+    for (const [itemId, personIds] of Object.entries(rawAssignments as Record<string, unknown>)) {
+      if (!Array.isArray(personIds) || personIds.length === 0) continue
+      prePopulatedClaims[itemId] = {}
+      for (const personId of personIds) {
+        if (typeof personId === 'string') {
+          prePopulatedClaims[itemId][personId] = { qty: 1, assignedBy: 'host' }
+        }
+      }
+    }
+  }
+
   try {
     const sessionId = nanoid()
     const hostToken = nanoid()                          // D-02: server-generated, 21-char URL-safe
     const payload: SessionPayload = {
       people: b.people,
       items: b.items,
-      claims: { items: {}, personSlots: {}, donePeople: {} },
+      claims: { items: prePopulatedClaims, personSlots: {}, donePeople: {} },
       hostToken,
       hostPersonId: undefined,
       tips: {},
