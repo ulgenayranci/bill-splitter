@@ -240,20 +240,25 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.getByTestId('host-panel')).toBeDefined()
   })
 
-  it('Test 13 (per-item pencil opens EditRequestForm in edit_price mode)', async () => {
+  it('Test 13 (per-item reprice button opens inline price input)', async () => {
     await selectAlice()
     fireEvent.click(screen.getByTestId('edit-pencil-i1'))
-    expect(screen.getByTestId('edit-request-form')).toBeDefined()
-    // edit_price field set — newPriceCents input visible
+    // inline reprice input appears in place of the button
     expect(screen.getByLabelText('New price')).toBeDefined()
+    // cancel closes it
+    fireEvent.click(screen.getByLabelText('Cancel reprice'))
+    expect(screen.queryByLabelText('New price')).toBeNull()
   })
 
-  it('Test 14 (Add item button opens EditRequestForm in add mode)', async () => {
+  it('Test 14 (Add item button opens inline add form)', async () => {
     await selectAlice()
     fireEvent.click(screen.getByTestId('add-item-button'))
-    expect(screen.getByTestId('edit-request-form')).toBeDefined()
-    // add field set — item name input visible
+    // inline add form appears with name + confirm + cancel
     expect(screen.getByLabelText('Item name')).toBeDefined()
+    expect(screen.getByLabelText('Confirm')).toBeDefined()
+    // cancel closes it
+    fireEvent.click(screen.getByLabelText('Cancel'))
+    expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
   // WR-07: mutate() return value drives the host-assigned routing — not stale session closure.
