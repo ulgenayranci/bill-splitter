@@ -35,6 +35,21 @@ interface CollaborativeClaimingViewProps {
 
 type Phase = 'claiming' | 'review' | 'tip' | 'results'
 
+/** Derive which phase a returning guest should land on based on persisted server state. */
+function derivePhase(personId: PersonId, session: PublicSessionPayload): Phase {
+  if (session.tips?.[personId] !== undefined) {
+    return 'results'
+  }
+  if (session.claims?.donePeople?.[personId]) {
+    const hasUnaccepted = session.items.some((item) => {
+      const c = session.claims?.items?.[item.id]?.[personId]
+      return c?.assignedBy === 'host' && c.qty > 0 && !c.accepted
+    })
+    return hasUnaccepted ? 'review' : 'tip'
+  }
+  return 'claiming'
+}
+
 export function CollaborativeClaimingView({
   sessionId,
 }: CollaborativeClaimingViewProps) {
@@ -65,6 +80,43 @@ export function CollaborativeClaimingView({
       setSelectedPersonId(session.hostPersonId)
     }
   }, [hostTokenParam, session?.hostPersonId, selectedPersonId])
+
+  // Persist guest's chosen slot to localStorage so page refresh can restore it.
+  // The key is scoped to the sessionId so multiple sessions don't interfere.
+  useEffect(() => {
+    if (selectedPersonId !== null) {
+      try {
+        localStorage.setItem(`split:${sessionId}:personId`, selectedPersonId)
+      } catch {
+        // localStorage may be unavailable in private browsing — silently ignore.
+      }
+    }
+  }, [selectedPersonId, sessionId])
+
+  // Auto-restore guest slot on mount: when session data loads and the guest
+  // hasn't selected a slot yet (and this is not the host path), check localStorage
+  // for a previously stored personId. If the slot is still claimed by that person
+  // on the server, restore both the personId and the correct phase.
+  // hostTokenParam is null on the guest path — the host has its own restore path above.
+  useEffect(() => {
+    if (hostTokenParam !== null) return          // host path — skip
+    if (selectedPersonId !== null) return        // already selected
+    if (!session) return                         // session not loaded yet
+
+    let stored: string | null = null
+    try {
+      stored = localStorage.getItem(`split:${sessionId}:personId`)
+    } catch {
+      // localStorage unavailable — cannot restore
+    }
+    if (!stored) return
+
+    // Only restore if the server confirms this slot is taken (i.e. the claim is durable)
+    if (session.claims?.personSlots?.[stored] === true) {
+      setSelectedPersonId(stored as PersonId)
+      setPhase(derivePhase(stored as PersonId, session))
+    }
+  }, [hostTokenParam, selectedPersonId, session, sessionId])
 
   // CR-01: hostToken is no longer returned by the GET endpoint (stripped server-side).
   // Derive isHost from hostPersonId (set by the server when the host claims their slot).
