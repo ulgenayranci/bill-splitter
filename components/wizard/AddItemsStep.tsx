@@ -78,8 +78,6 @@ export function AddItemsStep() {
   useEffect(() => {
     return () => {
       abortRef.current?.abort()
-      const url = useBillStore.getState().billImageUrl
-      if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
     }
   }, [])
 
