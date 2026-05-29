@@ -95,9 +95,9 @@ export function computePersonShareFromClaims(
   itemSubtotal: number
   tip: number
   total: number
-  lineItems: Array<{ item: Item; shareCents: number }>
+  lineItems: Array<{ item: Item; shareCents: number; claimedQty: number }>
 } {
-  const lineItems: Array<{ item: Item; shareCents: number }> = []
+  const lineItems: Array<{ item: Item; shareCents: number; claimedQty: number }> = []
   let itemSubtotal = 0
 
   for (const item of items) {
@@ -114,7 +114,7 @@ export function computePersonShareFromClaims(
 
     const shareCents = Math.round((item.priceCents * myQty) / totalQty)
     itemSubtotal += shareCents
-    lineItems.push({ item, shareCents })
+    lineItems.push({ item, shareCents, claimedQty: myQty })
   }
 
   return {

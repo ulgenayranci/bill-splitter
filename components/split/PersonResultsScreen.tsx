@@ -65,7 +65,7 @@ export function PersonResultsScreen({ session, personId, onBack }: PersonResults
         <Separator />
 
         <ul className="flex flex-col gap-1" data-testid="results-line-items">
-          {result.lineItems.map(({ item, shareCents }) => (
+          {result.lineItems.map(({ item, shareCents, claimedQty }) => (
             <li
               key={item.id}
               className="flex justify-between text-[14px]"
@@ -73,8 +73,8 @@ export function PersonResultsScreen({ session, personId, onBack }: PersonResults
             >
               <span>
                 {item.name}
-                {(item.quantity ?? 1) > 1 && (
-                  <span className="ml-1 text-zinc-400">×{item.quantity}</span>
+                {claimedQty > 1 && (
+                  <span className="ml-1 text-zinc-400">×{claimedQty}</span>
                 )}
               </span>
               <span>{formatCents(shareCents)}</span>
