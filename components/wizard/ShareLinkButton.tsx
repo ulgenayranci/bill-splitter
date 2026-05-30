@@ -60,7 +60,8 @@ export function ShareLinkButton() {
       setSessionId(sessionId)
       setHostToken(hostToken)
       // The guest URL intentionally omits the hostToken — guests must not get host privileges.
-      const guestUrl = `${window.location.origin}/split/${sessionId}`
+      const origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const guestUrl = `${origin}/split/${sessionId}`
       setPendingSession({ guestUrl, sessionId, hostToken })
     } catch (err) {
       console.error(err)
