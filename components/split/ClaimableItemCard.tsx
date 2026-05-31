@@ -14,7 +14,7 @@ interface ClaimableItemCardProps {
   myPersonId: PersonId
   peopleById: Record<PersonId, Person>
   onQtyChange: (newQty: number) => void
-  hasError?: boolean
+  errorMessage?: string
 }
 
 const MAX_VISIBLE_AVATARS = 5
@@ -25,7 +25,7 @@ export function ClaimableItemCard({
   myPersonId,
   peopleById,
   onQtyChange,
-  hasError,
+  errorMessage,
 }: ClaimableItemCardProps) {
   const myEntry = claimsForItem[myPersonId]
   const myQty = myEntry?.qty ?? 0
@@ -178,8 +178,8 @@ export function ClaimableItemCard({
         </div>
       )}
 
-      {hasError && (
-        <span className="text-sm text-red-600">Couldn&rsquo;t save — tap to retry</span>
+      {errorMessage && (
+        <span className="text-sm text-red-600">{errorMessage}</span>
       )}
     </Card>
   )

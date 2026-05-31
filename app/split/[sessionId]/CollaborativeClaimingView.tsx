@@ -25,6 +25,13 @@ type InlineForm =
 
 class SessionNotFoundError extends Error {}
 
+function claimErrorMessage(err: unknown, type: 'save' | 'submit'): string {
+  if (!navigator.onLine || err instanceof TypeError) {
+    return "You're offline — reconnect and tap to retry"
+  }
+  return type === 'save' ? "Couldn't save — tap to retry" : "Couldn't submit — tap to retry"
+}
+
 const fetcher = (url: string): Promise<PublicSessionPayload> =>
   fetch(url).then((r) => {
     if (!r.ok) throw new SessionNotFoundError('session_not_found')
@@ -64,7 +71,7 @@ export function CollaborativeClaimingView({
     if (match) setHostTokenParam(match[1])
   }, [])
   const [selectedPersonId, setSelectedPersonId] = useState<PersonId | null>(null)
-  const [itemErrors, setItemErrors] = useState<Record<ItemId, boolean>>({})
+  const [itemErrors, setItemErrors] = useState<Record<ItemId, string>>({})
   const [doneError, setDoneError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('claiming')
 
@@ -242,8 +249,8 @@ export function CollaborativeClaimingView({
         delete next[itemId]
         return next
       })
-    } catch {
-      setItemErrors((prev) => ({ ...prev, [itemId]: true }))
+    } catch (err) {
+      setItemErrors((prev) => ({ ...prev, [itemId]: claimErrorMessage(err, 'save') }))
     }
   }
 
@@ -269,7 +276,7 @@ export function CollaborativeClaimingView({
       setPhase(hasHostAssigned ? 'review' : 'tip')
     } catch (err) {
       console.error('Done submission failed:', err)
-      setDoneError("Couldn't submit — tap to retry")
+      setDoneError(claimErrorMessage(err, 'submit'))
     }
   }
 
@@ -504,7 +511,7 @@ export function CollaborativeClaimingView({
                       myPersonId={selectedPersonId}
                       peopleById={peopleById}
                       onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
-                      hasError={!!itemErrors[item.id]}
+                      errorMessage={itemErrors[item.id]}
                     />
                   </div>
                   {!pendingEdit && (
