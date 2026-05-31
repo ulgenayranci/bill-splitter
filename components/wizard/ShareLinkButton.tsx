@@ -73,14 +73,19 @@ export function ShareLinkButton() {
 
   async function handleCopyLink() {
     if (!pendingSession) return
-    const { guestUrl } = pendingSession
+    const { guestUrl, sessionId, hostToken } = pendingSession
+
+    function redirectHost() {
+      setPendingSession(null)
+      router.push(`/split/${sessionId}#hostToken=${hostToken}`)
+    }
 
     // 1. Native share sheet — works on mobile without HTTPS (iOS Safari, Android Chrome)
     if (navigator.share) {
       try {
         await navigator.share({ url: guestUrl, title: 'Split the bill' })
         setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        setTimeout(redirectHost, 1200)
         return
       } catch {
         // User cancelled share or share not supported — fall through
@@ -113,13 +118,7 @@ export function ShareLinkButton() {
     if (success) {
       setCopied(true)
       // After copying, briefly show "Copied!" then redirect host to the session.
-      setTimeout(() => {
-        if (!pendingSession) return
-        const { sessionId, hostToken } = pendingSession
-        setPendingSession(null)
-        // CR-05: Use URL fragment (#) instead of query param (?) for the host token.
-        router.push(`/split/${sessionId}#hostToken=${hostToken}`)
-      }, 1200)
+      setTimeout(redirectHost, 1200)
     }
   }
 
