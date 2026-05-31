@@ -23,9 +23,11 @@ type InlineForm =
   | { kind: 'add'; name: string; price: string; qty: string; error: string | null }
   | { kind: 'edit'; itemId: ItemId; name: string; price: string; qty: string; originalName: string; originalPrice: string; originalQty: string; error: string | null }
 
+class SessionNotFoundError extends Error {}
+
 const fetcher = (url: string): Promise<PublicSessionPayload> =>
   fetch(url).then((r) => {
-    if (!r.ok) throw new Error('session_not_found')
+    if (!r.ok) throw new SessionNotFoundError('session_not_found')
     return r.json()
   })
 
@@ -154,7 +156,7 @@ export function CollaborativeClaimingView({
   const [inlineForm, setInlineForm] = useState<InlineForm | null>(null)
   const [inlineSubmitting, setInlineSubmitting] = useState(false)
 
-  if (error) return <SessionExpiredScreen />
+  if (error instanceof SessionNotFoundError) return <SessionExpiredScreen />
   if (!session) return <div role="status" className="p-6">Loading…</div>
 
   // Helper: check if this person has any host-assigned items not yet accepted
