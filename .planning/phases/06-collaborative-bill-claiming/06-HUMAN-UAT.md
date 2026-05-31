@@ -201,3 +201,15 @@ skipped: 0
   fix: ce9301b — added accepted?: boolean to ClaimEntry; new POST /api/session/[sessionId]/accept route writes accepted:true to Redis; ReviewHostAssignedScreen calls API on Accept instead of local state; hasHostAssignedItems + handleDone filter exclude accepted claims
   severity: major
   test: post-UAT Vercel
+
+- truth: "Taken slots in PersonSlotPicker should be non-clickable — a guest should not be able to claim another person's slot"
+  status: fixed
+  fix: 0ddccec — taken slots are now non-clickable with (taken) label; slot_taken server response no longer bypasses into setSelectedPersonId; localStorage auto-restore handles legitimate refresh re-join
+  severity: critical
+  test: post-UAT Vercel
+
+- truth: "After sharing the guest link via the iOS/Android native share sheet, the host should be redirected to their session"
+  status: fixed
+  fix: 4787c61 — navigator.share path was returning early without calling router.push; all three share paths (native share, clipboard API, execCommand) now call the same redirectHost helper after 1200ms
+  severity: major
+  test: post-UAT mobile
