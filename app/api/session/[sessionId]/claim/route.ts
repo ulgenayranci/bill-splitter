@@ -41,9 +41,18 @@ if qty > 0 then
   for _, item in ipairs(session.items or {}) do
     if item.id == itemId then itemQuantity = item.quantity or 1; break end
   end
-  -- Allow multiple people to claim the same item (proportional split in billMath).
-  -- Only reject if a single person tries to claim more than the item's total quantity.
-  if qty > itemQuantity then return 'qty_exceeded' end
+  -- Sum all current claims for this item across all people.
+  -- Subtract this person's existing claim before adding the new qty so we compute
+  -- the net change correctly (replacing, not stacking).
+  local totalClaimed = 0
+  for _, claim in pairs(session.claims.items[itemId] or {}) do
+    if type(claim) == 'table' then totalClaimed = totalClaimed + (claim.qty or 0) end
+  end
+  local myExisting = 0
+  if type(session.claims.items[itemId][personId]) == 'table' then
+    myExisting = session.claims.items[itemId][personId].qty or 0
+  end
+  if (totalClaimed - myExisting + qty) > itemQuantity then return 'qty_exceeded' end
 end
 
 if qty == 0 then

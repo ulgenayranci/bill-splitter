@@ -52,12 +52,15 @@ export function ClaimableItemCard({
     onQtyChange(myQty === 0 ? 1 : 0)
   }
 
+  // How many more this person can claim = total item qty minus everyone else's claims
+  const remainingForMe = (item.quantity ?? 1) - (totalClaimedQty - myQty)
+
   // Multi-qty stepper handlers
   const handleDecrement = () => {
     if (myQty > 0) onQtyChange(myQty - 1)
   }
   const handleIncrement = () => {
-    if (myQty < (item.quantity ?? 1)) onQtyChange(myQty + 1)
+    if (myQty < remainingForMe) onQtyChange(myQty + 1)
   }
 
   const cardClasses = [
@@ -134,7 +137,7 @@ export function ClaimableItemCard({
               size="icon"
               aria-label={`Increase ${item.name} quantity`}
               onClick={handleIncrement}
-              disabled={myQty >= (item.quantity ?? 1)}
+              disabled={myQty >= remainingForMe}
               className="h-11 w-11"
             >
               <Plus size={16} />
