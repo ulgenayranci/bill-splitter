@@ -28,12 +28,13 @@ export function PersonSlotPicker({ session, onSelect }: PersonSlotPickerProps) {
           return (
             <li key={person.id}>
               <Card
-                role="button"
-                aria-label={taken ? `Re-join as ${person.name}` : `Claim slot ${person.name}`}
-                onClick={() => onSelect(person.id)}
+                role={taken ? undefined : 'button'}
+                aria-label={taken ? `${person.name} (taken)` : `Claim slot ${person.name}`}
+                aria-disabled={taken}
+                onClick={taken ? undefined : () => onSelect(person.id)}
                 className={[
-                  'flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 transition-opacity cursor-pointer',
-                  taken ? 'opacity-60' : '',
+                  'flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 transition-opacity',
+                  taken ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
                 ].join(' ')}
               >
                 <div
@@ -44,7 +45,7 @@ export function PersonSlotPicker({ session, onSelect }: PersonSlotPickerProps) {
                 </div>
                 <span className="text-[16px]">
                   {person.name}
-                  {taken && <span className="ml-1 text-[14px] text-zinc-500">(re-join)</span>}
+                  {taken && <span className="ml-1 text-[14px] text-zinc-500">(taken)</span>}
                 </span>
               </Card>
             </li>
