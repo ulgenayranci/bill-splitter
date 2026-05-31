@@ -17,6 +17,7 @@ import { HostPanel } from '@/components/split/HostPanel'
 import { ReviewHostAssignedScreen } from '@/components/split/ReviewHostAssignedScreen'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
+import { WaitingForClaimsScreen } from '@/components/split/WaitingForClaimsScreen'
 import { computePersonShareFromClaims } from '@/lib/billMath'
 
 type InlineForm =
@@ -42,12 +43,20 @@ interface CollaborativeClaimingViewProps {
   sessionId: string
 }
 
-type Phase = 'claiming' | 'review' | 'tip' | 'results'
+type Phase = 'claiming' | 'review' | 'tip' | 'waiting' | 'results'
+
+function allItemsFullyClaimed(session: PublicSessionPayload): boolean {
+  return session.items.every((item) => {
+    const total = Object.values(session.claims?.items?.[item.id] ?? {})
+      .reduce((sum, e) => sum + (e?.qty ?? 0), 0)
+    return total >= (item.quantity ?? 1)
+  })
+}
 
 /** Derive which phase a returning guest should land on based on persisted server state. */
 function derivePhase(personId: PersonId, session: PublicSessionPayload): Phase {
   if (session.tips?.[personId] !== undefined) {
-    return 'results'
+    return allItemsFullyClaimed(session) ? 'results' : 'waiting'
   }
   if (session.claims?.donePeople?.[personId]) {
     const hasUnaccepted = session.items.some((item) => {
@@ -126,6 +135,13 @@ export function CollaborativeClaimingView({
       setPhase(derivePhase(stored as PersonId, session))
     }
   }, [hostTokenParam, selectedPersonId, session, sessionId])
+
+  // Auto-advance from waiting to results once SWR polling detects all items are claimed.
+  useEffect(() => {
+    if (phase === 'waiting' && session && allItemsFullyClaimed(session)) {
+      setPhase('results')
+    }
+  }, [phase, session])
 
   // CR-01: hostToken is no longer returned by the GET endpoint (stripped server-side).
   // Derive isHost from hostPersonId (set by the server when the host claims their slot).
@@ -413,11 +429,15 @@ export function CollaborativeClaimingView({
         sessionId={sessionId}
         personId={selectedPersonId}
         itemSubtotalCents={personalShare.itemSubtotal}
-        onTipConfirmed={() => setPhase('results')}
+        onTipConfirmed={() => setPhase(allItemsFullyClaimed(session) ? 'results' : 'waiting')}
         onBack={handleBackFromTip}
         mutate={mutate}
       />
     )
+  }
+
+  if (phase === 'waiting') {
+    return <WaitingForClaimsScreen />
   }
 
   if (phase === 'results') {
