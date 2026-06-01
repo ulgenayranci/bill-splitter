@@ -53,10 +53,18 @@ function allItemsFullyClaimed(session: PublicSessionPayload): boolean {
   })
 }
 
+function hasUnacceptedHostItems(personId: PersonId, session: PublicSessionPayload): boolean {
+  return session.items.some((item) => {
+    const c = session.claims?.items?.[item.id]?.[personId]
+    return c?.assignedBy === 'host' && c.qty > 0 && !c.accepted
+  })
+}
+
 /** Derive which phase a returning guest should land on based on persisted server state. */
 function derivePhase(personId: PersonId, session: PublicSessionPayload): Phase {
   if (session.tips?.[personId] !== undefined) {
-    return allItemsFullyClaimed(session) ? 'results' : 'waiting'
+    if (!allItemsFullyClaimed(session)) return 'waiting'
+    return hasUnacceptedHostItems(personId, session) ? 'review' : 'results'
   }
   if (session.claims?.donePeople?.[personId]) {
     const hasUnaccepted = session.items.some((item) => {
@@ -136,12 +144,13 @@ export function CollaborativeClaimingView({
     }
   }, [hostTokenParam, selectedPersonId, session, sessionId])
 
-  // Auto-advance from waiting to results once SWR polling detects all items are claimed.
+  // Auto-advance from waiting once SWR polling detects all items are claimed.
+  // Route through review if host assigned items to this person while they were waiting.
   useEffect(() => {
-    if (phase === 'waiting' && session && allItemsFullyClaimed(session)) {
-      setPhase('results')
+    if (phase === 'waiting' && session && selectedPersonId && allItemsFullyClaimed(session)) {
+      setPhase(hasUnacceptedHostItems(selectedPersonId, session) ? 'review' : 'results')
     }
-  }, [phase, session])
+  }, [phase, session, selectedPersonId])
 
   // CR-01: hostToken is no longer returned by the GET endpoint (stripped server-side).
   // Derive isHost from hostPersonId (set by the server when the host claims their slot).
@@ -416,7 +425,7 @@ export function CollaborativeClaimingView({
         session={session}
         sessionId={sessionId}
         personId={selectedPersonId}
-        onAcceptAll={() => setPhase('tip')}
+        onAcceptAll={() => setPhase(session.tips?.[selectedPersonId] !== undefined ? 'results' : 'tip')}
         onBack={() => void handleBackToClaiming()}
         mutate={mutate}
       />
