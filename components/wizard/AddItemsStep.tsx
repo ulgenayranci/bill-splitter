@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Trash2, Check, Plus, Camera, ChevronLeft, X } from 'lucide-react'
+import { Trash2, Check, Plus, Camera, X } from 'lucide-react'
 import { Toast } from '@base-ui/react/toast'
 import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
@@ -72,7 +72,7 @@ export function AddItemsStep() {
       setTimeout(() => setFormHighlight(false), 2000)
       return
     }
-    setStep(3)
+    setStep(2)
   }
 
   useEffect(() => {
@@ -241,17 +241,8 @@ export function AddItemsStep() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Back button + heading */}
+      {/* Heading */}
       <div>
-        <button
-          type="button"
-          onClick={() => setStep(1)}
-          className="mb-3 flex items-center gap-1 text-[14px] text-zinc-500 hover:text-zinc-800"
-          aria-label="Back to Add People"
-        >
-          <ChevronLeft size={16} />
-          Back
-        </button>
         {items.length === 0 && !isAdding ? (
           <div className="text-center">
             <h1 className="text-[20px] font-semibold leading-[1.2]">What did everyone order?</h1>

@@ -11,8 +11,8 @@ export default function Page() {
   const step = useBillStore((s) => s.step)
   return (
     <WizardShell>
-      {step === 1 && <AddPeopleStep />}
-      {step === 2 && <AddItemsStep />}
+      {step === 1 && <AddItemsStep />}
+      {step === 2 && <AddPeopleStep />}
       {step === 3 && <AssignItemsStep />}
       {step === 4 && <ResultsStep />}
     </WizardShell>

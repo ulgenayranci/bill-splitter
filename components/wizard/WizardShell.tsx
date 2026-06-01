@@ -7,7 +7,7 @@ interface WizardShellProps {
   children: React.ReactNode
 }
 
-const STEP_LABELS = ['Add People', 'Add Items', 'Assign / Share', 'Results']
+const STEP_LABELS = ['Define the Bill', 'Define the Party', 'Assign Items', 'Results']
 
 export function WizardShell({ children }: WizardShellProps) {
   const step = useBillStore((s) => s.step)
