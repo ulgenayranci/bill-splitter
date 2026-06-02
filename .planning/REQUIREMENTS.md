@@ -10,11 +10,11 @@
 
 ### People & Items
 
-- [ ] **PEOPLE-01**: User can add people to the bill by name (no account required)
-- [ ] **ITEMS-01**: User can manually enter items with prices
-- [ ] **ITEMS-02**: User can assign items to one or more people
-- [ ] **ITEMS-03**: User can mark an item as shared and select which people shared it
-- [ ] **ITEMS-04**: App warns user if items remain unassigned before finalizing
+- [x] **PEOPLE-01**: User can add people to the bill by name (no account required)
+- [x] **ITEMS-01**: User can manually enter items with prices
+- [x] **ITEMS-02**: User can assign items to one or more people
+- [x] **ITEMS-03**: User can mark an item as shared and select which people shared it
+- [x] **ITEMS-04**: App warns user if items remain unassigned before finalizing
 
 ### OCR & AI
 
@@ -59,10 +59,10 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| PEOPLE-01 | Phase 1 | pending |
-| ITEMS-01 | Phase 1 | pending |
-| ITEMS-02 | Phase 1 | pending |
-| ITEMS-03 | Phase 1 | pending |
+| PEOPLE-01 | Phase 1 | Complete |
+| ITEMS-01 | Phase 1 | Complete |
+| ITEMS-02 | Phase 1 | Complete |
+| ITEMS-03 | Phase 1 | Complete |
 | TIP-01 | Phase 1 | Complete |
 | RESULTS-01 | Phase 1 | Complete |
 | OCR-01 | Phase 2 | Complete |
@@ -70,4 +70,4 @@
 | OCR-02 | Phase 3 | Complete |
 | OCR-04 | Phase 3 | Complete |
 | RESULTS-02 | Phase 4 | Complete |
-| ITEMS-04 | Phase 5 | pending |
+| ITEMS-04 | Phase 5 | Complete |

@@ -14,9 +14,9 @@
 - [x] **Phase 1: Manual Bill Splitter** - People, items, assignment, tip, and final totals — fully working without OCR
 - [x] **Phase 2: OCR Pipeline** - Photo capture, GPT-4o-mini extraction, and editable item confirmation *(completed 2026-05-09)*
 - [x] **Phase 3: AI Expansion + Disambiguation** - Abbreviation expansion, confidence display, and menu photo / manual fallback (completed 2026-05-10)
-- [ ] **Phase 4: Shareable Links** - Session API, Upstash Redis, and per-person item claiming via shared URL
+- [x] **Phase 4: Shareable Links** - Session API, Upstash Redis, and per-person item claiming via shared URL *(completed 2026-05-13)*
 - [x] **Phase 6: Collaborative Bill Claiming** - Full redesign: real-time collaborative claiming, shared items, quantity stepper, host approval flow, per-person tips (completed 2026-05-27)
-- [ ] **Phase 5: Polish & Hardening** - Unassigned-item warnings, mobile UX, error handling, and copy summary
+- [x] **Phase 5: Polish & Hardening** - Unassigned-item warnings, mobile UX, error handling, and copy summary *(completed 2026-05-14)*
 
 ---
 
@@ -126,7 +126,12 @@
   1. App warns the user if any items remain unassigned before the final totals screen is shown
   2. User can copy a plain-text summary of the split to their clipboard to paste into a group chat
   3. All error states (camera permission denied, OCR failure, network timeout) show a clear recovery message rather than a blank screen or silent failure
-**Plans**: TBD
+**Plans:** 3/3 plans executed
+  **Wave 0**
+  - [x] 05-01-PLAN.md — Unassigned-item warning dialog in AssignItemsStep + mobile viewport/camera guidance text (ITEMS-04)
+  **Wave 1**
+  - [x] 05-02-PLAN.md — Copy-summary button (ResultsStep), inline ShareLinkButton error, start-over action
+  - [x] 05-03-PLAN.md — Guest-side resilience: optimistic error revert on claim failure, "Couldn't submit" error on done bar (D-08/D-09/D-12)
 **UI hint**: yes
 
 ---
@@ -137,7 +142,7 @@
 |-------|----------------|--------|-----------|
 | 1. Manual Bill Splitter | 3/3 | Complete | 2026-05-09 |
 | 2. OCR Pipeline | 3/3 | Complete | 2026-05-09 |
-| 3. AI Expansion + Disambiguation | 3/3 | Complete   | 2026-05-10 |
-| 4. Shareable Links | 0/3 | Not started | - |
-| 6. Collaborative Bill Claiming | 6/6 | Complete   | 2026-05-27 |
-| 5. Polish & Hardening | 0/2 | Not started | - |
+| 3. AI Expansion + Disambiguation | 3/3 | Complete | 2026-05-10 |
+| 4. Shareable Links | 3/3 | Complete | 2026-05-13 |
+| 5. Polish & Hardening | 3/3 | Complete | 2026-05-14 |
+| 6. Collaborative Bill Claiming | 6/6 | Complete | 2026-05-27 |
