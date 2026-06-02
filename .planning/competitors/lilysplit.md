@@ -35,12 +35,16 @@ no-install (collaborator), no-install (owner) — and claims to be the only one 
 
 ## Head-to-head with Bill Splitter
 ### Where THEY win / our gaps
-1. **Payment settlement (Venmo deep-link, pre-filled amount).** They close the loop —
-   tag → tap → Venmo opens with the exact amount. **We stop at "who owes what."** This is
-   precisely the gap the Reddit research flagged (PaulWilczynski: *"how much to Venmo?"*).
-   **Highest-priority thing to consider matching.**
+1. **Product clarity — the main gap (per founder, 2026-06-02).** LilySplit reads as a
+   *clearer, more focused* product than ours: a dead-simple async model (upload → tag →
+   done) with fewer ways to get confused. Our richer feature set (real-time, host controls,
+   disputes) risks feeling more complex. **This is the priority** — being addressed via a
+   flow redesign in Claude design.
 2. **Content/SEO engine** — ranking comparison articles, "how it works" posts. Distribution edge.
-3. **Dead-simple async model** — lower complexity than our real-time flow; fewer ways to confuse a casual user.
+
+> **NOT a priority (founder, 2026-06-02):** Venmo / payment-settlement. We are **not
+> targeting the US market**, so Venmo deep-linking is irrelevant. Ignore the
+> "close the payment loop" framing from earlier Reddit research for our positioning.
 
 ### Where WE win
 1. **AI abbreviation expansion** ("CHKN SAND LG" → "Chicken Sandwich (Large)"). LilySplit
@@ -53,16 +57,18 @@ no-install (collaborator), no-install (owner) — and claims to be the only one 
    `easychecksplitter.md` for our audit).
 
 ## Strategic takeaways
-1. **"No login / no install" is now table stakes, not a moat.** LilySplit markets it as hard
-   as we'd planned to. We need a sharper wedge.
-2. **Close the payment loop.** A pre-filled Venmo/iMessage/"ready-to-send who-owes-what"
-   handoff would erase LilySplit's single biggest advantage and directly serve the universal
-   pay-and-reimburse habit. Strong candidate for the roadmap.
+1. **Product clarity is the #1 priority.** Match LilySplit's focus and simplicity without
+   losing our depth — make the rich features (real-time, host controls) feel effortless, not
+   complex. Founder is reworking the flow in Claude design.
+2. **"No login / no install" is now table stakes, not a moat.** LilySplit markets it as hard
+   as we'd planned to. We need a sharper wedge — clarity + AI quality.
 3. **Lead differentiation on AI quality + collaboration depth** — abbreviation cleanup,
    real-time claiming, shared items, host controls. That's where they're thin.
-4. **Currency is a clean flanking move** — own the non-US market they ignore.
+4. **Currency / non-US focus is our lane.** We are explicitly *not* chasing the US market;
+   LilySplit is US/Venmo-centric. P6 currency support aligns with this.
 5. **Invest in SEO/comparison content eventually** — they're winning discovery.
 
+> **Out of scope:** Venmo/payment settlement (not US-focused). See note above.
+
 ## Follow-up ideas (not yet captured as todos)
-- Evaluate adding a Venmo/PayPal/iMessage payment-handoff with pre-filled amounts.
 - Consider a side-by-side comparison landing page (the LilySplit playbook, turned on them).
