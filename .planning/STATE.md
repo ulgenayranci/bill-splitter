@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: easy-billsy Redesign
 status: planning
-last_updated: "2026-06-04T12:38:13.261Z"
-last_activity: 2026-06-04
+last_updated: "2026-06-04T13:34:14.310Z"
+last_activity: 2026-06-04 — Roadmap created for v2.0 (Phases 7–10)
 progress:
   total_phases: 4
   completed_phases: 0
@@ -72,7 +72,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4
 | redis.eval() Lua for atomic claim writes (not redis.multi) | multi() is NOT atomic on Upstash REST (RESEARCH Pitfall 1); Lua eval is required for concurrent claim safety | Phase 6 |
 | done route uses done: boolean (not undone: true) | Wave 0 test contract sends done:boolean; tests are ground truth over plan prose | Phase 6 |
 | Claim action defaults to 'qty' when itemId present | Wave 0 tests send { personId, itemId, qty } without action field; inference avoids 400 on valid bodies | Phase 6 |
-| currency symbol stored as raw string (not ISO code) | v2.0 uses symbol-prefix display (e.g. "£3.50"); full Intl.NumberFormat / ISO 4217 deferred to v2.1 per ARCHITECTURE.md recommendation to keep v2 simple | Phase 7 (pending) |
+| currency stored as ISO 4217 code + Intl.NumberFormat | Disambiguates $ (USD/CAD/AUD) and handles zero-decimal currencies (JPY); decided in Phase 7 discussion, supersedes the earlier raw-symbol lean | Phase 7 |
 | migrateSession normalizer must be first commit in Phase 8 | Live Redis sessions written by v1 code coexist for 24h after deploy; normalizer on read protects against null-access on new fields | Phase 8 (pending) |
 | Lua script strings audited separately from TypeScript | TypeScript type errors cascade on schema removal, but Lua strings are opaque — must grep separately | Phase 8 (pending) |
 | formatCents gains optional currencyCode param (backward-compatible) | All existing call sites omit the param and continue to get "$"; new call sites pass session.currencyCode | Phase 10 (pending) |
@@ -95,7 +95,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4
 - [ ] Prototype LLM prompt for structured output (type, confidence, raw_name, display_name) early in Phase 2
 - [ ] Validate that "claimed by [name]" display prevents double-claiming without real-time sync (Phase 4)
 - [ ] Design menu photo fallback prompt during Phase 3 planning
-- [ ] Resolve currency ISO code vs raw symbol string before Phase 10 planning (research recommends ISO 4217 + Intl.NumberFormat with 7-currency allowlist; ARCHITECTURE.md recommends raw symbol for v2 simplicity)
+- [x] Resolve currency ISO code vs raw symbol — RESOLVED in Phase 7 discussion: ISO 4217 code + Intl.NumberFormat
 - [ ] Confirm unclaimed-items UX decision (warn + "split evenly" CTA recommended) before Phase 9 planning
 
 ### Blockers
@@ -122,7 +122,7 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 
 ## Session Continuity
 
-**Last session:** 2026-06-04 — v2.0 roadmap created (Phases 7–10).
+**Last session:** 2026-06-04T13:34:14.304Z
 **Next action:** `/gsd:plan-phase 7` to plan Phase 7 (App Shell + Setup Screen).
 
 ## Operator Next Steps
