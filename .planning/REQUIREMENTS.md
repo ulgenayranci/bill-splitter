@@ -1,0 +1,75 @@
+# Requirements — v2.0 easy-billsy Redesign
+
+**Milestone:** v2.0
+**Created:** 2026-06-04
+**Source:** claude.ai/design hi-fi handoff + competitor/user research (`.planning/research/SUMMARY.md`)
+
+A clarity-driven rebuild: scan-first single Setup screen, flat collaborative model (no host role), 3-screen flow (Setup → Bill View → Results), tip from Results, currency recognition. Keep current codebase styling for now.
+
+---
+
+## v2.0 Requirements
+
+### App Shell (SHELL)
+
+- [ ] **SHELL-01**: User sees the "easy-billsy" wordmark header on every screen
+- [ ] **SHELL-02**: User can open a hamburger menu with New Split, History, and About Us (History is an inert stub this milestone)
+- [ ] **SHELL-03**: User can start a fresh split from the menu (resets the current bill)
+- [ ] **SHELL-04**: Progress indicator reflects the 3-step flow (Setup → Bill View → Results)
+
+### Setup (SETUP)
+
+- [ ] **SETUP-01**: User lands on a single scan-first Setup screen where scanning the bill is the primary action
+- [ ] **SETUP-02**: User can add people inline on the Setup screen (no separate step)
+- [ ] **SETUP-03**: After a scan, Setup shows the captured bill (thumbnail + item-found count) with a Retake option, not a re-scan-many affordance
+- [ ] **SETUP-04**: "Continue" is disabled until the bill is scanned and at least one person is added
+
+### Identity (IDENT)
+
+- [ ] **IDENT-01**: On continuing from Setup, a "Who are you?" modal prompts the user to pick their name before claiming
+- [ ] **IDENT-02**: The identity prompt auto-skips when only one person is in the party
+- [ ] **IDENT-03**: User can pick "I'm not listed" to add themselves, and can change identity later
+- [ ] **IDENT-04**: The chosen identity persists on the device so a page reload doesn't re-prompt
+
+### Flat Collaborative Claiming (CLAIM)
+
+- [ ] **CLAIM-01**: Any participant can claim items by tapping — no host, no approval queue
+- [ ] **CLAIM-02**: Multiple people can share one item; a quantity stepper sets each person's portion with proportional cost split
+- [ ] **CLAIM-03**: Anyone can add, edit, or remove an item directly (changes apply immediately, no moderation)
+- [ ] **CLAIM-04**: Live attribution shows who has claimed each item, updating in near-real-time across devices
+- [ ] **CLAIM-05**: Unclaimed items are surfaced before results so nothing is missed
+- [ ] **CLAIM-06**: User can share a join link so others claim on their own phones (no app install, no login)
+
+### Currency (CURR)
+
+- [ ] **CURR-01**: The OCR step detects the receipt's currency
+- [ ] **CURR-02**: All monetary amounts render in the detected currency with correct symbol and decimal places (including zero-decimal currencies like JPY)
+- [ ] **CURR-03**: If currency can't be detected, the app falls back gracefully (sensible default; user can set it)
+
+### Results & Tip (RESULTS / TIP)
+
+- [ ] **RESULTS-03**: Locked Results screen shows each person's itemized breakdown — the current user expanded by default, others tap-to-expand — plus a grand total
+- [ ] **RESULTS-04**: From Results, user can Copy a plain-text summary, Edit the bill, or start a New bill
+- [ ] **TIP-02**: User can add a tip via a modal launched from the Results screen; totals update to include it
+
+---
+
+## Future Requirements (deferred)
+
+- **HIST-01**: Saved bill history — list and reopen past splits (→ v2.1+; History menu is an inert stub in v2.0)
+- Proportional tax / tip split, tax input (dropped from the v2 flow)
+
+## Out of Scope
+
+- Payment-rail integration (Venmo/CashApp/etc.) — not targeting the US market
+- Native iOS/Android app — web app covers the use case
+- User accounts / login — anonymous, link-based use keeps friction low
+- Host/moderator role, edit-request approval, disputes — **removed** in v2 (the flat model is the point)
+
+---
+
+## Traceability
+
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| _(filled by roadmap)_ | | |
