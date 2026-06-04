@@ -50,6 +50,21 @@ Anyone splitting a restaurant bill with friends. Built for broad use, not just p
 
 Mobile-friendly web app. Works on any phone via browser, no install needed. Can be pinned to home screen.
 
+## Current Milestone: v2.0 easy-billsy Redesign
+
+**Goal:** Rebuild the bill splitter as "easy-billsy" — a clarity-driven, scan-first flow with no host role, so a casual table anywhere (any currency) can split fast without friction.
+
+**Target features:**
+- App shell — easy-billsy header (wordmark + hamburger: New Split / History / About Us)
+- Setup screen — scan-first, inline people add
+- "Who are you?" identity modal between Setup and claiming
+- Bill View — flat real-time claiming (shared items, quantity stepper); **no host role**
+- Results — locked per-person breakdown + Copy / Edit bill / New bill
+- Tip — modal launched from a button on the Results screen
+- Currency recognition — OCR detects the receipt's currency symbol; all amounts render in it
+
+**Deferred:** Bill history (inert "History" stub now; saved splits → v2.1+)
+
 ## Requirements
 
 ### Validated
@@ -65,9 +80,17 @@ Mobile-friendly web app. Works on any phone via browser, no install needed. Can 
 - [x] Shareable link so each person claims their own items — v1.0 Phase 4 (RESULTS-02)
 - [x] Real-time collaborative claiming with quantity, shared items, and per-person tips — v1.0 Phase 6
 
-### Active (next milestone)
+### Active (v2.0 — easy-billsy)
 
-Defined via `/gsd-new-milestone` for v2.0. Direction: **easy-billsy redesign** — scan-first single Setup screen, flat model (no host role), 3-screen flow (Setup → Bill View → Results), tip as a Results-screen modal.
+- [ ] easy-billsy app shell — header wordmark + hamburger menu (New Split / History / About Us)
+- [ ] Scan-first Setup screen with inline people add
+- [ ] "Who are you?" identity modal
+- [ ] Flat real-time Bill View — claim items, shared items, quantity stepper (no host role)
+- [ ] Locked Results — per-person breakdown + Copy / Edit bill / New bill
+- [ ] Tip via a Results-screen modal
+- [ ] Currency recognition from the receipt (symbol detected + rendered throughout)
+
+REQ-IDs assigned in REQUIREMENTS.md.
 
 ### Out of Scope (v1) / Deferred to v2
 
