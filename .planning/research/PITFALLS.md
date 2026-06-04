@@ -1,337 +1,286 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** Receipt OCR bill splitter (mobile web)
-**Researched:** 2026-05-08
-**Confidence:** HIGH (OCR/floating-point/camera), MEDIUM (LLM cost/latency, realtime sync), MEDIUM (UX)
+**Domain:** Live bill-splitter app — v2.0 easy-billsy redesign (host removal, wizard collapse, currency, flat model)
+**Researched:** 2026-06-04
+**Confidence:** HIGH (derived from direct codebase inspection — sessionSchema.ts, claim/route.ts, billMath.ts, 29-file test suite, and CollaborativeClaimingView.tsx; not training-data speculation)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, user trust loss, or fundamentally broken math.
-
----
-
-### Pitfall 1: Floating-Point Rounding Makes the Split Not Add Up
+### Pitfall 1: Host-Removal Blast Radius — Dangling References After Deletion
 
 **What goes wrong:**
-JavaScript native `Number` arithmetic (IEEE 754 binary floats) cannot represent common decimal values exactly. `0.1 + 0.2 === 0.30000000000000004`. When each person's share is calculated and rounded independently, the sum of shares will silently drift from the receipt total by $0.01 or more. Users notice immediately — they're staring at the receipt and your number doesn't match.
+Deleting the six host-specific files (HostPanel.tsx, ReviewHostAssignedScreen.tsx, EditRequestForm.tsx, and routes accept/edit-request/resolve-edit/resolve-dispute/dispute) leaves import references in files that are NOT being deleted. The application silently compiles if TypeScript can resolve the symbol from the deleted export, but crashes at runtime if the re-export chain breaks, or breaks the type system if `hostToken`, `hostPersonId`, `editRequests`, and `disputes` remain in `SessionPayload` while the code using them is deleted.
+
+Concrete blast radius from codebase inspection:
+- `lib/sessionSchema.ts`: `ClaimEntry.assignedBy`, `ClaimEntry.accepted`, `EditRequest`, `Dispute`, `hostToken`, `hostPersonId`, `editRequests`, `disputes` — all must be removed or the schema becomes a lie that causes old-session crashes (see Pitfall 2).
+- `app/api/session/[sessionId]/claim/route.ts`: The Lua `QTY_CLAIM_SCRIPT` checks `session.hostToken` at line 26 and `SLOT_CLAIM_SCRIPT` sets `session.hostPersonId` at lines 97-99. Removing the host model requires these Lua strings to be rewritten — they are not TypeScript, so the type checker will not catch stale Lua references. A typo in the Lua rewrite silently returns `invalid_session` for every claim.
+- `app/split/[sessionId]/CollaborativeClaimingView.tsx`: 17+ host-specific references including `hostTokenParam` state, `#hostToken=` URL fragment parsing, the `isHost` derived value, `ReviewHostAssignedScreen` import, `hasUnacceptedHostItems`, and the `editCount`/`disputeCount` badge counters. The view will not compile if ReviewHostAssignedScreen is deleted without also removing every reference to it.
+- `app/api/session/route.ts`: Pre-populates `claims.items` with `assignedBy: 'host'` markers (lines 58-65). In the flat model this block should be removed; leaving it means new sessions still contain host markers that trigger the `accepted` check path even though that path has been deleted.
+- `stores/useBillStore.ts`: Referenced for host-related types; any `hostToken` forwarding logic must be found and removed.
+
+The 923 lines across 6 host-specific test files (`HostPanel.test.tsx`, `ReviewHostAssignedScreen.test.tsx`, `disputeRoute.test.ts`, `editRequestRoute.test.ts`, `resolveEditRoute.test.ts`, `resolveDisputeRoute.test.ts`) will fail immediately. But 59 host-concept assertions scattered across "shared" test files (`sessionClaimRoute.test.ts`, `sessionRoute.test.ts`, `sessionGetRoute.test.ts`, `tipRoute.test.ts`, etc.) will silently pass if the fixture data still contains `hostToken` even though the field is removed from the schema. This is a false-green scenario.
 
 **Why it happens:**
-Developers calculate each person's subtotal, multiply by `(1 + tipRate + taxRate)`, and call `.toFixed(2)`. Rounding each share independently introduces a "split remainder" that belongs to nobody. On a $100 bill split 3 ways with tip, the three rounded values will sum to $99.99 or $100.01.
+Grep-driven deletion misses Lua string literals, URL fragment string matches (`#hostToken=`), and conditional checks that reference undefined fields (TypeScript does not error on accessing `session.hostToken` if `hostToken` is `string | undefined`, only on `string`). Developers delete the visible files and assume the type errors are the complete hit list.
 
-`(2.55).toFixed(1)` returns `'2.5'` (rounds down) — MDN documents this inconsistency explicitly. `.toFixed()` is not safe for financial rounding.
+**How to avoid:**
+1. Before any deletion, generate a reference map: `grep -rn "hostToken\|hostPersonId\|editRequests\|disputes\|assignedBy\|accepted\|ClaimEntry\|EditRequest\|Dispute" --include="*.ts" --include="*.tsx" > /tmp/host-refs.txt`. Work through this file top to bottom.
+2. Remove `hostToken`, `hostPersonId`, `editRequests`, `disputes` from `SessionPayload` first. This will cascade type errors that reveal every reference; fix those before deleting files.
+3. Audit Lua script strings separately — they are opaque to TypeScript. Search for `'host'` inside Lua string literals in `claim/route.ts` explicitly.
+4. Remove `assignedBy` and `accepted` from `ClaimEntry` only after confirming no non-host code reads them (nothing in the flat model needs them).
+5. Run `npx tsc --noEmit` after every file deletion, not just at the end.
 
-**Consequences:**
-- Sum of displayed shares ≠ receipt total — trust-destroying for a splitting app
-- "Who owes the extra penny?" confusion at the table
-- Silent, hard to test (only shows at certain amounts/splits)
+**Warning signs:**
+- TypeScript compiles cleanly but Lua `evalsha` returns `invalid_session` in staging — sign that Lua was updated inconsistently with the session schema shape.
+- `CollaborativeClaimingView` renders a blank screen after deletion — sign that `ReviewHostAssignedScreen` import was deleted but the JSX reference was not.
+- Tests pass but `sessionRoute.test.ts` fixture still sets `hostToken: 'host-token-abc'` — sign of stale fixtures giving false confidence.
 
-**Prevention:**
-- Work entirely in integer cents. Convert all prices to cents on input (`$12.50` → `1250`). Do all arithmetic in integers. Convert back only for display.
-- Use a "remainder assignment" strategy: calculate shares as floor-of-fair-share, then assign the leftover cents one at a time to the first N people.
-- Never use `.toFixed()` for calculation — only for display formatting.
-- Write unit tests with known problematic splits: 3 ways, 7 ways, amounts like $0.01.
-
-**Detection (warning signs):**
-- Any code doing `price * 0.18` directly on a float
-- Summing displayed `.toFixed(2)` strings instead of the integer representation
-- No unit tests covering split totals
-
-**Phase:** Address in the core calculation engine, Phase 1 or whichever phase implements the split math. Do not defer — retrofitting integer math later requires changing every calculation path.
+**Phase to address:**
+Phase 1 (host removal) — this is the first-and-hardest refactor; must be completed atomically before any other v2 phase begins. Do not interleave with wizard collapse or currency work.
 
 ---
 
-### Pitfall 2: OCR Fails on Thermal Paper Under Restaurant Lighting
+### Pitfall 2: Live Redis Session Backward-Compat — Old-Shape Sessions Crash New Code
 
 **What goes wrong:**
-Most restaurant receipts are printed on thermal paper with low-contrast gray-on-white or faded ink. Under dim restaurant lighting, a phone camera produces images with blown highlights, low contrast, and motion blur. OCR — whether classic (Tesseract) or vision-model-based — will misread digits: `1` becomes `l`, `0` becomes `O`, `8` becomes `6`, `$13.50` becomes `$1B.5O`. A single misread price silently corrupts the entire split.
+The app is LIVE. At any moment of deployment there are Redis sessions with TTLs up to 24 hours that were written by the v1 code and contain:
+- `hostToken: "abc123"` (required field in current `SessionPayload`)
+- `hostPersonId: "person-id"` (optional but present)
+- `editRequests: { "req1": {...} }` (present and non-empty for active dispute sessions)
+- `disputes: { "d1": {...} }` (same)
+- `claims.items[itemId][personId].assignedBy: "host"` and `accepted: true/false`
+
+After deploy, the new code does `const session = JSON.parse(raw)` and treats the result as the new schema. Extra fields in JSON do not crash cjson — old sessions with `hostToken` will not break new Lua scripts. The real crash scenario is the reverse: new code reads a field old sessions NEVER had, such as `session.currencySymbol`, and treats `undefined` as a string — `undefined.toUpperCase()` crashes. Any new field access that is not null-guarded is a time-bomb on old sessions.
+
+The `computePersonShareFromClaims` function in `billMath.ts` will receive old claim entries with `{ qty: 1, assignedBy: 'host', accepted: false }` from sessions that were active at deploy time. The math is unaffected (the function only reads `entry.qty`), but any new UI code that checks `entry.assignedBy === 'host'` and expects that field to be absent will find it present in old sessions.
 
 **Why it happens:**
-- Thermal paper's printed areas appear dark but the contrast ratio is much lower than inkjet or laser prints
-- Restaurant ambient lighting is often warm/dim, biasing the camera's white balance
-- Users hold phones at an angle, causing keystone distortion and partial blur
-- Receipt paper curls at the edges, causing bottom/top rows to be out of focal plane
+Serverless deploys are instant-cutover. There is no migration step for Redis KV data. The 24h TTL means stale data coexists with new code for up to 24 hours post-deploy.
 
-**Consequences:**
-- Wrong prices extracted silently — user doesn't catch it if they don't scrutinize
-- AI name expansion can't fix a wrong price; it only renames items
-- User trust destroyed when final split is wrong but the receipt photo "looked fine"
+**How to avoid:**
+1. Apply a defensive read pattern at every point where session data is consumed from Redis. Every new field access must use optional chaining and a default: `session.currencySymbol ?? null`, `session.editRequests ?? {}`, `session.disputes ?? {}`. Do this at the GET /api/session route level, not scattered across components.
+2. Remove required status from `hostToken` in the TypeScript schema — change it to `hostToken?: string`. This makes the type honest: sessions written before the v2 deploy have it; sessions written after do not.
+3. Write a `migrateSession(raw: unknown): SessionPayload` normalizer function that is called immediately after `JSON.parse`. This function applies defaults, strips unknown fields, and returns a canonically-shaped object. The claim Lua scripts already re-encode the full session on every write (`redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)`) — the normalizer plus one Lua write would upgrade any in-flight session to the new shape on the next claim operation.
+4. Do not remove `editRequests` and `disputes` from the TypeScript type on day one; mark them `editRequests?: Record<string, EditRequest>` and let them atrophy over 24 hours as sessions expire. Remove from schema in a follow-up commit.
+5. The `currencySymbol` field is the highest-risk new field — it is read by `formatCents` callers. Make its absence display a neutral fallback (bare number or configurable symbol) rather than throwing.
 
-**Prevention:**
-- Treat OCR output as always-unverified. Display all extracted items + prices back to the user in an editable confirmation step before proceeding.
-- Use vision model (Claude Vision, GPT-4o) not classic OCR — they handle low-contrast and skewed text significantly better than Tesseract.
-- Pre-process: apply contrast enhancement and adaptive thresholding before sending to OCR (canvas `filter: contrast(1.5)` or a server-side step).
-- Show the captured image thumbnail alongside the extracted list so users can spot-check.
-- Cap image size sent to API (resize to ~1200px width) — larger images don't improve OCR accuracy but cost more and are slower.
+**Warning signs:**
+- `invalid_session` errors in Vercel logs spiking immediately after deploy — sign that the Lua decoder encounters unexpected schema shapes.
+- `TypeError: Cannot read properties of undefined` in browser console on the Results screen — sign that `session.currencySymbol` is accessed without null-guard.
+- A specific user reports their existing session shows wrong totals or crashes — they were mid-session during the deploy window.
 
-**Detection (warning signs):**
-- Testing only with printed high-quality sample receipts, not actual crumpled thermal receipts under dim light
-- No editable confirmation step for extracted items
-- User can proceed to assignment without ever seeing the extracted prices
-
-**Phase:** OCR capture phase. The editable confirmation step is non-negotiable and must be in scope from the start.
+**Phase to address:**
+Phase 1 (host removal) — write the `migrateSession` normalizer as the first act of the session schema change, before any other code changes. The normalizer is the safety net for the entire migration.
 
 ---
 
-### Pitfall 3: iOS Safari Camera Permissions Are One-Strike
+### Pitfall 3: Currency Formatting — Zero-Decimal Currencies and the `parseCents` Contract
 
 **What goes wrong:**
-On iOS Safari, if the user taps "Don't Allow" on the camera permission prompt, the browser does NOT re-prompt. The permission is permanently denied for the origin until the user manually goes to iOS Settings > Safari > [site] and re-enables it. There is no API to check the current permission state before prompting, and calling `getUserMedia` after denial throws `NotAllowedError` with no recovery path in the browser.
-
-Additionally, iOS Safari imposes restrictions that Chrome/Firefox do not:
-- `getUserMedia` only works inside a direct user gesture (tap handler). Calling it in `useEffect` on page load silently fails.
-- Streams from `getUserMedia` must be explicitly stopped (`track.stop()`) before switching cameras or the device stays locked.
-- PWA mode (home screen shortcut) loses camera permission and re-prompts.
-- iOS 16.4+ added some improvements, but permission state querying (`navigator.permissions.query({ name: 'camera' })`) was not supported in Safari until recently and remains unreliable.
-
-**Consequences:**
-- Primary flow (photo) is broken for users who accidentally deny
-- User sees a blank camera view with no explanation
-- PWA pinning breaks the camera — users who pin the app encounter an unexpected re-permission flow
-
-**Prevention:**
-- Always trigger `getUserMedia` from a direct tap event handler, never from lifecycle hooks.
-- Show a pre-prompt screen: "We'll ask for camera access to read your receipt" with a single "Open Camera" button. This mental preparation reduces accidental denials.
-- Implement a `NotAllowedError` handler that shows clear instructions: "Go to Settings > Safari > [site] > Camera and set to Allow."
-- Provide `<input type="file" accept="image/*" capture="environment">` as a fallback — this invokes the native camera app without requiring `getUserMedia` permission at the browser level, and it works universally on iOS.
-- Always call `track.stop()` on all stream tracks when navigating away from the camera view.
-- Test explicitly on physical iOS device, not simulator — simulator has no camera.
-
-**Detection (warning signs):**
-- `getUserMedia` called in component mount / `useEffect` without user gesture
-- No error state UI for `NotAllowedError`
-- No file input fallback
-- Only tested on Android Chrome or desktop
-
-**Phase:** Camera capture phase. The `<input type="file">` fallback is the safest iOS-first strategy and should be the primary approach for v1, with `getUserMedia` as progressive enhancement.
-
----
-
-### Pitfall 4: LLM Latency Breaks the Table Experience
-
-**What goes wrong:**
-The "AI expands abbreviations" step is a network round-trip to an LLM API. Cold start + generation time for a receipt with 15 items typically ranges from 2–8 seconds depending on the model and load. Users at a table are waiting. If the app shows no progress indicator, users assume it's frozen and tap again (double-submission). If it times out, the entire receipt capture fails and they must retake the photo.
-
-A more subtle version: the app sends each item for expansion individually (one API call per item), resulting in 15 sequential or parallel requests that are expensive and slow.
+`formatCents` in `billMath.ts` currently hardcodes `$${(cents / 100).toFixed(2)}`. This assumes all currencies have 2 decimal places and use `$` as the symbol. Introducing currency recognition without changing this function means:
+- JPY (¥) amounts stored as "whole yen" — e.g., ¥1500 — will be stored as `150000` cents (1500 * 100) because `parseCents` multiplies by 100. When displayed, `150000 / 100 = 1500.00` renders correctly by accident. BUT if the OCR returns `1500` and the code calls `parseCents("1500")`, it returns `150000` — then `formatCents(150000)` shows `¥1500.00` which looks wrong (meaningless .00 decimals on a zero-decimal currency).
+- KWD (Kuwaiti Dinar) has 3 decimal places. `parseCents("5.250")` returns `null` because the regex `^\d+(\.\d{1,2})?$` rejects 3 decimal places. This silently drops items from Kuwaiti receipts.
+- The `Intl.NumberFormat` approach to replace `.toFixed(2)` requires knowing the ISO currency code (e.g., `"JPY"`, `"USD"`, `"GBP"`), NOT just the symbol (`¥`, `$`, `£`). The OCR extracts a symbol; you must then map symbol to ISO code to use `Intl.NumberFormat`. Multiple currencies share the same symbol (`$` is used by USD, CAD, AUD, SGD, HKD, and others).
+- `Math.round(parseFloat(value) * 100)` in `parseCents` is the standard JavaScript float-multiplication approach. For most values it is fine, but `parseFloat("1.005") * 100 = 100.49999...` rounds to 100 instead of 101. The correct approach for user input is to split on the decimal point and construct cents arithmetically: `parseInt(wholePart) * 100 + parseInt(fracPart.padEnd(2, '0').slice(0, 2))`.
 
 **Why it happens:**
-- Developers test with fast connections and low API load during development
-- The abbreviation expansion is easy to implement as a simple loop over items
-- No timeout handling added during prototyping
+The existing codebase was built dollar-first. The "integer cents" model was correct for USD but the implementation encodes USD assumptions in the storage format (cents = smallest unit / 100) and the display logic (`toFixed(2)`, `$` prefix). Currency is being added as a late concern rather than a foundation concern.
 
-**Consequences:**
-- Perceived app failure at the most critical moment (everyone watching)
-- Costs spiral: 15 API calls per receipt at table volume is unsustainable
-- Timeout handling is retrofitted as an afterthought, creating inconsistent UX
+**How to avoid:**
+1. Do NOT use `Intl.NumberFormat` with a currency code for the initial v2 implementation — it requires knowing the ISO code, which you may not have reliably. Instead, pass `currencySymbol` as a display-only prefix/suffix parameter to `formatCents` and keep the `/ 100` and `toFixed(2)` math unchanged. This limits breakage to visually correct for 2-decimal currencies.
+2. For zero-decimal currencies (JPY, KRW, VND, etc.): if `currencySymbol` is `¥` or `₩`, skip the `* 100` in `parseCents` and the `/ 100` in `formatCents`. The cleanest approach is a `currencyScale` parameter (default 100; set to 1 for zero-decimal currencies).
+3. For the v2 release, explicitly scope currency recognition to common restaurant currencies: USD (`$`), EUR (`€`), GBP (`£`), JPY (`¥`), INR (`₹`), AUD (`$`), CAD (`$`). For ambiguous `$`, default to USD display; add a currency picker for override. Do not attempt to handle KWD (3 decimal) in v2.
+4. Replace `parseCents`'s float multiplication with string-split arithmetic to eliminate the `1.005` edge case: split on `.`, take at most 2 fraction digits, construct cents without floating point.
+5. The `billMath.test.ts` suite currently tests `formatCents(1250)` === `'$12.50'`. These tests must be updated to accept `formatCents(1250, '£')` === `'£12.50'` when the symbol parameter is added. Do not silently change the test output without understanding the dollar-sign hardcoding throughout the test suite.
 
-**Prevention:**
-- Batch all abbreviation expansion into a single LLM call: send the full item list as JSON, receive expanded names in one response. This is one API call per receipt, not N.
-- Use structured output (JSON mode) so the response is predictable and parseable without retry logic.
-- Show a loading state with receipt image visible: "Reading your receipt..." with a progress animation. Users accept 5-second waits if they see activity.
-- Set a hard timeout (10–15 seconds). On timeout, show all items in their raw abbreviated form with an inline "Edit" affordance. Never block the flow completely.
-- Server-side: implement the LLM call in an edge function with streaming response if latency is critical, so the UI can show items appearing one by one.
-- Consider cost ceiling: set a max token budget per request and truncate very long receipts gracefully.
+**Warning signs:**
+- JPY receipt items show as `¥15.00` instead of `¥1500` — sign that `parseCents` stored yen as if they were cents.
+- `parseCents` returns `null` for a valid price on a non-USD receipt — sign of the 3-decimal or symbol-in-string problem.
+- `formatCents` tests pass but display is wrong — sign that tests are checking the old `$` format and the currency parameter was added but not threaded to the test fixture.
 
-**Detection (warning signs):**
-- One API call per item in a loop
-- No loading state on the OCR/expansion step
-- No timeout or error fallback — error throws to a blank screen
-- No cost tracking per session
-
-**Phase:** OCR/expansion pipeline phase. Batch call architecture must be designed from the start; retro-fitting from per-item to batched requires rewiring state management.
+**Phase to address:**
+Phase 3 (currency recognition) — `formatCents` signature change must be a single atomic commit that updates the function, all 20+ call sites, and the test suite in one changeset. Do not change the signature in one commit and update call sites in scattered later commits — the intermediate state will be broken.
 
 ---
 
-## Moderate Pitfalls
-
----
-
-### Pitfall 5: Multi-User Session Conflict — Two People Claim the Same Item
+### Pitfall 4: Wizard Collapse Without Orphaning the Test Suite
 
 **What goes wrong:**
-In shareable-link mode, two people open the link simultaneously and both tap the same item ("BURGER $14"). Both sessions show the item as unselected, both claim it, and the server records it as claimed by both (or by whoever saved last). The split now charges the item twice.
+The current test suite has tests tightly coupled to the 4-step wizard flow:
+- `AddPeopleStep.test.tsx` — tests `AddPeopleStep` in isolation
+- `AddItemsStep.test.tsx` — tests the OCR review step
+- `AssignItemsStep.test.tsx` — tests the assignment step
+- `WizardShell.test.tsx` — tests multi-step shell and step-advance logic
+- `ResultsStep.test.tsx` — tests the final results view
 
-A related failure: the host updates the item list (edits a price, removes a duplicate) while guests are mid-assignment. Guest sessions are operating on a stale item list.
+Collapsing to a single `SetupScreen` does not mean these tests simply disappear. If the component trees are restructured without carrying test intent forward:
+1. Tests are deleted without replacement — coverage drops; previously-tested calculation paths are silently unguarded.
+2. Tests are kept but their component is renamed/split — tests fail with `Cannot find module` errors that look trivial but hide real coverage gaps when devs delete the failing test instead of updating it.
+3. `WizardShell` tests cover step-navigation logic (back/forward, state preservation across steps). If the wizard is collapsed but some sub-navigation remains (Setup to identity modal to BillView to Results), the navigation state machine still needs tests even if the component name changes.
+
+The `billMath.test.ts` and `sessionClaimRoute.test.ts` are pure-logic tests that survive any UI restructuring — they do not reference component trees. These are safe. The risk is in component tests that mount the wizard hierarchy.
 
 **Why it happens:**
-- Classic optimistic UI: each client assumes their local state is ground truth
-- No real-time sync means sessions diverge silently
-- No "claimed by" display means conflicts are invisible until the final total
+Refactoring UI structure is treated as a UX concern, not a test-architecture concern. The developer collapses screens, then runs the test suite and gets red, and deletes failing tests to make CI green rather than porting them.
 
-**Consequences:**
-- Items counted twice or not at all in the final split
-- Confusion and disputes at the table — worse than manual splitting
+**How to avoid:**
+1. Before collapsing the wizard, audit which tests cover business logic (calculation, validation, state management) vs. which cover component wiring (does the Next button call `advanceStep`). Business logic tests must survive; wiring tests must be ported to the new component tree.
+2. Create a coverage map: for each of the 5 wizard step tests, list the behaviors being tested (e.g., "empty name is rejected", "price validates as cents"). Ensure each behavior has a corresponding test in the new component before deleting the old test.
+3. Keep `billMath.test.ts` completely intact — no changes needed; it tests pure functions that do not care about UI structure.
+4. Keep `sessionClaimRoute.test.ts`, `tipRoute.test.ts`, `sessionGetRoute.test.ts` intact — these test API routes unchanged by the UI collapse.
+5. `WizardShell.test.tsx` should be deleted only after creating `SetupScreen.test.tsx` and `BillView.test.tsx` with equivalent navigation-state tests.
+6. Do not run `git rm` on test files — use `git mv` so history is preserved and the deletion intent is explicit.
 
-**Prevention:**
-- For v1 (single-driver mode), avoid this problem entirely: one person assigns items for everyone, no concurrent editing.
-- If shareable-link mode is built, display "claimed by [name]" immediately when anyone taps an item — requires real-time sync (Supabase Realtime channels or similar).
-- Implement optimistic locking: the server rejects a claim if the item state has changed since the client loaded it (use a version/timestamp field).
-- Consider "assignment lock" UX: items turn visually unavailable once fully claimed (shared items show a count badge).
-- Host-only edit mode: only the host can modify items; guests can only claim.
+**Warning signs:**
+- Test count drops by more than the number of explicitly-deleted host test files (6 files, ~923 lines) — sign that component tests were silently deleted.
+- CI goes from red to green without new tests being added — classic sign of test deletion rather than porting.
+- `billMath.test.ts` fails after the collapse — sign that a refactor accidentally modified `billMath.ts`.
 
-**Detection (warning signs):**
-- No conflict resolution logic in assignment state
-- Client-side state not synchronized after host edits
-- Final calculation uses client-supplied item lists rather than server-authoritative state
-
-**Phase:** Multi-user/sharing phase. For v1, single-driver mode sidesteps this entirely. Tackle conflict resolution only when implementing shareable links.
+**Phase to address:**
+Phase 2 (wizard collapse to Setup screen) — begin with a test inventory document listing every currently-passing test and mapping it to the new component it should test. Treat test migration as a first-class deliverable of this phase, not cleanup.
 
 ---
 
-### Pitfall 6: Item Name Expansion Hallucination
+### Pitfall 5: Flat-Model Race Conditions — Stale SWR Cache and Over-Blocking Slot Enforcement
 
 **What goes wrong:**
-LLMs confidently expand receipt abbreviations into wrong names. "CHKN SAND LG" might become "Chicken Sandwich (Large)" correctly, but "HB STEAK 8Z" might become "Hamburger Steak 8oz" when the restaurant calls it "House Blend Steak." The name on the receipt and the LLM's expansion are both plausible. Users can't verify without the physical menu.
+Two issues arise directly from removing the host role:
 
-A worse case: an item that is actually a discount or coupon code ("LOYAL DISC -5.00") gets expanded as a food item ("Loyal Discount Dish $-5.00") and confused for a negative-price food item rather than a discount.
+**Issue A — Stale totals at Results entry.** The SWR polling interval is 3 seconds. When a user transitions from the claiming screen to the Results screen, SWR returns the last cached value first, then revalidates. If another user changed a price or claimed an item in the last 3 seconds, the Results screen computes totals on stale data. The user sees a total that differs from the server-authoritative value, creating "why did my total change?" confusion. This was not a problem in v1 because the host controlled the transition to Results and could see the current state.
+
+**Issue B — `slot_taken` blocks the flat identity modal.** The current `SLOT_CLAIM_SCRIPT` returns `slot_taken` and the UI treats this as a blocking error. In v1, the host model made identity exclusivity meaningful: the host's slot was a write-capability gate. In v2 with a flat model, two devices should be able to act as the same person (a common scenario when someone's battery dies and they borrow another phone). If `slot_taken` still blocks, any second device claiming "Alice" is rejected, which is a regression from expected flat-model behavior.
+
+Additionally, the edit route that replaces the edit-request workflow is currently a non-atomic read-modify-write in TypeScript. Two concurrent edits to the same item price will race: both read the current price, both write their new price, last-write-wins silently. This is acceptable per the product decision in FEATURES.md, but the write must still go through an atomic Lua script to avoid corrupting the JSON structure (partial writes to nested objects via non-atomic SET can corrupt the session).
 
 **Why it happens:**
-- LLMs optimize for confident, plausible responses, not uncertain ones
-- Receipt abbreviations are ambiguous by design (POS systems truncate to fit thermal paper columns)
-- The LLM has no restaurant-specific knowledge
+`slot_taken` enforcement was designed for the host model where identity exclusivity mattered as a security property. In the flat model it becomes a UX blocker without a security benefit. SWR cache staleness was masked in v1 by host-gated transitions.
 
-**Consequences:**
-- Users assign a wrongly named item to the wrong person
-- Discount items misidentified as food items corrupt the subtotal math
-- Trust erosion: "the app made things more confusing"
+**How to avoid:**
+1. Downgrade `slot_taken` from a blocking error to a soft notification or remove the personSlots exclusivity check entirely. In v2, the identity modal is informational (self-identification), not an exclusive lock.
+2. Call `mutate()` (SWR) synchronously when transitioning to the Results phase to force a fresh fetch before computing final totals. This is a one-line change but critical for totals accuracy.
+3. The new direct edit route must use the same Lua read-modify-write pattern as `QTY_CLAIM_SCRIPT`. Do not write a plain TypeScript GET + modify + SET sequence for item edits — the non-atomic pattern was already identified as dangerous in the existing codebase comments.
+4. Accept last-write-wins for all item edits but surface an "edited by [name]" attribution label on items — this is the social self-correction mechanism and is mandatory, not optional, when conflict detection is deliberately omitted.
 
-**Prevention:**
-- Always show expanded names as editable fields, never as locked values. Users should tap to rename.
-- In the LLM prompt, explicitly instruct the model to flag ambiguous items and return a `confidence` field. Surface low-confidence items with a visual indicator ("Tap to verify").
-- Include a category field in the structured response (item / discount / fee / tax / tip) so discounts and fees are visually and mathematically treated differently from food items.
-- The fallback flow (menu photo) exists specifically for this: show it prominently when confidence is low rather than only when the user requests it.
+**Warning signs:**
+- `slot_taken` response in the identity modal blocks a user from joining — sign that personSlots enforcement was left in place from v1.
+- Results screen shows totals that differ from what the user saw on the claiming screen — sign that Results is reading from stale SWR cache.
+- Two concurrent price edits result in a corrupt session JSON (500 from the next claim call) — sign that the edit route used a non-atomic GET+SET pattern.
 
-**Detection (warning signs):**
-- LLM prompt returns plain strings only, no confidence or category
-- No editable name fields in the item list
-- Negative prices not handled separately from positive food prices
-
-**Phase:** OCR/expansion pipeline phase.
+**Phase to address:**
+Phase 1 (host removal) — remove `slot_taken` blocking behavior when removing host enforcement. Phase 4 (Results redesign) — add forced fresh-fetch on Results entry. Phase 1 also — write the new edit route as a Lua script.
 
 ---
 
-### Pitfall 7: State Shape Complexity Explosion
+## Technical Debt Patterns
 
-**What goes wrong:**
-The bill state starts simple: `[{item, price, claimedBy}]`. Then shared items arrive: `[{item, price, sharedAmong: [person1, person2]}]`. Then partial shares ("I had 2 drinks, she had 1"): quantity fractions. Then tip percentage changes after items are assigned. Then a guest edits a price. Each new requirement mutates the state shape, and components written against the old shape break or silently show stale data.
-
-**Why it happens:**
-- State designed for happy path, not for the full feature set
-- Derived values (each person's subtotal, proportional tax/tip) computed inline in render instead of in a single calculation function
-- No single source of truth: tip percentage stored in one component, item assignments in another, final totals recalculated in a third
-
-**Consequences:**
-- Changing tip rate doesn't update final totals displayed in a different component
-- Adding a shared item requires touching 5 places
-- Refactoring becomes a multi-day effort mid-project
-
-**Prevention:**
-- Define the canonical state shape before writing a single component. Minimum viable shape:
-  ```
-  {
-    people: [{id, name}],
-    items: [{id, name, priceCents, claims: [{personId, portions}]}],
-    tipMode: 'percent' | 'amount',
-    tipValue: number,  // cents if amount, integer percent if percent
-    taxCents: number,
-    discounts: [{id, name, amountCents}]
-  }
-  ```
-- All derived values (subtotals, totals per person, proportional tip/tax) are pure functions of this state — never stored, always computed.
-- Use a single calculation module that takes the full state and returns `{subtotalByPerson, taxByPerson, tipByPerson, totalByPerson}`. This is the single place that does math.
-- Use a state manager (Zustand, Redux Toolkit, or React Context with `useReducer`) that enforces normalized shape from day one.
-
-**Detection (warning signs):**
-- Total per person calculated in the display component instead of a dedicated utility
-- `tip` or `tax` stored as component `useState` separate from the bill state
-- Adding a new person requires finding and updating multiple state atoms
-
-**Phase:** Core state/architecture phase (Phase 1). Non-negotiable to get the shape right before building UI on top.
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Keep `editRequests`/`disputes` in schema as optional fields after v2 | Old sessions don't crash; gradual atrophy | Schema carries dead fields; new developers confused by their presence | Acceptable for 24h TTL window only; remove in a follow-up commit after sessions expire |
+| Use symbol string (`£`) directly in `formatCents` rather than ISO code + `Intl.NumberFormat` | Avoids symbol-to-ISO-code mapping complexity | `Intl.NumberFormat` locale-aware grouping (e.g., `1.000,00` in Germany) not applied; bare `toFixed(2)` is locale-naive | Acceptable for v2; full `Intl` support is a v2.1+ concern |
+| Last-write-wins for item edits without server-side conflict detection | Simpler code, no approval queue | Silent overwrites are invisible without attribution label | Acceptable IF attribution label ships in the same phase — it is not optional |
+| Delete 6 host test files without full test coverage replacement in Phase 2 | Faster Phase 1 | Coverage debt on paths that were previously tested; regressions in claim math possible | Never — test replacement must be in the same phase as deletion |
+| Reuse existing Lua `QTY_CLAIM_SCRIPT` without modifying `assignedBy` field storage | Saves Lua rewrite effort | Old sessions still have `assignedBy: 'host'` entries; new code that checks this field will behave unexpectedly | Only safe if `assignedBy` is fully removed from all reads — partial removal is worse than full removal |
 
 ---
 
-## Minor Pitfalls
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Upstash Redis Lua eval | Using `redis.multi()` for atomic operations — NOT atomic on Upstash REST, already documented in `claim/route.ts` line 9 | Always use `redis.eval()` with Lua for any read-modify-write that must be atomic. Do not regress by adding non-Lua multi() calls in the new edit route. |
+| GPT-4o-mini currency extraction | Asking the model to return a currency code (e.g., `"USD"`) — the model will often hallucinate or return inconsistent codes for ambiguous symbols like `$` | Ask the model to return the literal symbol as it appears on the receipt (`"£"`, `"€"`, `"¥"`). Map to ISO code only for `Intl.NumberFormat` use; keep the raw symbol as the primary key. |
+| SWR `refreshInterval: 3000` | Assuming SWR cache is fresh when entering the Results phase — SWR returns the last cached value first, then revalidates in the background | Call `mutate()` synchronously on Results entry to force a fresh fetch before computing final totals. One-line change, critical for totals correctness. |
+| Vercel serverless deployment | Old and new code serve requests simultaneously for a brief window during the Vercel rolling deploy | Ensure the `migrateSession` normalizer is deployed before any code that reads new fields. If impossible in one deploy, deploy the normalizer as a separate prior commit. |
 
 ---
 
-### Pitfall 8: Receipt Has a Subtotal + Duplicate Tax/Tip Line Items
+## Performance Traps
 
-**What goes wrong:**
-Many receipts print: individual items, then a "SUBTOTAL" line, then "TAX" as a line item, then "TIP" as a line item, then "TOTAL". OCR extracts all of these including the subtotal and total as separate "items." If not filtered, the app treats "SUBTOTAL $45.00" and "TOTAL $56.25" as orderable food items and inflates everyone's bill.
-
-**Prevention:**
-- In the LLM prompt and/or post-processing, explicitly classify each extracted line by type: `item | subtotal | tax | tip | total | fee | discount`. Only `item` type rows appear in the assignment UI.
-- Populate the tip and tax fields automatically from extracted values, but make them editable.
-- Remove subtotal and total rows from the claimable item list.
-
-**Phase:** OCR/expansion pipeline.
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| `computePersonShareFromClaims` called on every SWR poll (every 3s) for all people | Jank on Results screen with 8+ people and 20+ items | Memoize with `useMemo` keyed on `session.claims` and `session.items` reference identity | With 10+ people and 20+ items; not a real concern at typical bill-splitting scale |
+| Lua script re-encodes full session JSON on every claim | Each claim operation is O(items * people) in Lua decode/encode | Already acceptable at bill-splitting scale (max ~30 items, ~10 people) | Never a real problem at this scale |
+| SWR polling continues after Results screen is shown | Unnecessary network requests when session is effectively done | Set `refreshInterval: 0` when phase transitions to `results` | Cosmetic issue only |
 
 ---
 
-### Pitfall 9: Image Size Causes API Timeout or Excessive Cost
+## Security Mistakes
 
-**What goes wrong:**
-Modern phone cameras produce 4MB+ JPEG images. Sending a 4MB image to a vision API endpoint has two problems: (1) large upload time on a restaurant WiFi connection, (2) increased token cost for vision models that charge by image resolution. An iPhone 14 at full resolution can cost 5–10x more tokens than a properly resized image with no accuracy improvement for OCR tasks.
-
-**Prevention:**
-- Client-side resize before upload: use `<canvas>` to resize to max 1200px on the longest dimension before sending to the API.
-- Convert to JPEG at 0.85 quality after resize. Receipt text is still legible; file size drops from 4MB to ~150KB.
-- This is done in-browser before upload, so no server-side processing step needed.
-
-**Phase:** Camera capture phase.
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Removing `hostToken` validation from the claim route without replacing with any authorization check | In the flat model, any caller can claim any item for any person — this is intentional. But the edit route should still validate that `personId` exists in `session.people` before applying the edit. | In the new edit route, validate `personId` is in `session.people` before applying the edit. This prevents a malicious external caller from injecting edits with made-up personIds. |
+| `hostToken` stored in URL fragment (`#hostToken=abc`) in the current code (per CR-05 comment in CollaborativeClaimingView.tsx) | Fragment is not sent to server in HTTP requests — intentional and safe in v1. In v2, `hostToken` no longer exists. A dangling `#hostToken=` in shared URLs after v2 deploy is confusing but not a security risk. | Remove fragment generation from `ShareLinkButton.tsx` as part of Phase 1 host removal. Verify with incognito tab that `window.location.hash` is empty on the new share URL. |
+| `currencySymbol` stored in Redis without sanitization and reflected in the Results screen | If the OCR prompt returns a maliciously-crafted currency string, it could be displayed as HTML or used as an injection vector | `currencySymbol` must be validated to a single symbol character from an allowlist (e.g., `$`, `£`, `€`, `¥`, `₹`) before storage. Do not reflect arbitrary strings from the GPT response into the DOM without sanitization. |
 
 ---
 
-### Pitfall 10: "Who Owes What" Screen Is Confusing Without Context
+## UX Pitfalls
 
-**What goes wrong:**
-The final screen says "Sarah owes $34.50" but Sarah can't remember what she ordered. She disputes the amount. The host has to reconstruct who had what from memory. The summary screen without an itemized breakdown per person creates confusion and leads users to distrust the app even when the math is right.
-
-**Prevention:**
-- The final summary must be expandable: "Sarah — $34.50 [tap for breakdown]" → "Burger $14, Wine $12, share of Fries $4, tip $3.50, tax $1".
-- Show the total receipt amount and confirm it matches the bill.
-- Provide a "copy to clipboard" or "share" option for each person's breakdown so they can show their friends.
-
-**Phase:** Final summary / UX phase.
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| "Who are you?" identity modal appears with an empty people list because the user shared the link before adding people | User is stuck — cannot claim items and cannot proceed | The identity modal must include an inline single-field "Add my name" path, not a redirect to Setup. Documented in FEATURES.md but easy to omit in implementation. |
+| Removing the host role removes the only person who could see all unassigned items | Items silently excluded from totals; group undercharges someone | The "unassigned items" warning on the pre-Results screen is the only safety net — it must be prominent (blocking, not dismissible without action) and must show item names and prices, not just a count. |
+| Collapsing the wizard means the scan-first Setup screen is the landing page for returning users starting a new split | A user who taps "New Split" is forced through the scan step even if they want manual entry | Provide "Enter manually" as a clearly visible secondary action on the Setup screen from the beginning, not buried in an error state. |
+| Currency symbol displayed before the user has scanned (bare number state) | Users see `$0.00` or `0.00` and are confused about what currency the app will use | During Setup, before scan, show no currency prefix at all — apply the currency symbol only after OCR succeeds and the symbol is known. |
 
 ---
 
-### Pitfall 11: Proportional Tip Calculation When Someone Ordered Nothing
+## "Looks Done But Isn't" Checklist
 
-**What goes wrong:**
-A guest at the table had only water and nothing on the receipt (e.g. they're the designated driver). Their subtotal is $0. Proportional tip/tax formula breaks: `$0 / $totalSubtotal * tipAmount = $0`, meaning they pay $0 toward tip. Some groups expect the tip to be split equally across all people; others expect it to be proportional. If the app silently uses one policy, users at the table may disagree.
-
-**Prevention:**
-- Offer an explicit choice: "Split tip proportionally to what each person ordered" vs "Split tip equally among all people." Default to proportional (it's fairer when orders vary widely, matching the stated product principle), but make the toggle visible.
-- Handle the $0 subtotal edge case: if someone's items total $0, proportional gives them $0 tip/tax share. This is mathematically correct for proportional mode; show it clearly on their summary line.
-
-**Phase:** Calculation/UX phase.
+- [ ] **Host removal:** Lua scripts in `claim/route.ts` updated — TypeScript compiles after host removal but Lua is a string; verify the Lua logic is host-free by reading the script character by character.
+- [ ] **Host removal:** `app/api/session/route.ts` pre-populates `claims.items` with `assignedBy: 'host'` — this block must be removed or new sessions still carry host markers.
+- [ ] **Backward-compat:** `migrateSession` normalizer handles sessions with `editRequests`, `disputes`, `hostToken`, `hostPersonId`, `assignedBy: 'host'` all gracefully — verify with a unit test that passes an old-shape session object and asserts the normalized output.
+- [ ] **Currency:** `formatCents` call sites (20+ across components) all pass `currencySymbol` — verify with `grep -rn "formatCents(" --include="*.tsx"` that no call site still uses the old 1-argument signature after the signature change.
+- [ ] **Currency:** `parseCents` regex `^\d+(\.\d{1,2})?$` updated or bypassed for zero-decimal currencies — verify with a test for a JPY amount `"1500"` that it returns `1500` (not `150000`) when currencyScale is 1.
+- [ ] **Test suite:** After host file deletion, `npx vitest run` passes with zero skipped tests — skipped tests are a sign that host-fixture dependencies were removed but the test was not.
+- [ ] **Flat model:** `personSlots` `slot_taken` blocking behavior removed from the identity modal — verify that two browser tabs can both select "Alice" without one being rejected.
+- [ ] **Results screen:** `mutate()` called on entry to force fresh SWR fetch — verify by inspecting network tab that a GET /api/session request fires when transitioning to Results.
+- [ ] **Share URL:** `#hostToken=` fragment no longer appended to generated share URLs — verify by opening the share URL in a fresh incognito tab and inspecting `window.location.hash`.
 
 ---
 
-## Phase-Specific Warnings
+## Recovery Strategies
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Core calculation engine | Floating-point rounding | Integer-cents arithmetic from day one |
-| OCR/camera capture | iOS Safari one-strike permission | `<input type="file">` as primary, `getUserMedia` as enhancement |
-| OCR/camera capture | Image file too large | Client-side canvas resize before API upload |
-| OCR extraction | Subtotal/Total rows extracted as food items | LLM classification step with `type` field |
-| AI name expansion | Hallucination / discount misclassification | Structured output with `confidence` + `type`, editable results |
-| AI name expansion | Per-item API calls | Batch all items in one structured LLM call |
-| Shared item / assignment UI | State shape drift | Define canonical state shape + pure calculation module before any UI |
-| Shareable link mode | Concurrent claim conflicts | Single-driver v1; real-time sync + optimistic locking before shipping shareable links |
-| Final summary screen | Users can't recall their items | Expandable per-person breakdown required |
-| Tip/tax calculation | Zero-subtotal person | Explicit tip-split-mode toggle (proportional vs equal) |
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Dangling host reference causes production crash after deploy | HIGH | Roll back the Vercel deployment immediately (takes ~30 seconds via Vercel dashboard); fix the reference; redeploy. The 24h Redis TTL means all in-flight sessions survive the rollback. |
+| Old-shape sessions cause `TypeError` in new code | MEDIUM | Deploy a hotfix that adds null-guards (`?? {}`) to the failing field accesses; no data loss. The broken sessions expire within 24h. |
+| `formatCents` signature change breaks call sites | LOW | TypeScript will catch all call sites at compile time via `npx tsc --noEmit`; this cannot reach production if CI enforces type checking. |
+| Test suite has false-green from stale host-field fixtures | MEDIUM | Add a lint rule or CI check asserting `hostToken` does not appear in test fixture objects after Phase 1 completes. |
+| Zero-decimal currency stored as 100x the correct value | MEDIUM | Display is wrong but data is intact; add `currencyScale` parameter to `formatCents` and `parseCents`, deploy hotfix. Existing sessions with wrong values expire within 24h. |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Host-removal blast radius (dangling refs, Lua strings, stale fixtures) | Phase 1: Host role removal | `npx tsc --noEmit` passes; `grep -rn "hostToken" --include="*.ts"` returns zero results except the normalizer; Lua scripts inspected manually for `'host'` literals |
+| Live Redis session backward-compat | Phase 1: Host role removal | Unit test for `migrateSession()` covering old-shape session; Vercel log monitoring for 24h post-deploy |
+| Currency formatting (zero-decimal, parseCents float, formatCents symbol) | Phase 3: Currency recognition | `billMath.test.ts` includes JPY test cases; `grep -rn "formatCents(" --include="*.tsx"` shows all call sites use new signature |
+| Wizard test suite orphaned during collapse | Phase 2: Wizard collapse | Test count after collapse equals (original count - deleted host tests) + new component tests; no tests deleted without replacement |
+| Flat-model `slot_taken` blocks identity | Phase 1: Host role removal | Manual QA: two incognito tabs both successfully claim "Alice" identity in the same session |
+| Results screen stale SWR cache | Phase 4: Results redesign | Network tab shows a GET /api/session request fires on Results entry; totals match what server computed |
+| Unguarded new field access on old sessions | Phase 1: Host role removal | `migrateSession` unit test with v1-shape session object; no `?.` omissions on new fields |
 
 ---
 
 ## Sources
 
-- MDN: `getUserMedia()` — https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-- MDN: `Number.prototype.toFixed()` — https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toFixed
-- Python `decimal` module docs (floating-point money pitfalls) — https://docs.python.org/3/library/decimal.html
-- MDN: `BroadcastChannel` and mobile tab suspension — https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel
-- MDN: `<input type="file" capture>` — https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file
-- Domain knowledge (HIGH confidence): thermal paper OCR degradation, iOS Safari camera permission behavior, LLM batching patterns, integer arithmetic for money
+- Direct inspection of `lib/sessionSchema.ts` — confirmed 6 host-specific fields (`hostToken`, `hostPersonId`, `editRequests`, `disputes`, `ClaimEntry.assignedBy`, `ClaimEntry.accepted`)
+- Direct inspection of `app/api/session/[sessionId]/claim/route.ts` — confirmed Lua string literal host references at lines 26, 97-99; `hostToken` in TypeScript body at lines 112, 135, 158, 170, 188
+- Direct inspection of `lib/billMath.ts` — confirmed `formatCents` hardcodes `$` symbol and `toFixed(2)`; `parseCents` uses float multiply; regex rejects 3-decimal input
+- Direct inspection of `app/split/[sessionId]/CollaborativeClaimingView.tsx` — confirmed 17+ host references including URL fragment parsing, `hasUnacceptedHostItems`, `ReviewHostAssignedScreen` import
+- Blast radius analysis: `grep -rn "hostToken\|hostPersonId\|editRequests\|disputes"` — 253 lines across 31 files; 59 test assertions in shared test files
+- Test file line counts: 923 lines across 6 host-specific test files; partial host references in 11 additional test files
+- `app/api/session/route.ts` lines 58-65 — confirmed `assignedBy: 'host'` pre-population code that must be removed
+- cjson Lua behavior: extra fields in decoded JSON objects are preserved on re-encode; missing fields return nil (not an error) — confirms old sessions with extra fields will not crash Lua scripts, but new code reading absent new fields must null-guard
+- JavaScript floating point: `parseFloat("1.005") * 100` = 100.49999... — browser console verified; string-split construction is the canonical workaround (MDN: Number.toFixed rounding is implementation-dependent for midpoint values)
+- Upstash Redis atomicity: `redis.multi()` is NOT atomic on Upstash REST API — already documented in existing codebase comments (`claim/route.ts` line 9); `redis.eval()` with Lua is the required pattern
+- `.planning/research/FEATURES.md` (2026-06-04) — confirmed last-write-wins is the accepted product decision for item edits; attribution label is mandatory accompaniment
+
+---
+*Pitfalls research for: easy-billsy v2.0 — live bill-splitter host removal, wizard collapse, currency, flat model*
+*Researched: 2026-06-04*
