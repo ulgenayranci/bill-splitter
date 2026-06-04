@@ -72,4 +72,27 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| _(filled by roadmap)_ | | |
+| SHELL-01 | Phase 7 | Pending |
+| SHELL-02 | Phase 7 | Pending |
+| SHELL-03 | Phase 7 | Pending |
+| SHELL-04 | Phase 7 | Pending |
+| SETUP-01 | Phase 7 | Pending |
+| SETUP-02 | Phase 7 | Pending |
+| SETUP-03 | Phase 7 | Pending |
+| SETUP-04 | Phase 7 | Pending |
+| CURR-01 | Phase 7 | Pending |
+| CLAIM-01 | Phase 8 | Pending |
+| CLAIM-03 | Phase 8 | Pending |
+| IDENT-01 | Phase 9 | Pending |
+| IDENT-02 | Phase 9 | Pending |
+| IDENT-03 | Phase 9 | Pending |
+| IDENT-04 | Phase 9 | Pending |
+| CLAIM-02 | Phase 9 | Pending |
+| CLAIM-04 | Phase 9 | Pending |
+| CLAIM-05 | Phase 9 | Pending |
+| CLAIM-06 | Phase 9 | Pending |
+| RESULTS-03 | Phase 10 | Pending |
+| RESULTS-04 | Phase 10 | Pending |
+| TIP-02 | Phase 10 | Pending |
+| CURR-02 | Phase 10 | Pending |
+| CURR-03 | Phase 10 | Pending |

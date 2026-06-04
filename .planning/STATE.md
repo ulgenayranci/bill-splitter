@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-06-04T12:38:13.261Z"
 last_activity: 2026-06-04
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,16 +24,20 @@ progress:
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** v2.0 — easy-billsy redesign (define via /gsd-new-milestone)
+**Current focus:** v2.0 — easy-billsy redesign (roadmap defined; ready to plan Phase 7)
 
 ---
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 7 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-04 — Milestone v2.0 started
+Status: Roadmap defined — ready to plan Phase 7
+Last activity: 2026-06-04 — Roadmap created for v2.0 (Phases 7–10)
+
+```
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
+```
 
 ## Performance Metrics (v1.0 final)
 
@@ -68,6 +72,10 @@ Last activity: 2026-06-04 — Milestone v2.0 started
 | redis.eval() Lua for atomic claim writes (not redis.multi) | multi() is NOT atomic on Upstash REST (RESEARCH Pitfall 1); Lua eval is required for concurrent claim safety | Phase 6 |
 | done route uses done: boolean (not undone: true) | Wave 0 test contract sends done:boolean; tests are ground truth over plan prose | Phase 6 |
 | Claim action defaults to 'qty' when itemId present | Wave 0 tests send { personId, itemId, qty } without action field; inference avoids 400 on valid bodies | Phase 6 |
+| currency symbol stored as raw string (not ISO code) | v2.0 uses symbol-prefix display (e.g. "£3.50"); full Intl.NumberFormat / ISO 4217 deferred to v2.1 per ARCHITECTURE.md recommendation to keep v2 simple | Phase 7 (pending) |
+| migrateSession normalizer must be first commit in Phase 8 | Live Redis sessions written by v1 code coexist for 24h after deploy; normalizer on read protects against null-access on new fields | Phase 8 (pending) |
+| Lua script strings audited separately from TypeScript | TypeScript type errors cascade on schema removal, but Lua strings are opaque — must grep separately | Phase 8 (pending) |
+| formatCents gains optional currencyCode param (backward-compatible) | All existing call sites omit the param and continue to get "$"; new call sites pass session.currencyCode | Phase 10 (pending) |
 
 ### Architecture Commitments
 
@@ -76,6 +84,9 @@ Last activity: 2026-06-04 — Milestone v2.0 started
 - Single Zustand store owns all wizard state: people, items, assignments, tip/tax, wizard step, ocrStatus, syncStatus
 - OCR + AI expansion is a single GPT-4o-mini vision call (not two separate calls per item)
 - Session state persists in Upstash Redis keyed by nanoid session ID
+- v2.0: Session boundary unchanged (Setup = Zustand local, /split/ = Redis-backed); only schema contents change
+- v2.0: No new npm dependencies required — all v2 features delivered through changes to existing code
+- v2.0: currencyCode data flow: OCR prompt → Zustand store → POST /api/session body → SessionPayload → SWR → formatCents call sites
 
 ### Todos
 
@@ -84,6 +95,8 @@ Last activity: 2026-06-04 — Milestone v2.0 started
 - [ ] Prototype LLM prompt for structured output (type, confidence, raw_name, display_name) early in Phase 2
 - [ ] Validate that "claimed by [name]" display prevents double-claiming without real-time sync (Phase 4)
 - [ ] Design menu photo fallback prompt during Phase 3 planning
+- [ ] Resolve currency ISO code vs raw symbol string before Phase 10 planning (research recommends ISO 4217 + Intl.NumberFormat with 7-currency allowlist; ARCHITECTURE.md recommends raw symbol for v2 simplicity)
+- [ ] Confirm unclaimed-items UX decision (warn + "split evenly" CTA recommended) before Phase 9 planning
 
 ### Blockers
 
@@ -109,9 +122,9 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 
 ## Session Continuity
 
-**Last session:** 2026-06-04 — v1.0 milestone closed and archived.
-**Next action:** `/gsd-new-milestone` to define v2.0 (easy-billsy redesign).
+**Last session:** 2026-06-04 — v2.0 roadmap created (Phases 7–10).
+**Next action:** `/gsd:plan-phase 7` to plan Phase 7 (App Shell + Setup Screen).
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd:plan-phase 7` to decompose Phase 7 into executable plans
