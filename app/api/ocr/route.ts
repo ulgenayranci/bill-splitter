@@ -14,13 +14,14 @@ function getOpenAI(): OpenAI {
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
-{ "items": [{ "name": string, "priceCents": number, "quantity": number }] }
+{ "items": [{ "name": string, "priceCents": number, "quantity": number }], "currencyCode": string }
 Rules:
 - priceCents must be an integer (e.g. $12.99 -> 1299). For items with quantity > 1, priceCents is the TOTAL price for all units.
 - quantity must be a positive integer (default 1 if not shown)
 - name should be a short readable description (3-6 words max)
 - Exclude subtotals, tax, tip, and total lines
-- If you cannot read an item clearly, include your best guess`
+- If you cannot read an item clearly, include your best guess
+- currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
 
 // Vercel Hobby tier allows up to 60s; 30s is generous for gpt-4o-mini vision
 // on a ~500KB receipt image while keeping client-side overlay UX bounded.
@@ -78,8 +79,9 @@ export async function POST(request: Request) {
                   additionalProperties: false,
                 },
               },
+              currencyCode: { type: 'string' },
             },
-            required: ['items'],
+            required: ['items', 'currencyCode'],
             additionalProperties: false,
           },
         },
@@ -114,7 +116,16 @@ export async function POST(request: Request) {
         // Default to 1 if quantity is missing/invalid (backward-compat with older prompts)
         quantity: Number.isInteger(i.quantity) && i.quantity > 0 ? i.quantity : 1,
       }))
-    return NextResponse.json({ items })
+
+    // CURR-01 / D-01: normalize to an ISO 4217 code; fall back to app default (USD)
+    // when the model can't determine the currency.
+    const rawCode = (parsed as { currencyCode?: unknown }).currencyCode
+    const currencyCode =
+      typeof rawCode === 'string' && /^[A-Za-z]{3}$/.test(rawCode)
+        ? rawCode.toUpperCase()
+        : 'USD'
+
+    return NextResponse.json({ items, currencyCode })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.
     console.error('OCR error:', err)

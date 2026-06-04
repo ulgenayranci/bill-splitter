@@ -36,7 +36,7 @@ async function callPOST(body: unknown): Promise<{ status: number; json: unknown 
 }
 
 describe('app/api/ocr/route.ts (POST handler)', () => {
-  it('returns 200 with parsed items on a successful gpt-4o-mini call', async () => {
+  it('returns 200 with parsed items + detected currency on a successful gpt-4o-mini call', async () => {
     createMock.mockResolvedValue({
       choices: [
         {
@@ -46,6 +46,7 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
                 { name: 'Burger', priceCents: 1299, quantity: 1 },
                 { name: 'Fries', priceCents: 499, quantity: 2 },
               ],
+              currencyCode: 'EUR',
             }),
           },
         },
@@ -60,12 +61,53 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
         { name: 'Burger', priceCents: 1299, quantity: 1 },
         { name: 'Fries', priceCents: 499, quantity: 2 },
       ],
+      currencyCode: 'EUR',
     })
     expect(createMock).toHaveBeenCalledTimes(1)
     const callArgs = createMock.mock.calls[0][0]
     expect(callArgs.model).toBe('gpt-4o-mini')
     expect(callArgs.response_format.type).toBe('json_schema')
     expect(callArgs.response_format.json_schema.strict).toBe(true)
+    // CURR-01: currencyCode is part of the strict schema contract.
+    expect(callArgs.response_format.json_schema.schema.required).toContain('currencyCode')
+  })
+
+  it('normalizes the currency code to uppercase ISO 4217 (CURR-01 / D-01)', async () => {
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              items: [{ name: 'Tea', priceCents: 300, quantity: 1 }],
+              currencyCode: 'gbp',
+            }),
+          },
+        },
+      ],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    expect((json as { currencyCode: string }).currencyCode).toBe('GBP')
+  })
+
+  it('falls back to USD when the model omits/garbles the currency (D-01)', async () => {
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              items: [{ name: 'Tea', priceCents: 300, quantity: 1 }],
+              currencyCode: '$$',
+            }),
+          },
+        },
+      ],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    expect((json as { currencyCode: string }).currencyCode).toBe('USD')
   })
 
   it('returns 400 when the image field is missing from the body', async () => {

@@ -35,6 +35,9 @@ export interface Item {
   confidence?: 'high' | 'low' | 'ambiguous'
 }
 
+// App-default currency used until OCR detects one (CURR-01 / D-02).
+export const DEFAULT_CURRENCY_CODE = 'USD'
+
 interface BillState {
   step: 1 | 2 | 3 | 4
   people: Person[]
@@ -42,12 +45,16 @@ interface BillState {
   assignments: Record<ItemId, PersonId[]>
   nextColorIndex: number
   billImageUrl: string | null
+  // ISO 4217 code detected from the receipt (CURR-01). Detection + store only this
+  // phase; threading through formatCents/displays is Phase 10 (CURR-02/03, D-02).
+  currencyCode: string
   ocrStatus: 'idle' | 'loading' | 'done' | 'error'
   expandStatus: 'idle' | 'loading' | 'done' | 'error'
   syncStatus: 'idle' | 'results'
   sessionId: string | null
   hostToken: string | null
   setBillImage: (url: string | null) => void
+  setCurrencyCode: (code: string) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setExpandStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setSyncStatus: (status: 'idle' | 'results') => void
@@ -74,6 +81,7 @@ const INITIAL_STATE = {
   assignments: {},
   nextColorIndex: 0,
   billImageUrl: null,
+  currencyCode: DEFAULT_CURRENCY_CODE,
   ocrStatus: 'idle' as const,
   expandStatus: 'idle' as const,
   syncStatus: 'idle' as const,
@@ -129,6 +137,7 @@ export const useBillStore = create<BillState>()(
       assignments: { ...s.assignments, [itemId]: personIds },
     })),
   setBillImage: (url) => set({ billImageUrl: url }),
+  setCurrencyCode: (code) => set({ currencyCode: code }),
   setOcrStatus: (status) => set({ ocrStatus: status }),
   setExpandStatus: (status) => set({ expandStatus: status }),
   setSyncStatus: (status) => set({ syncStatus: status }),
@@ -159,6 +168,7 @@ export const useBillStore = create<BillState>()(
         assignments: s.assignments,
         nextColorIndex: s.nextColorIndex,
         billImageUrl: s.billImageUrl,
+        currencyCode: s.currencyCode,
         syncStatus: s.syncStatus,
         sessionId: s.sessionId,
         hostToken: s.hostToken,

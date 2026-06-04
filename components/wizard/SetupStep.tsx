@@ -31,6 +31,7 @@ export function SetupStep() {
   const setOcrStatus = useBillStore((s) => s.setOcrStatus)
   const setExpandStatus = useBillStore((s) => s.setExpandStatus)
   const setItems = useBillStore((s) => s.setItems)
+  const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
 
   const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -99,8 +100,11 @@ export function SetupStep() {
         if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
         const data = (await res.json()) as {
           items: { name: string; priceCents: number; quantity: number }[]
+          currencyCode?: string
         }
         ocrItems = data.items
+        // CURR-01: store the detected ISO 4217 currency (route already defaults to USD).
+        if (data.currencyCode) setCurrencyCode(data.currencyCode)
         if (ocrItems.length === 0) {
           // D-10: failed/empty scan routes back to a clear retry — never a dead end.
           setBillImage(null)
@@ -163,7 +167,7 @@ export function SetupStep() {
         )
       }
     },
-    [setBillImage, setOcrStatus, setExpandStatus, setItems, toastManager],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, toastManager],
   )
 
   return (
