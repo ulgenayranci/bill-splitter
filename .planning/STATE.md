@@ -1,10 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-status: verifying
-stopped_at: Completed Phase 06 Plan 02
-last_updated: "2026-05-27T16:57:48.586Z"
+milestone_name: MVP
+status: complete
+stopped_at: v1.0 MVP shipped and archived
+last_updated: "2026-06-04T12:17:33.838Z"
+last_activity: 2026-06-04 — Milestone v1.0 completed and archived
 progress:
   total_phases: 6
   completed_phases: 6
@@ -24,44 +25,23 @@ progress:
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Phase 06 — Collaborative Bill Claiming
+**Current focus:** v2.0 — easy-billsy redesign (define via /gsd-new-milestone)
 
 ---
 
 ## Current Position
 
-Phase: 06 (Collaborative Bill Claiming) — EXECUTING
-Plan: 6 of 6
-**Status:** Phase complete — ready for verification
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-04 — Milestone v1.0 completed and archived
 
-```
-Progress: [██████████] 100%
-Phase 1 █████ Phase 2 █████ Phase 3 ░░░░░ Phase 4 ░░░░░ Phase 5
-```
+## Performance Metrics (v1.0 final)
 
----
-
-## Performance Metrics
-
-**Phases complete:** 1/5
-**Plans complete:** 6/14
-**Requirements done:** 8/12 (PEOPLE-01, ITEMS-01, ITEMS-02, ITEMS-03, TIP-01, RESULTS-01, OCR-01, OCR-03)
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 01 | 01 | 12 min | 3 | 29 |
-| 01 | 02 | 45 min | 2 | 4 |
-| 01 | 03 | 7 min | 2 | 4 |
-| 02 | 01 | 135s | 3 | 7 |
-| 02 | 02 | 8 min | 2 | 2 |
-| 02 | 03 | 5 min | 3 | 7 |
-
-| Phase 03 P01 | 8 min | 3 tasks | 6 files |
-| Phase 03 P02 | 4 min | 3 tasks | 3 files |
-| Phase 03 P03 | 12 min | 3 tasks | 4 files |
-| Phase 06 P01 | 442 | 4 tasks | 13 files |
-| Phase 06 P02 | 3 min | 3 tasks | 4 files |
-| Phase 06 P04 | 303 | 2 tasks | 9 files |
+**Phases complete:** 6/6
+**Plans complete:** 21/21
+**Requirements done:** 12/12
+**LOC:** ~6,270 TS/TSX · **Commits:** 232 · **Timeline:** 2026-05-08 → 2026-06-04
 
 ## Accumulated Context
 
@@ -112,9 +92,27 @@ None.
 
 ---
 
+## Deferred Items
+
+Acknowledged and deferred at v1.0 milestone close (2026-06-04):
+
+| Category | Item | Status | Note |
+|----------|------|--------|------|
+| quick_task | p2-waiting-state | missing summary | Work shipped inline (commit 7386d9e + review-routing fix); SUMMARY never written |
+| todo | add-user-facing-privacy-disclosure | pending | Intentionally parked for v2 |
+| uat | phase 04 | partial (0 open) | Effectively clear |
+| verification | phase 02 | human_needed | On-device UAT |
+| verification | phase 03 | human_needed | On-device UAT |
+| verification | phase 04 | human_needed | On-device UAT |
+| verification | phase 05 | human_needed | On-device UAT |
+
+All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-billsy redesign supersedes much of this surface.
+
 ## Session Continuity
 
-**Last session:** 2026-05-27T16:52:33.908Z
-**Stopped at:** Completed Phase 06 Plan 02
-**Next action:** Execute Phase 06 Plan 03 (new routes: tip, editRequest, dispute)
-**Context notes:** Phase 6 Plan 02 complete. All 4 Wave-1 route test files green (23/23). Key deliverables: hostToken minting in POST /api/session, redis.eval Lua atomic claim writes (QTY_CLAIM_SCRIPT + SLOT_CLAIM_SCRIPT), soft-checkpoint done route with done:boolean toggle.
+**Last session:** 2026-06-04 — v1.0 milestone closed and archived.
+**Next action:** `/gsd-new-milestone` to define v2.0 (easy-billsy redesign).
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

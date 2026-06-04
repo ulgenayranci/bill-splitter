@@ -54,37 +54,39 @@ Mobile-friendly web app. Works on any phone via browser, no install needed. Can 
 
 ### Validated
 
-- [x] User can add people to the bill — Validated in Phase 01: manual-bill-splitter (PEOPLE-01)
-- [x] User can mark items as shared and select who shared them — Validated in Phase 01: manual-bill-splitter (ITEMS-02, ITEMS-03)
-- [x] Each person can select what they ordered — Validated in Phase 01: manual-bill-splitter (ITEMS-01)
-- [x] Tip calculation with percentage options (15%, 18%, 20%, custom) — Validated in Phase 01: manual-bill-splitter (TIP-01)
-- [x] Final breakdown showing what each person owes — Validated in Phase 01: manual-bill-splitter (RESULTS-01)
+- [x] User can add people to the bill — v1.0 Phase 1 (PEOPLE-01)
+- [x] User can mark items as shared and select who shared them — v1.0 Phase 1 (ITEMS-02, ITEMS-03)
+- [x] Each person can select what they ordered — v1.0 Phase 1 (ITEMS-01)
+- [x] Tip calculation with percentage options (15%, 18%, 20%, custom) — v1.0 Phase 1 (TIP-01)
+- [x] Final breakdown showing what each person owes — v1.0 Phase 1 (RESULTS-01)
+- [x] Photo of the bill for OCR extraction — v1.0 Phase 2 (OCR-01)
+- [x] AI expands abbreviated item names into readable names — v1.0 Phase 3 (OCR-02)
+- [x] Ambiguous items prompt: take menu photo OR enter manually — v1.0 Phase 3 (OCR-04)
+- [x] Shareable link so each person claims their own items — v1.0 Phase 4 (RESULTS-02)
+- [x] Real-time collaborative claiming with quantity, shared items, and per-person tips — v1.0 Phase 6
 
-### Active
+### Active (next milestone)
 
-- [ ] User can take a photo of the bill for OCR extraction
-- [ ] AI expands abbreviated item names into readable names
-- [ ] Ambiguous items prompt: take menu photo OR enter manually
-- [ ] Tax calculation (amount or percentage)
-- [ ] Tip and tax split proportionally to each person's subtotal
-- [ ] Shareable link so each person selects their own items
+Defined via `/gsd-new-milestone` for v2.0. Direction: **easy-billsy redesign** — scan-first single Setup screen, flat model (no host role), 3-screen flow (Setup → Bill View → Results), tip as a Results-screen modal.
 
-### Out of Scope (v1)
+### Out of Scope (v1) / Deferred to v2
 
+- Tax input + proportional tip/tax split — dropped from the v2 redesign (per-person tip only)
 - Native iOS/Android app — web app covers the use case
-- Payment integrations (Venmo, etc.) — out of scope for now
-- Bill history / saved splits — complexity not justified for v1
-- User accounts / login — anonymous use keeps friction low
+- Payment integrations (Venmo, etc.) — confirmed out: **not targeting the US market**
+- Bill history / saved splits — now planned for v2 (the "History" menu item)
+- User accounts / login — anonymous use keeps friction low (reaffirmed)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Web app over native | Fastest to ship, works on all phones, no App Store | Pending |
-| Photo-first flow | Core differentiator vs manual-entry-only apps | Pending |
-| AI abbreviation expansion | Receipts are unreadable without it | Pending |
-| Menu photo as fallback | Handles edge cases without forcing manual typing | Pending |
-| Proportional tip/tax | Fairer than equal split when orders vary widely | Pending |
+| Web app over native | Fastest to ship, works on all phones, no App Store | ✓ Good — shipped on Vercel, no install friction |
+| Photo-first flow | Core differentiator vs manual-entry-only apps | ✓ Good — reinforced as the hero action in v2 redesign |
+| AI abbreviation expansion | Receipts are unreadable without it | ✓ Good — our clearest quality moat vs competitors |
+| Menu photo as fallback | Handles edge cases without forcing manual typing | ✓ Good — shipped Phase 3 |
+| Proportional tip/tax | Fairer than equal split when orders vary widely | ⚠️ Dropped — per-person tip shipped instead; tax cut from v2 |
+| Host approval / moderation flow | Central authority for edits & disputes | ⚠️ Revisit — adds complexity; v2 removes it for a flat model |
 
 ## Evolution
 
@@ -106,6 +108,8 @@ This document evolves at phase transitions and milestone boundaries.
 ---
 ## Current State
 
-Phase 01 (manual-bill-splitter) complete — full 5-step wizard implemented with 85 passing tests, integer-cent arithmetic, and largest-remainder tip distribution. Manual bill splitting is fully functional end-to-end.
+**v1.0 MVP shipped (2026-06-04)** — the full photo → OCR → AI-cleaned items → collaborative per-person claiming → per-person tips → results flow is live on Vercel. ~6,270 LOC TS/TSX across 6 phases. Stack: Next.js 16, React 19, Tailwind v4, shadcn/ui, Zustand, Upstash Redis, GPT-4o-mini vision.
 
-*Last updated: 2026-05-09 after Phase 01 completion*
+Next: **v2.0 easy-billsy redesign** — a clarity-driven rebuild (flat model, scan-first 3-screen flow) prompted by competitor analysis (LilySplit reads as a more focused product). Define via `/gsd-new-milestone`.
+
+*Last updated: 2026-06-04 after v1.0 milestone*
