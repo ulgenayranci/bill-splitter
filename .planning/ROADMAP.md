@@ -38,7 +38,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   1. User sees the "easy-billsy" wordmark header on every screen of the app
   2. User can open a hamburger menu and tap New Split, History (stub), or About Us
   3. User lands on a single Setup screen where the camera/scan action is the primary call to action; the old multi-step wizard is gone
-  4. After scanning, Setup shows a bill thumbnail with item count and a Retake option; "Continue" is enabled only when a bill is scanned and at least one person is added
+  4. After scanning, Setup shows a bill thumbnail with item count and a Retake option; "Continue" is enabled only when a bill is scanned and at least two people are added
   5. OCR returns a currency symbol alongside item data; the value is stored in Zustand
 **Plans**: TBD
 **UI hint**: yes

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Receipt } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +17,7 @@ import { useBillStore, AVATAR_COLORS } from '@/stores/useBillStore'
 import { formatCents } from '@/lib/billMath'
 import type { Item, ItemId, PersonId } from '@/stores/useBillStore'
 import { ShareLinkButton } from './ShareLinkButton'
+import { BillPhotoLightbox } from './BillPhotoLightbox'
 
 export function AssignItemsStep() {
   const items = useBillStore((s) => s.items)
@@ -23,9 +25,11 @@ export function AssignItemsStep() {
   const assignments = useBillStore((s) => s.assignments)
   const setAssignment = useBillStore((s) => s.setAssignment)
   const setStep = useBillStore((s) => s.setStep)
+  const billImageUrl = useBillStore((s) => s.billImageUrl)
 
   const [showUnassignedDialog, setShowUnassignedDialog] = useState(false)
   const [unassignedItems, setUnassignedItems] = useState<Item[]>([])
+  const [photoOpen, setPhotoOpen] = useState(false)
 
   function toggleAssignment(itemId: ItemId, personId: PersonId) {
     const current = assignments[itemId] ?? []
@@ -53,11 +57,24 @@ export function AssignItemsStep() {
   return (
     <div className="flex flex-col gap-6">
       {/* Heading */}
-      <div>
-        <h1 className="text-[20px] font-semibold leading-[1.2]">Assign items</h1>
-        <p className="mt-1 text-[14px] leading-[1.4] text-zinc-500">
-          Tap a person to assign. Tap again to share.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[20px] font-semibold leading-[1.2]">Assign items</h1>
+          <p className="mt-1 text-[14px] leading-[1.4] text-zinc-500">
+            Tap a person to assign. Tap again to share.
+          </p>
+        </div>
+        {billImageUrl && (
+          <button
+            type="button"
+            onClick={() => setPhotoOpen(true)}
+            aria-label="View bill photo"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[13px] font-medium text-zinc-600 hover:bg-zinc-50"
+          >
+            <Receipt size={15} aria-hidden="true" />
+            View bill
+          </button>
+        )}
       </div>
 
       {/* Scrollable items list */}
@@ -138,7 +155,7 @@ export function AssignItemsStep() {
       <div className="mt-auto flex flex-col gap-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button
           variant="outline"
-          onClick={() => setStep(2)}
+          onClick={() => setStep(1)}
           className="h-12 w-full"
         >
           Back
@@ -179,6 +196,8 @@ export function AssignItemsStep() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BillPhotoLightbox open={photoOpen} onClose={() => setPhotoOpen(false)} />
     </div>
   )
 }

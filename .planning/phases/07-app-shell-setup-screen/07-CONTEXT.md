@@ -29,7 +29,7 @@ This phase is the user-chosen "Setup first, then reassess" slice — purely addi
 - **D-08:** Single **scan-first** screen replacing wizard steps 1+2. Tagline "Split any bill in seconds."; the scan tile (camera) is the hero action; "Who's involved in the split?" people add is **inline** on the same screen.
 - **D-09:** **Scan-only entry** — NO manual item entry, NO gallery/photo-library upload. The live camera scan is the sole capture path. (User chose strictly scan-first over keeping manual/gallery fallbacks.)
 - **D-10:** After a scan: show the captured-bill **thumbnail + "N items found" badge + Retake**, not an editable item list. **Retake is the only OCR-failure recovery in this phase** — planning MUST ensure a failed/empty scan routes to a clear retry, never a dead end (no manual fallback exists).
-- **D-11:** **Continue** is gated — disabled until a bill is scanned AND at least one person is added.
+- **D-11:** **Continue** is gated — disabled until a bill is scanned AND **at least two people** are added. _(Revised 2026-06-04: originally "at least one person"; tightened to ≥2 since splitting is only meaningful with two or more participants. Host adds themselves + at least one other on Setup; further joiners still arrive via the share link downstream.)_
 - **D-12:** **Continue bridges to the EXISTING Assign/claiming flow** (`AssignItemsStep`) as a stopgap so the app stays usable end-to-end through the reassess gate. The new "Who are you?" modal + Bill View replace this target in Phase 9.
 
 ### Constraints carried in

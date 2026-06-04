@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 // randomId() requires a secure context (HTTPS/localhost).
 // Plain-HTTP LAN dev (e.g. http://192.168.x.x) exposes an undefined API.
@@ -54,6 +55,9 @@ interface BillState {
   setHostToken: (token: string | null) => void
   setItems: (items: Item[]) => void
   setStep: (step: BillState['step']) => void
+  // Persistence hydration guard — false until localStorage rehydrates (see persist config).
+  _hasHydrated: boolean
+  setHasHydrated: (v: boolean) => void
   addPerson: (name: string) => void
   removePerson: (id: PersonId) => void
   addItem: (name: string, priceCents: number, quantity?: number) => void
@@ -77,8 +81,12 @@ const INITIAL_STATE = {
   hostToken: null,
 }
 
-export const useBillStore = create<BillState>()((set) => ({
+export const useBillStore = create<BillState>()(
+  persist(
+    (set) => ({
   ...INITIAL_STATE,
+  _hasHydrated: false,
+  setHasHydrated: (v) => set({ _hasHydrated: v }),
   setStep: (step) => set({ step }),
   addPerson: (name) =>
     set((s) => ({
@@ -128,7 +136,36 @@ export const useBillStore = create<BillState>()((set) => ({
   setHostToken: (token) => set({ hostToken: token }),
   reset: () =>
     set((s) => {
-      if (s.billImageUrl) URL.revokeObjectURL(s.billImageUrl)
+      if (s.billImageUrl?.startsWith('blob:')) URL.revokeObjectURL(s.billImageUrl)
       return { ...INITIAL_STATE }
     }),
-}))
+    }),
+    {
+      name: 'easy-billsy-bill',
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      // Avoid SSR hydration mismatch: server + first client paint use INITIAL_STATE,
+      // then we rehydrate from localStorage after mount (see app/page.tsx).
+      skipHydration: true,
+      // Persist the working bill session. billImageUrl is persisted as a base64
+      // data-URL (set after compression in SetupStep) so the photo survives reload
+      // and the "View bill" button works on later screens. Excluded:
+      // - ocrStatus/expandStatus: transient request states (must restart at 'idle')
+      // - the hydration guard + action fns
+      partialize: (s) => ({
+        step: s.step,
+        people: s.people,
+        items: s.items,
+        assignments: s.assignments,
+        nextColorIndex: s.nextColorIndex,
+        billImageUrl: s.billImageUrl,
+        syncStatus: s.syncStatus,
+        sessionId: s.sessionId,
+        hostToken: s.hostToken,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
+    },
+  ),
+)
