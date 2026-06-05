@@ -24,7 +24,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### 📋 v2.0 — easy-billsy Redesign
 
 - [x] **Phase 7: App Shell + Setup Screen** — easy-billsy branding on all screens; wizard replaced by scan-first single-screen setup; OCR returns ISO 4217 currency code ✅ 2026-06-05
-- [ ] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated
+- [x] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated (completed 2026-06-05)
 - [ ] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning
 - [ ] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays
 
@@ -75,7 +75,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 08-02-PLAN.md — Backend surgery: delete 5 host routes, create /edit route (turns editRoute test green), currencyCode in create+get, Lua host-audit in claim route (CLAIM-01, CLAIM-03, D-01, D-04)
 - [x] 08-03-PLAN.md — Small consumers: strip hostToken from store, currencyCode in ShareLinkButton + fragment-free redirect, host UI off ClaimableItemCard/PersonSlotPicker, delete 3 host components (CLAIM-01, CLAIM-03, D-04)
 - [x] 08-04-PLAN.md — CollaborativeClaimingView refactor: delete host state/UI, wire add/edit/remove to /edit, D-02 delete confirm, simplify phase machine (CLAIM-01, CLAIM-03, D-01, D-02)
-- [ ] 08-05-PLAN.md — Test migration: delete 7 obsolete tests, flatten surviving fixtures, currencyCode assertions, CI green modulo 4 known pre-existing failures (CLAIM-01, CLAIM-03, D-04)
+- [x] 08-05-PLAN.md — Test migration: delete 7 obsolete tests, flatten surviving fixtures, currencyCode assertions, CI green modulo 4 known pre-existing failures (CLAIM-01, CLAIM-03, D-04)
 **Discuss note (2026-06-05, see 08-CONTEXT.md)**: No existing users → v1/old-session migration is a NULL EVENT (D-03) — the original "migrate v1 sessions" criterion was dropped; do NOT build a migrateSession normalizer. currencyCode is added to the payload here; Phase 10 owns currency display only. Deletes always confirm (D-02); claimed-item edits auto-recalculate (D-01).
 
 ### Phase 9: Bill View Redesign + Identity Modal
@@ -116,6 +116,6 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 5. Polish & Hardening | v1.0 | 3/3 | Complete | 2026-05-14 |
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
-| 8. Flat Model — Schema + API Surgery | v2.0 | 4/5 | In Progress|  |
+| 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 0/? | Not started | - |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
