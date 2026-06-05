@@ -17,11 +17,9 @@ export async function GET(
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
-    // CR-01: Strip hostToken before returning — guests must never see the host secret.
-    // hostToken is a write-capability secret; returning it would allow any guest to
-    // impersonate the host and approve/reject all edits and disputes.
-    const { hostToken: _hostToken, ...safeSession } = session
-    return NextResponse.json(safeSession)
+    // Flat model: every field is safe to return (no host-only secrets in schema).
+    // currencyCode and all other SessionPayload fields flow to the client automatically.
+    return NextResponse.json(session)
   } catch (err) {
     console.error('Session GET error:', err)
     return NextResponse.json({ error: 'Session not found' }, { status: 500 })

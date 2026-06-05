@@ -52,38 +52,28 @@ export async function POST(request: Request) {
   }
   // tipPercent intentionally not validated/stored — Phase 6 per-person tips (D-07)
 
-  // Convert wizard assignments (Record<ItemId, PersonId[]>) into session claims so
-  // host pre-assignments are visible to guests when they join.
-  const rawAssignments = b.assignments
-  const prePopulatedClaims: Record<string, Record<string, { qty: number; assignedBy: 'host' }>> = {}
-  if (rawAssignments && typeof rawAssignments === 'object' && !Array.isArray(rawAssignments)) {
-    for (const [itemId, personIds] of Object.entries(rawAssignments as Record<string, unknown>)) {
-      if (!Array.isArray(personIds) || personIds.length === 0) continue
-      prePopulatedClaims[itemId] = {}
-      for (const personId of personIds) {
-        if (typeof personId === 'string') {
-          prePopulatedClaims[itemId][personId] = { qty: 1, assignedBy: 'host' }
-        }
-      }
-    }
-  }
+  // D-04: read currencyCode, validate ISO 4217 three-letter code, default to 'USD'
+  // T-08-08: validate /^[A-Z]{3}$/ so arbitrary client strings can't poison display logic
+  const rawCurrencyCode = b.currencyCode
+  const currencyCode =
+    typeof rawCurrencyCode === 'string' && /^[A-Z]{3}$/.test(rawCurrencyCode)
+      ? rawCurrencyCode
+      : 'USD'
 
   try {
     const sessionId = nanoid()
-    const hostToken = nanoid()                          // D-02: server-generated, 21-char URL-safe
+    // Flat model: claims start empty — no host pre-assignment, no approval queue (CLAIM-01/03)
     const payload: SessionPayload = {
       people: b.people,
       items: b.items,
-      claims: { items: prePopulatedClaims, personSlots: {}, donePeople: {} },
-      hostToken,
-      hostPersonId: undefined,
+      claims: { items: {}, personSlots: {}, donePeople: {} },
       tips: {},
-      editRequests: {},
-      disputes: {},
+      currencyCode,
       createdAt: Date.now(),
     }
     await redis.set(`session:${sessionId}`, JSON.stringify(payload), { ex: 86400 })
-    return NextResponse.json({ sessionId, hostToken })
+    // Pitfall 6: response is { sessionId } only — flat model has no host secret
+    return NextResponse.json({ sessionId })
   } catch (err) {
     console.error('Session create error:', err)
     return NextResponse.json({ error: 'Session creation failed' }, { status: 500 })
