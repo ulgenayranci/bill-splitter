@@ -23,7 +23,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 ### 📋 v2.0 — easy-billsy Redesign
 
-- [ ] **Phase 7: App Shell + Setup Screen** — easy-billsy branding on all screens; wizard replaced by scan-first single-screen setup; OCR returns currency symbol
+- [x] **Phase 7: App Shell + Setup Screen** — easy-billsy branding on all screens; wizard replaced by scan-first single-screen setup; OCR returns currency symbol ✅ 2026-06-05
 - [ ] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; test suite migrated
 - [ ] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning
 - [ ] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays
@@ -101,7 +101,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 4. Shareable Links | v1.0 | 3/3 | Complete | 2026-05-13 |
 | 5. Polish & Hardening | v1.0 | 3/3 | Complete | 2026-05-14 |
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
-| 7. App Shell + Setup Screen | v2.0 | 1/4 | In Progress|  |
+| 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 0/? | Not started | - |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 0/? | Not started | - |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
