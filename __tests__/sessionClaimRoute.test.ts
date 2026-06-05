@@ -37,20 +37,18 @@ async function callPOSTWithParams(sessionId: string, body: unknown): Promise<{ s
   return { status: res.status, json: await res.json() }
 }
 
+/** Flat baseSession — no hostToken, editRequests, disputes, hostPersonId */
 const baseSession = {
   people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }, { id: 'p2', name: 'Bob', colorIndex: 1 }],
   items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
   claims: { items: {}, personSlots: {}, donePeople: {} },
-  hostToken: 'host-token-abc',
-  hostPersonId: undefined,
   tips: {},
-  editRequests: {},
-  disputes: {},
+  currencyCode: 'USD',
   createdAt: Date.now(),
 }
 
 describe('POST /api/session/[sessionId]/claim', () => {
-  it('Test 1 (claim qty=1): calls redis.eval with Lua script; ARGV=[itemId, personId, "1", "self", ""]; returns { ok: true }', async () => {
+  it('Test 1 (claim qty=1): calls redis.eval with Lua script; ARGV=[itemId, personId, "1"]; returns { ok: true }', async () => {
     mockEval.mockResolvedValue('OK')
     mockGet.mockResolvedValue(baseSession)
     const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: 1 })
@@ -61,7 +59,10 @@ describe('POST /api/session/[sessionId]/claim', () => {
     expect(typeof script).toBe('string')
     expect(script).toContain('cjson.decode')
     expect(keys).toEqual(['session:test-session'])
-    expect(args).toEqual(['i1', 'p1', '1', 'self', ''])
+    // Flat model: ARGV is [itemId, personId, qty] — no assignedBy/hostToken fields
+    expect(args[0]).toBe('i1')
+    expect(args[1]).toBe('p1')
+    expect(args[2]).toBe('1')
   })
 
   it('Test 2 (claim qty=3 for quantity item): ARGV[2] === "3"', async () => {
@@ -113,39 +114,6 @@ describe('POST /api/session/[sessionId]/claim', () => {
   it('Test 7: Returns 400 when qty is negative or non-integer', async () => {
     mockGet.mockResolvedValue(baseSession)
     const { status } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: -1 })
-    expect(status).toBe(400)
-  })
-
-  it('Test 8 (host-assigned): assignedBy:"host" + valid hostToken passes ARGV[4]="host", ARGV[5]=hostToken', async () => {
-    mockEval.mockResolvedValue('OK')
-    mockGet.mockResolvedValue(baseSession)
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p2', itemId: 'i1', qty: 1, assignedBy: 'host', hostToken: 'host-token-abc',
-    })
-    expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    const [, , args] = mockEval.mock.calls[0]
-    expect(args[3]).toBe('host')
-    expect(args[4]).toBe('host-token-abc')
-  })
-
-  it('Test 9 (host-assigned without token): assignedBy:"host" with no hostToken passes ARGV[5]=""', async () => {
-    mockEval.mockResolvedValue('OK')
-    mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOSTWithParams('test-session', {
-      personId: 'p2', itemId: 'i1', qty: 1, assignedBy: 'host',
-    })
-    expect(status).toBe(200)
-    const [, , args] = mockEval.mock.calls[0]
-    expect(args[3]).toBe('host')
-    expect(args[4]).toBe('')
-  })
-
-  it('Test 10: Returns 400 when assignedBy is an invalid value', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOSTWithParams('test-session', {
-      personId: 'p1', itemId: 'i1', qty: 1, assignedBy: 'admin',
-    })
     expect(status).toBe(400)
   })
 })

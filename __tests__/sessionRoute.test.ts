@@ -41,27 +41,28 @@ describe('POST /api/session', () => {
     items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
   }
 
-  it('Test 1: Returns 200 + { sessionId: string, hostToken: string } when given valid { people, items }', async () => {
+  it('Test 1: Returns 200 + { sessionId: string } (no hostToken in response) when given valid { people, items }', async () => {
     mockSet.mockResolvedValue('OK')
     const { status, json } = await callPOST(validBody)
     expect(status).toBe(200)
-    const result = json as { sessionId: string; hostToken: string }
+    const result = json as { sessionId: string; hostToken?: unknown }
     expect(typeof result.sessionId).toBe('string')
     expect(result.sessionId.length).toBeGreaterThan(0)
-    expect(typeof result.hostToken).toBe('string')
-    expect(result.hostToken.length).toBeGreaterThan(0)
+    // Flat model: hostToken is NOT returned in the response
+    expect(result.hostToken).toBeUndefined()
   })
 
-  it('Test 2: hostToken is non-empty string with length >= 10', async () => {
+  it('Test 2: Response contains only sessionId (no hostToken, no hostPersonId)', async () => {
     mockSet.mockResolvedValue('OK')
     const { status, json } = await callPOST(validBody)
     expect(status).toBe(200)
-    const result = json as { hostToken: string }
-    expect(typeof result.hostToken).toBe('string')
-    expect(result.hostToken.length).toBeGreaterThanOrEqual(10)
+    const result = json as Record<string, unknown>
+    expect(typeof result.sessionId).toBe('string')
+    expect(result.hostToken).toBeUndefined()
+    expect(result.hostPersonId).toBeUndefined()
   })
 
-  it('Test 3: redis.set called with session key containing hostToken/tips/editRequests/disputes; no legacy tip-percent field in payload', async () => {
+  it('Test 3: redis.set called with flat payload containing currencyCode + tips; no hostToken/editRequests/disputes in payload', async () => {
     mockSet.mockResolvedValue('OK')
     const { status, json } = await callPOST(validBody)
     expect(status).toBe(200)
@@ -71,10 +72,14 @@ describe('POST /api/session', () => {
     expect(key).toBe(`session:${sessionId}`)
     expect(opts).toMatchObject({ ex: 86400 })
     const payload = JSON.parse(payloadStr as string)
-    expect(typeof payload.hostToken).toBe('string')
+    // Flat model: no host fields
+    expect(payload.hostToken).toBeUndefined()
+    expect(payload.editRequests).toBeUndefined()
+    expect(payload.disputes).toBeUndefined()
+    expect(payload.hostPersonId).toBeUndefined()
+    // Required flat fields
     expect(payload.tips).toEqual({})
-    expect(payload.editRequests).toEqual({})
-    expect(payload.disputes).toEqual({})
+    expect(typeof payload.currencyCode).toBe('string')
     // Phase 4 shared-tip percent field must NOT be in Phase 6 payload (D-17)
     const legacyTipKey = ['tip', 'Percent'].join('')
     expect(legacyTipKey in payload).toBe(false)
@@ -111,5 +116,24 @@ describe('POST /api/session', () => {
     const { status, json } = await callPOST(validBody)
     expect(status).toBe(500)
     expect((json as { error: string }).error).toBe('Session creation failed')
+  })
+
+  it('Test 8 (D-04): currencyCode in POST body is persisted; absent/invalid code defaults to "USD"', async () => {
+    mockSet.mockResolvedValue('OK')
+    // Valid currencyCode passed
+    const { json: json1 } = await callPOST({ ...validBody, currencyCode: 'EUR' })
+    const [, payloadStr1] = mockSet.mock.calls[0]
+    const payload1 = JSON.parse(payloadStr1 as string)
+    expect(payload1.currencyCode).toBe('EUR')
+    mockSet.mockReset()
+    mockSet.mockResolvedValue('OK')
+    vi.resetModules()
+    // No currencyCode → defaults to USD
+    const { json: json2 } = await callPOST(validBody)
+    const [, payloadStr2] = mockSet.mock.calls[0]
+    const payload2 = JSON.parse(payloadStr2 as string)
+    expect(payload2.currencyCode).toBe('USD')
+    // Suppress unused var warnings
+    void json1; void json2
   })
 })

@@ -32,29 +32,31 @@ async function callGET(sessionId: string): Promise<{ status: number; json: unkno
   return { status: res.status, json: await res.json() }
 }
 
+/** Flat baseSession — no hostToken, editRequests, disputes, hostPersonId */
 const baseSession = {
   people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }, { id: 'p2', name: 'Bob', colorIndex: 1 }],
   items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
   claims: { items: {}, personSlots: {}, donePeople: {} },
-  hostToken: 'host-token-abc',
-  hostPersonId: undefined,
   tips: {},
-  editRequests: {},
-  disputes: {},
+  currencyCode: 'USD',
   createdAt: Date.now(),
 }
 
 describe('GET /api/session/[sessionId]', () => {
-  it('Test 1: Returns 200 + session JSON with hostToken stripped (CR-01)', async () => {
+  it('Test 1: Returns 200 + flat session JSON (currencyCode present, no host fields)', async () => {
     mockGet.mockResolvedValue(baseSession)
     const { status, json } = await callGET('test-session-id')
     expect(status).toBe(200)
-    // CR-01: hostToken must NOT be returned to clients — it's a host capability secret
-    expect((json as Record<string, unknown>).hostToken).toBeUndefined()
-    expect((json as typeof baseSession).tips).toEqual({})
-    expect((json as typeof baseSession).editRequests).toEqual({})
-    // Other safe fields should still be present
-    expect((json as typeof baseSession).people).toHaveLength(2)
+    const result = json as Record<string, unknown>
+    // Flat model: host fields are not stored and not returned
+    expect(result.hostToken).toBeUndefined()
+    expect(result.editRequests).toBeUndefined()
+    expect(result.disputes).toBeUndefined()
+    // currencyCode must be returned (D-04)
+    expect(result.currencyCode).toBe('USD')
+    // Other safe fields still present
+    expect((result.people as unknown[]).length).toBe(2)
+    expect((result as { tips: unknown }).tips).toEqual({})
   })
 
   it('Test 2: Returns 404 + { error: "Session not found" } when redis.get returns null', async () => {
