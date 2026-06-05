@@ -33,7 +33,7 @@ progress:
 Phase: 7 (App Shell + Setup Screen)
 Plan: 07-04 complete (UAT gap closure — 7 gaps closed)
 Status: Phase 7 plans 01-03 shipped + 07-04 gap closure executed (commits eae4aea, b700926, 8b77c3e); all 7 UAT gaps closed, WizardShell + SetupStep tests green
-Last activity: 2026-06-05 — Executed 07-04: visible progress strip, gallery capture, count chip, copy cleanup, failed-scan item clear, inline scan error
+Last activity: 2026-06-05 — Completed quick task 260605-v0g: right-align count chip + bottom-anchor Continue button (Phase 7 round-2 UAT polish)
 
 ```
 Progress: [███░░░░░░░] 25%
@@ -104,6 +104,12 @@ Progress: [███░░░░░░░] 25%
 ### Blockers
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260605-v0g | Right-align people count chip and bottom-anchor Continue button on Setup screen | 2026-06-05 | 109f6a6 | [260605-v0g-right-align-people-count-chip-and-bottom](./quick/260605-v0g-right-align-people-count-chip-and-bottom/) |
 
 ---
 
