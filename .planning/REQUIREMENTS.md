@@ -33,9 +33,9 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 ### Flat Collaborative Claiming (CLAIM)
 
-- [ ] **CLAIM-01**: Any participant can claim items by tapping — no host, no approval queue
+- [x] **CLAIM-01**: Any participant can claim items by tapping — no host, no approval queue
 - [ ] **CLAIM-02**: Multiple people can share one item; a quantity stepper sets each person's portion with proportional cost split
-- [ ] **CLAIM-03**: Anyone can add, edit, or remove an item directly (changes apply immediately, no moderation)
+- [x] **CLAIM-03**: Anyone can add, edit, or remove an item directly (changes apply immediately, no moderation)
 - [ ] **CLAIM-04**: Live attribution shows who has claimed each item, updating in near-real-time across devices
 - [ ] **CLAIM-05**: Unclaimed items are surfaced before results so nothing is missed
 - [ ] **CLAIM-06**: User can share a join link so others claim on their own phones (no app install, no login)
@@ -81,8 +81,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | SETUP-03 | Phase 7 | Complete |
 | SETUP-04 | Phase 7 | Complete |
 | CURR-01 | Phase 7 | Complete |
-| CLAIM-01 | Phase 8 | Pending |
-| CLAIM-03 | Phase 8 | Pending |
+| CLAIM-01 | Phase 8 | Complete |
+| CLAIM-03 | Phase 8 | Complete |
 | IDENT-01 | Phase 9 | Pending |
 | IDENT-02 | Phase 9 | Pending |
 | IDENT-03 | Phase 9 | Pending |
