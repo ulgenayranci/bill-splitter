@@ -60,18 +60,18 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ---
 
 ### Phase 8: Flat Model — Schema + API Surgery
-**Goal**: The session data model is clean of all host-role concepts; the direct-edit route is live; live Redis sessions are protected by a migration normalizer; the shared-bill payload carries the detected currencyCode; test suite reflects the new model
+**Goal**: The session data model is clean of all host-role concepts; the direct-edit route is live; the shared-bill payload carries the detected currencyCode; test suite reflects the new model
 **Depends on**: Phase 7
 **Requirements**: CLAIM-01, CLAIM-03 (+ currencyCode payload plumbing toward CURR-02, moved up from Phase 10 per 2026-06-05 reassessment)
 **Success Criteria** (what must be TRUE):
   1. A participant can claim an item without a host token — no host approval step exists anywhere in the API
-  2. Any participant can edit or remove an item directly via the new /edit route; changes apply immediately with no queue
+  2. Any participant can edit or remove an item directly via the new /edit route; edits apply immediately with no queue (deletes always show a confirm — D-02)
   3. The five deleted host routes return 404; no TypeScript type errors remain related to hostToken, editRequests, or disputes
-  4. Sessions created by v1 code that are still live in Redis (within 24h TTL) are normalised on read and do not crash
-  5. The shared-bill payload includes the detected currencyCode (added while the schema is already open); the migration normalizer defaults pre-existing/v1 sessions to USD so no read crashes
+  4. Editing a claimed item's price/quantity keeps existing claims and recalculates their shares (D-01)
+  5. The shared-bill payload includes the detected currencyCode (default 'USD' at creation if absent); no migration normalizer needed
   6. Every deleted test file has a replacement with equivalent behavior coverage; CI is green
 **Plans**: TBD
-**Reassess note (2026-06-05)**: currencyCode SessionPayload field pulled forward from Phase 10 — fold it into the same schema change + migrateSession default. Phase 10 then owns display only.
+**Discuss note (2026-06-05, see 08-CONTEXT.md)**: No existing users → v1/old-session migration is a NULL EVENT (D-03) — the original "migrate v1 sessions" criterion was dropped; do NOT build a migrateSession normalizer. currencyCode is added to the payload here; Phase 10 owns currency display only. Deletes always confirm (D-02); claimed-item edits auto-recalculate (D-01).
 
 ### Phase 9: Bill View Redesign + Identity Modal
 **Goal**: The collaborative Bill View is fully flat; any participant can claim and edit; the "Who are you?" identity modal replaces the blocking slot-picker; live attribution shows who claimed each item
