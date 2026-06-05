@@ -76,7 +76,7 @@ Progress: [███░░░░░░░] 25%
 | D-09 softened to scan-FIRST (camera hero + photo-library picker) | UAT gap: forced re-capture when the physical bill is gone; dropped capture=environment so the native picker offers gallery too. Manual item entry still out of scope | Phase 7 (07-04) |
 | Scan failure feedback inline (role=alert) near the scan tile, not bottom toast | UAT: bottom base-ui toast was too low to notice; surface error where the user is looking | Phase 7 (07-04) |
 | Clear items[] on every OCR failure path | billScanned = items.length>0 gates the count chip; failure paths cleared billImageUrl but not items, leaving a stale "N items found" chip | Phase 7 (07-04) |
-| migrateSession normalizer must be first commit in Phase 8 | Live Redis sessions written by v1 code coexist for 24h after deploy; normalizer on read protects against null-access on new fields | Phase 8 (pending) |
+| ~~migrateSession normalizer must be first commit in Phase 8~~ **SUPERSEDED** by 08-CONTEXT D-03 | No existing users → v1/old-session migration is a null event; do NOT build a migrateSession normalizer | Phase 8 (2026-06-05 discuss) |
 | Lua script strings audited separately from TypeScript | TypeScript type errors cascade on schema removal, but Lua strings are opaque — must grep separately | Phase 8 (pending) |
 | formatCents gains optional currencyCode param (backward-compatible) | All existing call sites omit the param and continue to get "$"; new call sites pass session.currencyCode | Phase 10 (pending) |
 | Keep ≥2-people Setup gate; revise IDENT-02 | Splitting needs 2+ people, so ≥2 is correct; that makes IDENT-02's single-person auto-skip unreachable — folded into IDENT-04 (persisted identity, no re-prompt) | Phase 7→9 (2026-06-05 reassess) |
