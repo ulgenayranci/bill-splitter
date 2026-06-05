@@ -31,9 +31,9 @@ progress:
 ## Current Position
 
 Phase: 8
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-05
+Plan: 5 plans created (08-01..08-05), plan-check PASSED — ready to execute
+Status: Ready to execute
+Last activity: 2026-06-06 — Planned Phase 8 (research → 5 plans in 5 waves → plan-check passed first pass)
 
 ```
 Progress: [███░░░░░░░] 25%
@@ -134,7 +134,7 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 ## Session Continuity
 
 **Last session:** 2026-06-05T20:34:28.738Z
-**Next action:** Reassess gate ✅ done (2026-06-05). Ready for `/gsd:discuss-phase 8` (Flat Model — Schema + API Surgery).
+**Next action:** Phase 8 planned + verified (5 plans, 5 waves). Ready for `/gsd:execute-phase 8`. Waves are strictly sequential (schema → backend → small consumers → CollaborativeClaimingView → test migration).
 
 ## Operator Next Steps
 
