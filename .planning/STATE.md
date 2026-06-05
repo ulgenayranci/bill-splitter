@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: easy-billsy Redesign
 status: executing
-last_updated: "2026-06-05T21:13:06.685Z"
+last_updated: "2026-06-05T21:20:28.897Z"
 last_activity: 2026-06-05
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
   percent: 25
 ---
 
@@ -31,12 +31,12 @@ progress:
 ## Current Position
 
 Phase: 08 (flat-model-schema-api-surgery) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-06-05
 
 ```
-Progress: [██████░░░░] 56%
+Progress: [███████░░░] 67%
 ```
 
 ## Performance Metrics (v1.0 final)
@@ -82,6 +82,7 @@ Progress: [██████░░░░] 56%
 | Keep ≥2-people Setup gate; revise IDENT-02 | Splitting needs 2+ people, so ≥2 is correct; that makes IDENT-02's single-person auto-skip unreachable — folded into IDENT-04 (persisted identity, no re-prompt) | Phase 7→9 (2026-06-05 reassess) |
 | currencyCode SessionPayload field moves to Phase 8 (was Phase 10) | Schema surgery + migrateSession normalizer are already open in Phase 8 — add the field + USD default there once, not twice; Phase 10 keeps display only | Phase 8 (2026-06-05 reassess) |
 | Phase 08-flat-model-schema-api-surgery P01 | 2 | 2 tasks | 2 files |
+| Phase 08-flat-model-schema-api-surgery P02 | 278 | 3 tasks | 10 files |
 
 ### Architecture Commitments
 
@@ -134,7 +135,7 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 
 ## Session Continuity
 
-**Last session:** 2026-06-05T21:13:06.679Z
+**Last session:** 2026-06-05T21:20:28.892Z
 **Next action:** Phase 8 planned + verified (5 plans, 5 waves). Ready for `/gsd:execute-phase 8`. Waves are strictly sequential (schema → backend → small consumers → CollaborativeClaimingView → test migration).
 
 ## Operator Next Steps

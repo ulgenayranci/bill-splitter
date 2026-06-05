@@ -72,7 +72,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   6. Every deleted test file has a replacement with equivalent behavior coverage; CI is green
 **Plans**: 5 plans (5 waves — schema/test → backend → small consumers → view refactor → test migration)
 - [x] 08-01-PLAN.md — Schema flatten (remove host symbols, add currencyCode) + Wave-0 failing editRoute contract test (CLAIM-01, CLAIM-03, D-01, D-03, D-04)
-- [ ] 08-02-PLAN.md — Backend surgery: delete 5 host routes, create /edit route (turns editRoute test green), currencyCode in create+get, Lua host-audit in claim route (CLAIM-01, CLAIM-03, D-01, D-04)
+- [x] 08-02-PLAN.md — Backend surgery: delete 5 host routes, create /edit route (turns editRoute test green), currencyCode in create+get, Lua host-audit in claim route (CLAIM-01, CLAIM-03, D-01, D-04)
 - [ ] 08-03-PLAN.md — Small consumers: strip hostToken from store, currencyCode in ShareLinkButton + fragment-free redirect, host UI off ClaimableItemCard/PersonSlotPicker, delete 3 host components (CLAIM-01, CLAIM-03, D-04)
 - [ ] 08-04-PLAN.md — CollaborativeClaimingView refactor: delete host state/UI, wire add/edit/remove to /edit, D-02 delete confirm, simplify phase machine (CLAIM-01, CLAIM-03, D-01, D-02)
 - [ ] 08-05-PLAN.md — Test migration: delete 7 obsolete tests, flatten surviving fixtures, currencyCode assertions, CI green modulo 4 known pre-existing failures (CLAIM-01, CLAIM-03, D-04)
@@ -116,6 +116,6 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 5. Polish & Hardening | v1.0 | 3/3 | Complete | 2026-05-14 |
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
-| 8. Flat Model — Schema + API Surgery | v2.0 | 1/5 | In Progress|  |
+| 8. Flat Model — Schema + API Surgery | v2.0 | 2/5 | In Progress|  |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 0/? | Not started | - |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
