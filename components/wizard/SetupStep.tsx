@@ -2,7 +2,6 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Camera, Check, RotateCcw, Receipt, Trash2 } from 'lucide-react'
-import { Toast } from '@base-ui/react/toast'
 import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,9 +12,11 @@ import { BillPhotoLightbox } from './BillPhotoLightbox'
 /**
  * Scan-first Setup screen — design screens 1 (empty) + 2 (after scan).
  * Replaces the v1 AddItems + AddPeople wizard steps (D-08).
- * Scan-only entry, no manual item entry / gallery (D-09).
+ * Scan-FIRST entry: camera is the hero action, but the native picker also offers
+ * the photo library (D-09 revised 2026-06-05 — capture attr dropped). No manual
+ * item entry.
  * After a scan: thumbnail + "N items found" badge + Retake, no item list (D-10).
- * Continue is gated on a scanned bill AND ≥1 person (D-11), then bridges to
+ * Continue is gated on a scanned bill AND ≥2 people (D-11), then bridges to
  * the existing Assign flow as a stopgap (D-12).
  */
 export function SetupStep() {
@@ -35,7 +36,7 @@ export function SetupStep() {
 
   const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const toastManager = Toast.useToastManager()
+  const [scanError, setScanError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -63,6 +64,7 @@ export function SetupStep() {
       const file = e.target.files?.[0]
       if (!file) return
       e.target.value = ''
+      setScanError(null)
 
       const prevUrl = useBillStore.getState().billImageUrl
       if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
@@ -107,26 +109,26 @@ export function SetupStep() {
         if (data.currencyCode) setCurrencyCode(data.currencyCode)
         if (ocrItems.length === 0) {
           // D-10: failed/empty scan routes back to a clear retry — never a dead end.
+          // GAP 6: clear items so the stale "N items found" chip disappears and
+          // billScanned (items.length > 0) flips false, re-gating Continue.
+          setItems([])
           setBillImage(null)
           setOcrStatus('error')
-          toastManager.add({
-            description: 'No items found — tap Scan to try a clearer photo',
-            timeout: 7000,
-          })
+          setScanError('No items found — tap Scan to try a clearer photo')
           return
         }
       } catch (err) {
         console.error(err)
+        // GAP 6: clear items on the failure path too (see empty-scan branch).
+        setItems([])
         setBillImage(null)
         setOcrStatus('error')
-        toastManager.add({
-          description: "Couldn't read the bill — tap Scan to try again",
-          timeout: 7000,
-        })
+        setScanError("Couldn't read the bill — tap Scan to try again")
         return
       }
 
       // OCR succeeded. Chain into name expansion.
+      setScanError(null)
       setOcrStatus('done')
       setExpandStatus('loading')
       try {
@@ -167,7 +169,7 @@ export function SetupStep() {
         )
       }
     },
-    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, toastManager],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode],
   )
 
   return (
@@ -176,7 +178,6 @@ export function SetupStep() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="sr-only"
         onChange={handleFileChange}
         aria-hidden="true"
@@ -188,6 +189,13 @@ export function SetupStep() {
       <p className="text-[16px] font-medium leading-[1.5] text-zinc-500">
         Split any bill in seconds.
       </p>
+
+      {/* GAP 7: inline scan error near the scan tile (not a bottom toast) */}
+      {scanError && (
+        <p role="alert" data-testid="scan-error" className="text-[13px] text-red-600">
+          {scanError}
+        </p>
+      )}
 
       {/* Scan tile (empty) OR receipt thumbnail (after scan) */}
       {billScanned ? (
@@ -247,11 +255,19 @@ export function SetupStep() {
         </button>
       )}
 
-      {/* People */}
-      <div className="flex flex-col gap-3">
+      {/* People — GAP 3: extra top margin (>=5px) separates the people section
+          from the scan hero, on top of the container's gap-5. */}
+      <div className="mt-1.5 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400">
             Who&apos;s involved in the split?
+          </span>
+          {/* GAP 4: count chip bound to people.length */}
+          <span
+            data-testid="people-count-chip"
+            className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-500"
+          >
+            {people.length}
           </span>
           <span className="h-px flex-1 bg-zinc-200" />
         </div>
@@ -279,7 +295,7 @@ export function SetupStep() {
           </Button>
         </div>
 
-        {people.length > 0 ? (
+        {people.length > 0 && (
           <ul className="flex flex-col gap-2">
             {people.map((person) => (
               <li
@@ -304,10 +320,6 @@ export function SetupStep() {
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-[12px] leading-[1.5] text-zinc-400">
-            Add people now or after scanning.
-          </p>
         )}
       </div>
 
@@ -318,7 +330,7 @@ export function SetupStep() {
           disabled={!canContinue}
           className="h-12 w-full bg-amber-600 text-base hover:bg-amber-700"
         >
-          Continue to Assign →
+          Continue to Assign
         </Button>
         {!canContinue && (
           <p className="mt-2 text-center text-[12px] text-zinc-400">
