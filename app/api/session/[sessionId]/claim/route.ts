@@ -18,15 +18,6 @@ if not ok then return 'invalid_session' end
 local itemId = ARGV[1]
 local personId = ARGV[2]
 local qty = tonumber(ARGV[3])
-local assignedBy = ARGV[4]
-local claimerHostToken = ARGV[5]
-
--- Only honour 'host' assignedBy when the caller proves host identity.
-if assignedBy == 'host' then
-  if claimerHostToken == '' or session.hostToken ~= claimerHostToken then
-    assignedBy = 'self'
-  end
-end
 
 if not session.claims then session.claims = {} end
 if not session.claims.items then session.claims.items = {} end
@@ -58,7 +49,7 @@ end
 if qty == 0 then
   session.claims.items[itemId][personId] = nil
 else
-  session.claims.items[itemId][personId] = { qty = qty, assignedBy = assignedBy }
+  session.claims.items[itemId][personId] = { qty = qty }
 end
 
 -- cjson encodes empty Lua tables as []. For an empty per-item object we want {}.
@@ -72,10 +63,10 @@ return 'OK'
 `
 
 /**
- * Phase 6 atomic slot claim.
- * Sets claims.personSlots[personId] = true. If a valid hostToken is supplied AND
- * session.hostPersonId is currently nil, also sets hostPersonId = personId (D-13).
+ * Phase 8 atomic slot claim (flat model).
+ * Sets claims.personSlots[personId] = true.
  * Returns 'OK', 'slot_taken', 'session_not_found', or 'invalid_session'.
+ * ARGV is now [personId] only — no host token (CLAIM-01).
  */
 const SLOT_CLAIM_SCRIPT = `
 local raw = redis.call('GET', KEYS[1])
@@ -84,7 +75,6 @@ local ok, session = pcall(cjson.decode, raw)
 if not ok then return 'invalid_session' end
 
 local personId = ARGV[1]
-local maybeHostToken = ARGV[2]  -- empty string if not host
 
 if not session.claims then session.claims = {} end
 if not session.claims.personSlots then session.claims.personSlots = {} end
@@ -93,12 +83,6 @@ if session.claims.personSlots[personId] == true then
   return 'slot_taken'
 end
 session.claims.personSlots[personId] = true
-
-if maybeHostToken ~= '' and session.hostToken == maybeHostToken then
-  if session.hostPersonId == nil or session.hostPersonId == cjson.null then
-    session.hostPersonId = personId
-  end
-end
 
 redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
 return 'OK'
@@ -109,8 +93,6 @@ type ClaimBody = {
   action: 'qty' | 'slot'
   itemId?: string
   qty?: number
-  hostToken?: string
-  assignedBy?: 'self' | 'host'
 }
 
 function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; error: string } {
@@ -132,12 +114,6 @@ function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; 
       return { ok: false, error: 'Invalid qty: must be integer >= 0' }
     }
   }
-  if (r.hostToken !== undefined && typeof r.hostToken !== 'string') {
-    return { ok: false, error: 'Invalid hostToken' }
-  }
-  if (r.assignedBy !== undefined && r.assignedBy !== 'self' && r.assignedBy !== 'host') {
-    return { ok: false, error: 'Invalid assignedBy' }
-  }
   return { ok: true, body: { ...r, action } as unknown as ClaimBody }
 }
 
@@ -155,19 +131,18 @@ export async function POST(
   }
   const v = validateBody(body)
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
-  const { personId, action, itemId, qty, hostToken, assignedBy: bodyAssignedBy } = v.body
+  const { personId, action, itemId, qty } = v.body
 
   try {
     if (action === 'qty') {
       // CR-03: bounds check now lives inside QTY_CLAIM_SCRIPT (atomic with the write).
       // A pre-Lua GET + TS bounds check had a race window — two callers could both pass
       // the check before either write completed, yielding totalClaimed > item.quantity.
-      // assignedBy defaults to 'self'; Lua validates 'host' against hostToken atomically.
-      const assignedBy = bodyAssignedBy ?? 'self'
+      // ARGV: [itemId, personId, String(qty)] — no host fields (CLAIM-01 flat model).
       const result = await redis.eval(
         QTY_CLAIM_SCRIPT,
         [`session:${sessionId}`],
-        [itemId as string, personId, String(qty), assignedBy, hostToken ?? '']
+        [itemId as string, personId, String(qty)]
       )
       if (result === 'session_not_found') {
         return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
@@ -182,10 +157,11 @@ export async function POST(
     }
 
     // action === 'slot'
+    // ARGV: [personId] only — no host token in flat model (CLAIM-01).
     const result = await redis.eval(
       SLOT_CLAIM_SCRIPT,
       [`session:${sessionId}`],
-      [personId, hostToken ?? '']
+      [personId]
     )
     if (result === 'session_not_found') {
       return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
