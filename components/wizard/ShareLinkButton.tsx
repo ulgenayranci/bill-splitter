@@ -17,12 +17,10 @@ import { useBillStore } from '@/stores/useBillStore'
 interface PendingSession {
   guestUrl: string
   sessionId: string
-  hostToken: string
 }
 
 export function ShareLinkButton() {
   const setSessionId = useBillStore((s) => s.setSessionId)
-  const setHostToken = useBillStore((s) => s.setHostToken)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [sessionError, setSessionError] = useState<string | null>(null)
@@ -43,26 +41,24 @@ export function ShareLinkButton() {
       setSessionError(null)
       // Phase 6: tipPercent is NOT sent — per D-07 tip is per-person, set after claiming.
       // Items now carry a required `quantity` field (Plan 01).
-      const { people, items, assignments } = useBillStore.getState()
+      // D-04: currencyCode sent so the session knows what currency to render amounts in.
+      const { people, items, assignments, currencyCode } = useBillStore.getState()
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const res = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ people, items, assignments }),
+        body: JSON.stringify({ people, items, assignments, currencyCode }),
         signal: abortRef.current.signal,
       })
       if (!res.ok) throw new Error(`Session creation failed: ${res.status}`)
-      const { sessionId, hostToken } = (await res.json()) as {
+      const { sessionId } = (await res.json()) as {
         sessionId: string
-        hostToken: string
       }
       setSessionId(sessionId)
-      setHostToken(hostToken)
-      // The guest URL intentionally omits the hostToken — guests must not get host privileges.
       const origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
       const guestUrl = `${origin}/split/${sessionId}`
-      setPendingSession({ guestUrl, sessionId, hostToken })
+      setPendingSession({ guestUrl, sessionId })
     } catch (err) {
       console.error(err)
       setSessionError("Couldn't create session. Try again.")
@@ -73,11 +69,11 @@ export function ShareLinkButton() {
 
   async function handleCopyLink() {
     if (!pendingSession) return
-    const { guestUrl, sessionId, hostToken } = pendingSession
+    const { guestUrl, sessionId } = pendingSession
 
     function redirectHost() {
       setPendingSession(null)
-      router.push(`/split/${sessionId}#hostToken=${hostToken}`)
+      router.push(`/split/${sessionId}`)
     }
 
     // 1. Native share sheet — works on mobile without HTTPS (iOS Safari, Android Chrome)
