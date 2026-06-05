@@ -52,14 +52,12 @@ interface BillState {
   expandStatus: 'idle' | 'loading' | 'done' | 'error'
   syncStatus: 'idle' | 'results'
   sessionId: string | null
-  hostToken: string | null
   setBillImage: (url: string | null) => void
   setCurrencyCode: (code: string) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setExpandStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
   setSyncStatus: (status: 'idle' | 'results') => void
   setSessionId: (id: string | null) => void
-  setHostToken: (token: string | null) => void
   setItems: (items: Item[]) => void
   setStep: (step: BillState['step']) => void
   // Persistence hydration guard — false until localStorage rehydrates (see persist config).
@@ -86,7 +84,6 @@ const INITIAL_STATE = {
   expandStatus: 'idle' as const,
   syncStatus: 'idle' as const,
   sessionId: null,
-  hostToken: null,
 }
 
 export const useBillStore = create<BillState>()(
@@ -142,7 +139,6 @@ export const useBillStore = create<BillState>()(
   setExpandStatus: (status) => set({ expandStatus: status }),
   setSyncStatus: (status) => set({ syncStatus: status }),
   setSessionId: (id) => set({ sessionId: id }),
-  setHostToken: (token) => set({ hostToken: token }),
   reset: () =>
     set((s) => {
       if (s.billImageUrl?.startsWith('blob:')) URL.revokeObjectURL(s.billImageUrl)
@@ -171,7 +167,6 @@ export const useBillStore = create<BillState>()(
         currencyCode: s.currencyCode,
         syncStatus: s.syncStatus,
         sessionId: s.sessionId,
-        hostToken: s.hostToken,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
