@@ -31,7 +31,6 @@ export function ClaimableItemCard({
   const myQty = myEntry?.qty ?? 0
   const isMultiQty = (item.quantity ?? 1) > 1
   const mine = myQty > 0
-  const isHostAssigned = myEntry?.assignedBy === 'host'
 
   // All claimants with qty > 0 — current user first, then others
   const allClaimantEntries = [
@@ -66,7 +65,6 @@ export function ClaimableItemCard({
   const cardClasses = [
     'flex min-h-[44px] flex-col gap-2 px-4 py-3 transition-colors',
     mine ? 'bg-amber-50' : '',
-    isHostAssigned ? 'border-amber-200' : '',
     !isMultiQty ? 'cursor-pointer' : '',
   ].filter(Boolean).join(' ')
 
@@ -104,11 +102,6 @@ export function ClaimableItemCard({
         </span>
         <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents)}</span>
       </div>
-
-      {/* Host-assigned label */}
-      {isHostAssigned && (
-        <span className="text-[14px] text-zinc-500">Assigned by host</span>
-      )}
 
       {/* Multi-qty stepper row */}
       {isMultiQty && (
