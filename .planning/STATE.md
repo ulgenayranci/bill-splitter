@@ -80,6 +80,8 @@ Progress: [███░░░░░░░] 25%
 | migrateSession normalizer must be first commit in Phase 8 | Live Redis sessions written by v1 code coexist for 24h after deploy; normalizer on read protects against null-access on new fields | Phase 8 (pending) |
 | Lua script strings audited separately from TypeScript | TypeScript type errors cascade on schema removal, but Lua strings are opaque — must grep separately | Phase 8 (pending) |
 | formatCents gains optional currencyCode param (backward-compatible) | All existing call sites omit the param and continue to get "$"; new call sites pass session.currencyCode | Phase 10 (pending) |
+| Keep ≥2-people Setup gate; revise IDENT-02 | Splitting needs 2+ people, so ≥2 is correct; that makes IDENT-02's single-person auto-skip unreachable — folded into IDENT-04 (persisted identity, no re-prompt) | Phase 7→9 (2026-06-05 reassess) |
+| currencyCode SessionPayload field moves to Phase 8 (was Phase 10) | Schema surgery + migrateSession normalizer are already open in Phase 8 — add the field + USD default there once, not twice; Phase 10 keeps display only | Phase 8 (2026-06-05 reassess) |
 
 ### Architecture Commitments
 
@@ -133,10 +135,10 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 ## Session Continuity
 
 **Last session:** 2026-06-05 — Phase 7 closed: round-2 UAT 4/4 pass, all 7 gaps closed (07-04 + quick task 260605-v0g), security verified (07-SECURITY.md, 7/7 threats closed), all 9 Phase 7 requirements complete.
-**Next action:** Honor the ROADMAP **reassess gate** — review scope/sequencing of Phases 8–10 — before running `/gsd:discuss-phase 8` or `/gsd:plan-phase 8`.
+**Next action:** Reassess gate ✅ done (2026-06-05). Ready for `/gsd:discuss-phase 8` (Flat Model — Schema + API Surgery).
 
 ## Operator Next Steps
 
-- **Reassess gate (ROADMAP):** review scope and sequencing of Phases 8–10 before continuing — Phase 7 shipped a notable scan-first/currency change that may shift downstream assumptions.
-- Then `/gsd:discuss-phase 8` (Flat Model — Schema + API Surgery) → `/gsd:plan-phase 8`.
+- ✅ **Reassess gate complete (2026-06-05):** 8→9→10 sequencing confirmed; coverage complete. Decisions recorded in ROADMAP + Key Decisions: keep ≥2 Setup gate (revise IDENT-02), pull currencyCode payload field into Phase 8, doc drift fixed. Open for Phase 9 discuss: unclaimed-items UX.
+- **Next:** `/gsd:discuss-phase 8` → `/gsd:plan-phase 8`. Note for Phase 8: include the currencyCode payload field + USD migration default alongside the host-removal surgery.
 - Pre-milestone cleanup candidates (deferred, logged in `07-.../deferred-items.md`): add `eslint.config.js` so lint can gate CI; retire/repair the 5 stale v1 wizard tests (AddItemsStep, AddPeopleStep, CollaborativeClaimingView, PersonSlotPicker).

@@ -22,12 +22,12 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - [x] **SETUP-01**: User lands on a single scan-first Setup screen where scanning the bill is the primary action
 - [x] **SETUP-02**: User can add people inline on the Setup screen (no separate step)
 - [x] **SETUP-03**: After a scan, Setup shows the captured bill (thumbnail + item-found count) with a Retake option, not a re-scan-many affordance
-- [x] **SETUP-04**: "Continue" is disabled until the bill is scanned and at least one person is added
+- [x] **SETUP-04**: "Continue" is disabled until the bill is scanned and at least two people are added _(shipped as ≥2 — splitting needs 2+ people; supersedes the earlier "at least one" wording)_
 
 ### Identity (IDENT)
 
 - [ ] **IDENT-01**: On continuing from Setup, a "Who are you?" modal prompts the user to pick their name before claiming
-- [ ] **IDENT-02**: The identity prompt auto-skips when only one person is in the party
+- [ ] **IDENT-02** _(revised 2026-06-05)_: The identity prompt does not nag — it is skipped whenever the device already has a chosen identity for this session (see IDENT-04). The original "auto-skip when only one person is in the party" is unreachable under the ≥2-people Setup gate (SETUP-04) and is folded into this no-re-prompt behavior.
 - [ ] **IDENT-03**: User can pick "I'm not listed" to add themselves, and can change identity later
 - [ ] **IDENT-04**: The chosen identity persists on the device so a page reload doesn't re-prompt
 
