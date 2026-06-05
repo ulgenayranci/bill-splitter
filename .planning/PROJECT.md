@@ -133,6 +133,6 @@ This document evolves at phase transitions and milestone boundaries.
 
 **v1.0 MVP shipped (2026-06-04)** — the full photo → OCR → AI-cleaned items → collaborative per-person claiming → per-person tips → results flow is live on Vercel. ~6,270 LOC TS/TSX across 6 phases. Stack: Next.js 16, React 19, Tailwind v4, shadcn/ui, Zustand, Upstash Redis, GPT-4o-mini vision.
 
-Next: **v2.0 easy-billsy redesign** — a clarity-driven rebuild (flat model, scan-first 3-screen flow) prompted by competitor analysis (LilySplit reads as a more focused product). Define via `/gsd-new-milestone`.
+**v2.0 easy-billsy redesign in progress** — clarity-driven rebuild (flat model, scan-first flow). Phase 7 (App Shell + Setup) and Phase 8 (Flat Model — Schema + API Surgery) complete: all host-role concepts removed from the schema, Lua scripts, and routes; the direct `/edit` route is live; `currencyCode` now rides the shared-bill payload (USD default). Next: Phase 9 — Bill View Redesign + Identity Modal.
 
-*Last updated: 2026-06-04 after v1.0 milestone*
+*Last updated: 2026-06-06 after Phase 8*
