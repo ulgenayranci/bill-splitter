@@ -262,6 +262,7 @@ export function SetupStep() {
           <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400">
             Who&apos;s involved in the split?
           </span>
+          <span className="h-px flex-1 bg-zinc-200" />
           {/* GAP 4: count chip bound to people.length */}
           <span
             data-testid="people-count-chip"
@@ -269,7 +270,6 @@ export function SetupStep() {
           >
             {people.length}
           </span>
-          <span className="h-px flex-1 bg-zinc-200" />
         </div>
 
         <div className="flex gap-2">
