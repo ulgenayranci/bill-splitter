@@ -40,7 +40,10 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. User lands on a single Setup screen where the camera/scan action is the primary call to action; the old multi-step wizard is gone
   4. After scanning, Setup shows a bill thumbnail with item count and a Retake option; "Continue" is enabled only when a bill is scanned and at least two people are added
   5. OCR returns a currency symbol alongside item data; the value is stored in Zustand
-**Plans**: TBD
+**Plans**: 3 plans (retroactively documented — work shipped in commits cb10468 / 430b02f)
+- [ ] 07-01-PLAN.md — App Shell: easy-billsy header on every screen, hamburger menu (New Split / disabled History + About Us), 3-segment progress strip (SHELL-01..04)
+- [ ] 07-02-PLAN.md — Setup Screen: scan-first single screen, inline people add, post-scan thumbnail + "N items found" + Retake, Continue gated on scan + ≥2 people, bridge to Assign (SETUP-01..04)
+- [ ] 07-03-PLAN.md — Currency Detection: OCR returns ISO 4217 currencyCode (strict schema), stored on useBillStore; detection + store only, display threading deferred to Phase 10 (CURR-01)
 **UI hint**: yes
 
 ---
@@ -97,7 +100,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 4. Shareable Links | v1.0 | 3/3 | Complete | 2026-05-13 |
 | 5. Polish & Hardening | v1.0 | 3/3 | Complete | 2026-05-14 |
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
-| 7. App Shell + Setup Screen | v2.0 | 0/? | Not started | - |
+| 7. App Shell + Setup Screen | v2.0 | 3/3 | Shipped (retroactively documented) | 2026-06-04 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 0/? | Not started | - |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 0/? | Not started | - |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
