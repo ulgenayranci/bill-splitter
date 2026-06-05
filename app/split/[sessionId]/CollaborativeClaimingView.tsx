@@ -5,16 +5,14 @@ import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Check, X, Plus, ClipboardList, Clock, Pencil } from 'lucide-react'
+import { Check, X, Plus, Pencil } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import { parseCents, formatCents } from '@/lib/billMath'
-import type { PublicSessionPayload, SessionPayload } from '@/lib/sessionSchema'
+import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
-import { HostPanel } from '@/components/split/HostPanel'
-import { ReviewHostAssignedScreen } from '@/components/split/ReviewHostAssignedScreen'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import { WaitingForClaimsScreen } from '@/components/split/WaitingForClaimsScreen'
@@ -33,7 +31,7 @@ function claimErrorMessage(err: unknown, type: 'save' | 'submit'): string {
   return type === 'save' ? "Couldn't save — tap to retry" : "Couldn't submit — tap to retry"
 }
 
-const fetcher = (url: string): Promise<PublicSessionPayload> =>
+const fetcher = (url: string): Promise<SessionPayload> =>
   fetch(url).then((r) => {
     if (!r.ok) throw new SessionNotFoundError('session_not_found')
     return r.json()
@@ -43,9 +41,9 @@ interface CollaborativeClaimingViewProps {
   sessionId: string
 }
 
-type Phase = 'claiming' | 'review' | 'tip' | 'waiting' | 'results'
+type Phase = 'claiming' | 'tip' | 'waiting' | 'results'
 
-function allItemsFullyClaimed(session: PublicSessionPayload): boolean {
+function allItemsFullyClaimed(session: SessionPayload): boolean {
   return session.items.every((item) => {
     const total = Object.values(session.claims?.items?.[item.id] ?? {})
       .reduce((sum, e) => sum + (e?.qty ?? 0), 0)
@@ -53,25 +51,14 @@ function allItemsFullyClaimed(session: PublicSessionPayload): boolean {
   })
 }
 
-function hasUnacceptedHostItems(personId: PersonId, session: PublicSessionPayload): boolean {
-  return session.items.some((item) => {
-    const c = session.claims?.items?.[item.id]?.[personId]
-    return c?.assignedBy === 'host' && c.qty > 0 && !c.accepted
-  })
-}
-
 /** Derive which phase a returning guest should land on based on persisted server state. */
-function derivePhase(personId: PersonId, session: PublicSessionPayload): Phase {
+function derivePhase(personId: PersonId, session: SessionPayload): Phase {
   if (session.tips?.[personId] !== undefined) {
     if (!allItemsFullyClaimed(session)) return 'waiting'
-    return hasUnacceptedHostItems(personId, session) ? 'review' : 'results'
+    return 'results'
   }
   if (session.claims?.donePeople?.[personId]) {
-    const hasUnaccepted = session.items.some((item) => {
-      const c = session.claims?.items?.[item.id]?.[personId]
-      return c?.assignedBy === 'host' && c.qty > 0 && !c.accepted
-    })
-    return hasUnaccepted ? 'review' : 'tip'
+    return 'tip'
   }
   return 'claiming'
 }
@@ -79,33 +66,16 @@ function derivePhase(personId: PersonId, session: PublicSessionPayload): Phase {
 export function CollaborativeClaimingView({
   sessionId,
 }: CollaborativeClaimingViewProps) {
-  // CR-05: hostToken is in the URL fragment (#hostToken=...) so it is never sent to
-  // the server. Read it client-side from window.location.hash after mount.
-  const [hostTokenParam, setHostTokenParam] = useState<string | null>(null)
-  useEffect(() => {
-    const hash = window.location.hash // e.g. "#hostToken=abc123"
-    const match = hash.match(/[#&]hostToken=([^&]+)/)
-    if (match) setHostTokenParam(match[1])
-  }, [])
   const [selectedPersonId, setSelectedPersonId] = useState<PersonId | null>(null)
   const [itemErrors, setItemErrors] = useState<Record<ItemId, string>>({})
   const [doneError, setDoneError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('claiming')
 
   const swrKey = `/api/session/${sessionId}`
-  const { data: session, error, mutate } = useSWR<PublicSessionPayload>(swrKey, fetcher, {
+  const { data: session, error, mutate } = useSWR<SessionPayload>(swrKey, fetcher, {
     refreshInterval: 3000,
     revalidateOnFocus: false,
   })
-
-  // Auto-restore host slot on page re-open: when hostToken is in the URL and
-  // the session already has hostPersonId set, skip the PersonSlotPicker entirely.
-  // Must be after useSWR so `session` is in scope for the dependency array.
-  useEffect(() => {
-    if (hostTokenParam && session?.hostPersonId && selectedPersonId === null) {
-      setSelectedPersonId(session.hostPersonId)
-    }
-  }, [hostTokenParam, session?.hostPersonId, selectedPersonId])
 
   // Persist guest's chosen slot to localStorage so page refresh can restore it.
   // The key is scoped to the sessionId so multiple sessions don't interfere.
@@ -120,12 +90,9 @@ export function CollaborativeClaimingView({
   }, [selectedPersonId, sessionId])
 
   // Auto-restore guest slot on mount: when session data loads and the guest
-  // hasn't selected a slot yet (and this is not the host path), check localStorage
-  // for a previously stored personId. If the slot is still claimed by that person
-  // on the server, restore both the personId and the correct phase.
-  // hostTokenParam is null on the guest path — the host has its own restore path above.
+  // hasn't selected a slot yet, check localStorage for a previously stored personId.
+  // If the slot is still claimed by that person on the server, restore the personId and phase.
   useEffect(() => {
-    if (hostTokenParam !== null) return          // host path — skip
     if (selectedPersonId !== null) return        // already selected
     if (!session) return                         // session not loaded yet
 
@@ -142,68 +109,29 @@ export function CollaborativeClaimingView({
       setSelectedPersonId(stored as PersonId)
       setPhase(derivePhase(stored as PersonId, session))
     }
-  }, [hostTokenParam, selectedPersonId, session, sessionId])
+  }, [selectedPersonId, session, sessionId])
 
   // Auto-advance from waiting once SWR polling detects all items are claimed.
-  // Route through review if host assigned items to this person while they were waiting.
   useEffect(() => {
     if (phase === 'waiting' && session && selectedPersonId && allItemsFullyClaimed(session)) {
-      setPhase(hasUnacceptedHostItems(selectedPersonId, session) ? 'review' : 'results')
+      setPhase('results')
     }
   }, [phase, session, selectedPersonId])
-
-  // CR-01: hostToken is no longer returned by the GET endpoint (stripped server-side).
-  // Derive isHost from hostPersonId (set by the server when the host claims their slot).
-  // hostTokenParam is still used when claiming the slot so the server can set hostPersonId.
-  const isHost = useMemo(
-    () => hostTokenParam !== null && selectedPersonId !== null && session?.hostPersonId === selectedPersonId,
-    [hostTokenParam, selectedPersonId, session?.hostPersonId]
-  )
 
   const peopleById = useMemo<Record<PersonId, Person>>(() => {
     if (!session) return {}
     return Object.fromEntries(session.people.map((p) => [p.id, p]))
   }, [session])
 
-  const pendingCount = useMemo(() => {
-    if (!session) return 0
-    const editCount = Object.values(session.editRequests ?? {}).filter(
-      (r) => r.status === 'pending'
-    ).length
-    const disputeCount = Object.values(session.disputes ?? {}).filter(
-      (d) => d.status === 'pending'
-    ).length
-    const unclaimedCount = session.items.filter((item) => {
-      const claimsForItem = session.claims?.items?.[item.id] ?? {}
-      const claimed = Object.values(claimsForItem).reduce(
-        (sum, e) => sum + (e?.qty ?? 0),
-        0
-      )
-      return claimed < (item.quantity ?? 1)
-    }).length
-    return editCount + disputeCount + unclaimedCount
-  }, [session])
-
-  const [hostPanelOpen, setHostPanelOpen] = useState(false)
   const [inlineForm, setInlineForm] = useState<InlineForm | null>(null)
   const [inlineSubmitting, setInlineSubmitting] = useState(false)
 
   if (error instanceof SessionNotFoundError) return <SessionExpiredScreen />
   if (!session) return <div role="status" className="p-6">Loading…</div>
 
-  // Helper: check if this person has any host-assigned items not yet accepted
-  function hasHostAssignedItems(): boolean {
-    if (!session || !selectedPersonId) return false
-    return session.items.some((item) => {
-      const claim = session.claims?.items?.[item.id]?.[selectedPersonId]
-      return claim?.assignedBy === 'host' && claim.qty > 0 && !claim.accepted
-    })
-  }
-
   async function handleSelect(personId: PersonId) {
     try {
       const body: Record<string, unknown> = { personId, action: 'slot' }
-      if (hostTokenParam) body.hostToken = hostTokenParam
       const res = await fetch(`/api/session/${sessionId}/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,15 +161,15 @@ export function CollaborativeClaimingView({
     if (newQty === 0) {
       delete claimsForItem[personId]
     } else {
-      claimsForItem[personId] = { qty: newQty, assignedBy: 'self' as const }
+      claimsForItem[personId] = { qty: newQty }
     }
-    const nextItems: PublicSessionPayload['claims']['items'] = { ...session.claims?.items }
+    const nextItems: SessionPayload['claims']['items'] = { ...session.claims?.items }
     if (Object.keys(claimsForItem).length === 0) {
       delete nextItems[itemId]
     } else {
       nextItems[itemId] = claimsForItem
     }
-    const optimistic: PublicSessionPayload = {
+    const optimistic: SessionPayload = {
       ...session,
       claims: {
         items: nextItems,
@@ -289,16 +217,8 @@ export function CollaborativeClaimingView({
         body: JSON.stringify({ personId: selectedPersonId, done: true }),
       })
       if (!res.ok) throw new Error(`done route returned ${res.status}`)
-      // WR-07: pass fetcher as the mutation function so SWR calls it and returns
-      // fresh data reliably. mutate() with no args can return undefined in production
-      // (deduped revalidation), causing hasHostAssigned to always be false and
-      // skipping ReviewHostAssignedScreen.
-      const updated = await mutate(() => fetcher(swrKey))
-      const hasHostAssigned = updated?.items.some((item) => {
-        const claim = updated.claims?.items?.[item.id]?.[selectedPersonId]
-        return claim?.assignedBy === 'host' && claim.qty > 0 && !claim.accepted
-      }) ?? false
-      setPhase(hasHostAssigned ? 'review' : 'tip')
+      await mutate(() => fetcher(swrKey))
+      setPhase('tip')
     } catch (err) {
       console.error('Done submission failed:', err)
       setDoneError(claimErrorMessage(err, 'submit'))
@@ -326,15 +246,6 @@ export function CollaborativeClaimingView({
     setPhase('claiming')
   }
 
-  function handleBackFromTip() {
-    if (hasHostAssignedItems()) {
-      setPhase('review')
-    } else {
-      // No host-assigned items — Back from Tip returns all the way to claiming.
-      void handleBackToClaiming()
-    }
-  }
-
   async function handleInlineSubmit() {
     if (!inlineForm || !selectedPersonId) return
     setInlineSubmitting(true)
@@ -344,15 +255,15 @@ export function CollaborativeClaimingView({
         if (!trimmed) { setInlineForm({ ...inlineForm, error: 'Enter a name' }); return }
         const priceCents = parseCents(inlineForm.price)
         if (!priceCents || priceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price' }); return }
-        const res = await fetch(`/api/session/${sessionId}/edit-request`, {
+        const res = await fetch(`/api/session/${sessionId}/edit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ personId: selectedPersonId, type: 'add',
-            payload: { name: trimmed, priceCents, quantity: Math.max(1, parseInt(inlineForm.qty, 10) || 1) } }),
+          body: JSON.stringify({ op: 'add',
+            name: trimmed, priceCents, quantity: Math.max(1, parseInt(inlineForm.qty, 10) || 1) }),
         })
-        if (!res.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+        if (!res.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
       } else {
-        // Send edit_name and/or edit_price requests for whatever changed
+        // Send edit_name and/or edit_price/edit_quantity for whatever changed
         const trimmedName = inlineForm.name.trim()
         if (!trimmedName) { setInlineForm({ ...inlineForm, error: 'Enter a name' }); return }
         const newPriceCents = parseCents(inlineForm.price)
@@ -363,39 +274,60 @@ export function CollaborativeClaimingView({
         const qtyChanged = String(newQty) !== inlineForm.originalQty
         if (!nameChanged && !priceChanged && !qtyChanged) { setInlineForm(null); return }
         if (nameChanged) {
-          const r = await fetch(`/api/session/${sessionId}/edit-request`, {
+          const r = await fetch(`/api/session/${sessionId}/edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ personId: selectedPersonId, type: 'edit_name',
-              payload: { itemId: inlineForm.itemId, newName: trimmedName } }),
+            body: JSON.stringify({ op: 'edit_name', itemId: inlineForm.itemId, newName: trimmedName }),
           })
-          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
         }
         if (priceChanged) {
-          const r = await fetch(`/api/session/${sessionId}/edit-request`, {
+          const r = await fetch(`/api/session/${sessionId}/edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ personId: selectedPersonId, type: 'edit_price',
-              payload: { itemId: inlineForm.itemId, newPriceCents } }),
+            body: JSON.stringify({ op: 'edit_price', itemId: inlineForm.itemId, newPriceCents }),
           })
-          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
         }
         if (qtyChanged) {
-          const r = await fetch(`/api/session/${sessionId}/edit-request`, {
+          const r = await fetch(`/api/session/${sessionId}/edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ personId: selectedPersonId, type: 'edit_quantity',
-              payload: { itemId: inlineForm.itemId, newQuantity: newQty } }),
+            body: JSON.stringify({ op: 'edit_quantity', itemId: inlineForm.itemId, newQuantity: newQty }),
           })
-          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't send — try again" }); return }
+          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
         }
       }
       await mutate()
       setInlineForm(null)
     } catch {
-      setInlineForm((f) => f ? { ...f, error: "Couldn't send — try again" } : f)
+      setInlineForm((f) => f ? { ...f, error: "Couldn't save — try again" } : f)
     } finally {
       setInlineSubmitting(false)
+    }
+  }
+
+  async function handleDeleteItem(itemId: string) {
+    if (!session) return
+    const claimantCount = Object.keys(session.claims?.items?.[itemId] ?? {}).length
+    const itemName = session.items.find((i) => i.id === itemId)?.name ?? 'this item'
+    const confirmMessage = claimantCount > 0
+      ? `${claimantCount} ${claimantCount === 1 ? 'person has' : 'people have'} claimed ${itemName} — delete anyway?`
+      : `Delete ${itemName}?`
+    if (!window.confirm(confirmMessage)) return
+    try {
+      const res = await fetch(`/api/session/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'remove', itemId }),
+      })
+      if (!res.ok) {
+        console.error('Delete failed:', res.status)
+        return
+      }
+      await mutate()
+    } catch (err) {
+      console.error('Delete request failed:', err)
     }
   }
 
@@ -419,19 +351,6 @@ export function CollaborativeClaimingView({
     session.tips?.[selectedPersonId] ?? 0
   )
 
-  if (phase === 'review') {
-    return (
-      <ReviewHostAssignedScreen
-        session={session}
-        sessionId={sessionId}
-        personId={selectedPersonId}
-        onAcceptAll={() => setPhase(session.tips?.[selectedPersonId] !== undefined ? 'results' : 'tip')}
-        onBack={() => void handleBackToClaiming()}
-        mutate={mutate}
-      />
-    )
-  }
-
   if (phase === 'tip') {
     return (
       <TipScreen
@@ -439,7 +358,7 @@ export function CollaborativeClaimingView({
         personId={selectedPersonId}
         itemSubtotalCents={personalShare.itemSubtotal}
         onTipConfirmed={() => setPhase(allItemsFullyClaimed(session) ? 'results' : 'waiting')}
-        onBack={handleBackFromTip}
+        onBack={() => void handleBackToClaiming()}
         mutate={mutate}
       />
     )
@@ -464,11 +383,6 @@ export function CollaborativeClaimingView({
           {me.name.charAt(0).toUpperCase()}
         </div>
         <h1 className="text-[20px] font-semibold">Hi, {me.name}!</h1>
-        {isHost && (
-          <span className="ml-auto rounded-full bg-amber-100 px-2 py-1 text-[14px] text-amber-700" data-testid="host-badge">
-            Host
-          </span>
-        )}
       </header>
 
       {/* Item list */}
@@ -476,11 +390,6 @@ export function CollaborativeClaimingView({
         {session.items.map((item) => {
           const claimsForItem = session.claims?.items?.[item.id] ?? {}
           const isEditing = inlineForm?.kind === 'edit' && inlineForm.itemId === item.id
-          const pendingEdit = Object.values(session.editRequests ?? {}).find(
-            (r) => r.personId === selectedPersonId && r.status === 'pending' &&
-              (r.type === 'edit_price' || r.type === 'edit_name' || r.type === 'edit_quantity') &&
-              (r.payload as Record<string, unknown>).itemId === item.id
-          )
           const originalPrice = (item.priceCents / 100).toFixed(2)
           return (
             <li key={item.id} className="flex flex-col gap-1">
@@ -543,50 +452,31 @@ export function CollaborativeClaimingView({
                       errorMessage={itemErrors[item.id]}
                     />
                   </div>
-                  {!pendingEdit && (
-                    <button
-                      type="button"
-                      aria-label={`Edit ${item.name}`}
-                      onClick={() => setInlineForm({ kind: 'edit', itemId: item.id,
-                        name: item.name, price: originalPrice, qty: String(item.quantity ?? 1),
-                        originalName: item.name, originalPrice, originalQty: String(item.quantity ?? 1), error: null })}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
-                      data-testid={`edit-pencil-${item.id}`}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                  )}
-                </div>
-              )}
-              {pendingEdit && (
-                <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-[13px] text-amber-700">
-                  <Clock size={13} />
-                  Edit pending host approval
+                  <button
+                    type="button"
+                    aria-label={`Edit ${item.name}`}
+                    onClick={() => setInlineForm({ kind: 'edit', itemId: item.id,
+                      name: item.name, price: originalPrice, qty: String(item.quantity ?? 1),
+                      originalName: item.name, originalPrice, originalQty: String(item.quantity ?? 1), error: null })}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
+                    data-testid={`edit-pencil-${item.id}`}
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${item.name}`}
+                    onClick={() => void handleDeleteItem(item.id)}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
+                    data-testid={`delete-item-${item.id}`}
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               )}
             </li>
           )
         })}
-
-        {/* Pending add requests */}
-        {Object.values(session.editRequests ?? {})
-          .filter((r) => r.personId === selectedPersonId && r.type === 'add' && r.status === 'pending')
-          .map((r, i) => {
-            const p = r.payload as { name: string; priceCents: number }
-            return (
-              <li key={`pending-add-${i}`}>
-                <Card className="flex items-center justify-between gap-3 border-amber-200 bg-amber-50 px-4 py-3 opacity-80">
-                  <span className="flex-1 text-[16px] text-zinc-600">{p.name}</span>
-                  <span className="text-[14px] text-zinc-500">{formatCents(p.priceCents)}</span>
-                  <div className="flex items-center gap-1 text-[13px] text-amber-700">
-                    <Clock size={13} />
-                    Pending approval
-                  </div>
-                </Card>
-              </li>
-            )
-          })
-        }
 
         {/* Inline add form or dashed add button */}
         {inlineForm?.kind === 'add' ? (
@@ -665,41 +555,6 @@ export function CollaborativeClaimingView({
           I&rsquo;m done
         </Button>
       </div>
-
-      {/* Host FAB */}
-      {isHost && (
-        <button
-          type="button"
-          onClick={() => setHostPanelOpen(true)}
-          aria-label="Open host controls"
-          data-testid="host-panel-fab"
-          className="fixed bottom-24 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-amber-600 text-white shadow-lg hover:bg-amber-700"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 88px)' }}
-        >
-          <ClipboardList size={24} />
-          {pendingCount > 0 && (
-            <span
-              className="absolute -top-1 -right-1 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-amber-700 px-1 text-[14px] font-semibold text-white"
-              data-testid="host-panel-fab-badge"
-            >
-              {pendingCount}
-            </span>
-          )}
-        </button>
-      )}
-
-      {/* HostPanel and EditRequestForm */}
-      {isHost && (
-        <HostPanel
-          session={session}
-          sessionId={sessionId}
-          hostToken={hostTokenParam ?? ''}
-          peopleById={peopleById}
-          mutate={mutate}
-          open={hostPanelOpen}
-          onOpenChange={setHostPanelOpen}
-        />
-      )}
     </main>
   )
 }
