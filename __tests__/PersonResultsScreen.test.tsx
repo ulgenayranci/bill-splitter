@@ -12,17 +12,14 @@ function makeSession(over: Partial<SessionPayload> = {}): SessionPayload {
     ],
     claims: {
       items: {
-        i1: { p1: { qty: 1, assignedBy: 'self' } },
-        i2: { p1: { qty: 1, assignedBy: 'self' }, p2: { qty: 1, assignedBy: 'self' } },
+        i1: { p1: { qty: 1 } },
+        i2: { p1: { qty: 1 }, p2: { qty: 1 } },
       },
       personSlots: {},
       donePeople: {},
     },
-    hostToken: 'host-token-abc',
-    hostPersonId: undefined,
     tips: { p1: 250 },
-    editRequests: {},
-    disputes: {},
+    currencyCode: 'USD',
     createdAt: Date.now(),
     ...over,
   }

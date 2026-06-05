@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { CollaborativeClaimingView } from '@/app/split/[sessionId]/CollaborativeClaimingView'
-import type { PublicSessionPayload } from '@/lib/sessionSchema'
+import type { SessionPayload } from '@/lib/sessionSchema'
 
 const mutateMock = vi.fn()
 const useSWRMock = vi.fn()
@@ -10,9 +10,11 @@ vi.mock('swr', () => ({
   mutate: (...args: unknown[]) => mutateMock(...args),
 }))
 
-// CR-01: SESSION_FIXTURE uses PublicSessionPayload — no hostToken.
-// CR-05: host identity is derived from hostPersonId, not from comparing hostToken to URL param.
-const SESSION_FIXTURE: PublicSessionPayload = {
+/**
+ * Flat SESSION_FIXTURE — no hostToken, editRequests, disputes, hostPersonId.
+ * All claims are self-claims; no host concept.
+ */
+const SESSION_FIXTURE: SessionPayload = {
   people: [
     { id: 'p1', name: 'Alice', colorIndex: 0 },
     { id: 'p2', name: 'Bob', colorIndex: 1 },
@@ -22,18 +24,9 @@ const SESSION_FIXTURE: PublicSessionPayload = {
     { id: 'i2', name: 'Pitcher', priceCents: 2400, quantity: 4 },
   ],
   claims: { items: {}, personSlots: {}, donePeople: {} },
-  hostPersonId: undefined,
   tips: {},
-  editRequests: {},
-  disputes: {},
+  currencyCode: 'USD',
   createdAt: Date.now(),
-}
-
-// HOST_SESSION_FIXTURE: has Alice (p1) as the identified host.
-// Used in tests that expect the host badge, FAB, and HostPanel to be visible.
-const HOST_SESSION_FIXTURE: PublicSessionPayload = {
-  ...SESSION_FIXTURE,
-  hostPersonId: 'p1',
 }
 
 describe('CollaborativeClaimingView', () => {
@@ -43,100 +36,53 @@ describe('CollaborativeClaimingView', () => {
   })
 
   afterEach(() => {
-    // Reset hash so host-token state doesn't leak between tests
-    window.location.hash = ''
     vi.unstubAllGlobals()
     vi.clearAllMocks()
     cleanup()
   })
 
   /**
-   * selectAlice — renders the component and reaches Alice's claiming view.
-   *
-   * @param opts.asHost   - if true, sets window.location.hash to a valid hostToken
-   *                        and mocks SWR to return HOST_SESSION_FIXTURE (hostPersonId='p1').
-   *                        The auto-restore useEffect in CollaborativeClaimingView will fire
-   *                        and call setSelectedPersonId('p1') without any slot-claim fetch,
-   *                        so NO click is performed here.
-   * @param opts.session  - optional session override (merged with the appropriate base fixture).
+   * selectAlice — renders the component and reaches Alice's claiming view by clicking her slot.
    */
-  async function selectAlice(opts: { asHost?: boolean; session?: Partial<PublicSessionPayload> } = {}) {
+  async function selectAlice(opts: { session?: Partial<SessionPayload> } = {}) {
     const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', slotFetch)
 
-    if (opts.asHost) {
-      // CR-05: token is now in URL fragment, not query param.
-      // HOST_SESSION_FIXTURE.hostPersonId='p1' — triggers the auto-restore useEffect which
-      // calls setSelectedPersonId(session.hostPersonId) and skips the PersonSlotPicker.
-      window.location.hash = '#hostToken=host-token-abc'
-      const sessionData = opts.session ? { ...HOST_SESSION_FIXTURE, ...opts.session } : HOST_SESSION_FIXTURE
-      useSWRMock.mockReturnValue({ data: sessionData, error: undefined, mutate: mutateMock })
-      mutateMock.mockResolvedValue(sessionData)
-      // CR-05: no hostTokenParam prop — component reads from window.location.hash
-      render(<CollaborativeClaimingView sessionId="s1" />)
-      // No slot click needed — auto-restore handles selection
-      await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
-    } else if (opts.session) {
+    if (opts.session) {
       useSWRMock.mockReturnValue({
         data: { ...SESSION_FIXTURE, ...opts.session },
         error: undefined,
         mutate: mutateMock,
       })
       mutateMock.mockResolvedValue({ ...SESSION_FIXTURE, ...opts.session })
-      render(<CollaborativeClaimingView sessionId="s1" />)
-      fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
-      await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
-    } else {
-      render(<CollaborativeClaimingView sessionId="s1" />)
-      fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
-      await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     }
+
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
+    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
     return slotFetch
   }
 
-  it('Test 1: shows host badge when hash contains hostToken and session.hostPersonId matches', async () => {
-    // CR-01/CR-05: isHost now derived from hostPersonId, not from session.hostToken comparison
-    await selectAlice({ asHost: true })
-    expect(screen.getByTestId('host-badge')).toBeDefined()
+  it('Test 1: Shows PersonSlotPicker when no slot is selected', () => {
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    // PersonSlotPicker should render slot buttons
+    expect(screen.getByRole('button', { name: /claim slot alice/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /claim slot bob/i })).toBeDefined()
   })
 
-  it('Test 2: hides host badge when no hash token (guest)', async () => {
+  it('Test 2: No host badge in header (flat model — no host concept)', async () => {
     await selectAlice()
     expect(screen.queryByTestId('host-badge')).toBeNull()
   })
 
-  it('Test 3: hides host badge when hash has token but session.hostPersonId is not set', async () => {
-    // Even with hostToken in the URL, isHost=false if session.hostPersonId is not yet set.
-    // (Using SESSION_FIXTURE with hostPersonId=undefined so the PersonSlotPicker renders —
-    //  a session with hostPersonId:'p2' would auto-restore Bob and skip Alice's slot entirely.)
-    window.location.hash = '#hostToken=host-token-abc'
-    useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
-    render(<CollaborativeClaimingView sessionId="s1" />)
-    // Picker shows because SESSION_FIXTURE.hostPersonId=undefined (no auto-restore)
-    fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
-    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
-    // isHost = hostTokenParam(set) && selectedPersonId('p1') && (undefined === 'p1') = false
-    expect(screen.queryByTestId('host-badge')).toBeNull()
+  it('Test 3: No host FAB rendered for any participant', async () => {
+    await selectAlice()
+    expect(screen.queryByTestId('host-panel-fab')).toBeNull()
   })
 
-  it('Test 4: slot claim posts hostToken in body when hash contains hostToken', async () => {
-    // Simulate the FIRST visit: hash has hostToken but hostPersonId is not yet set in the
-    // session (the host hasn't claimed their slot yet). This prevents auto-restore from
-    // firing so the PersonSlotPicker renders and a real slot-claim fetch is made.
-    window.location.hash = '#hostToken=host-token-abc'
-    useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
-    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', slotFetch)
-    render(<CollaborativeClaimingView sessionId="s1" />)
-    // Picker shows — SESSION_FIXTURE.hostPersonId=undefined, no auto-restore
-    fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
-    await waitFor(() => expect(slotFetch).toHaveBeenCalled())
-    const call = slotFetch.mock.calls[0]
-    const init = call[1] as RequestInit
-    const parsed = JSON.parse(init.body as string)
-    expect(parsed.hostToken).toBe('host-token-abc')
-    expect(parsed.action).toBe('slot')
+  it('Test 4: Selecting slot shows claiming view with Hi, Alice!', async () => {
+    await selectAlice()
+    expect(screen.getByText(/hi, alice/i)).toBeDefined()
   })
 
   it('Test 5: handleQtyChange calls mutate with optimisticData (qty path)', async () => {
@@ -154,8 +100,7 @@ describe('CollaborativeClaimingView', () => {
     expect(options.optimisticData).toBeDefined()
   })
 
-  // Updated Test 6: no host-assigned items → straight to TipScreen
-  it("Test 6 (no host-assigned items): I'm done jumps to Tip screen", async () => {
+  it("Test 6 (flat model): I'm done jumps directly to TipScreen (no review branch)", async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
@@ -165,8 +110,8 @@ describe('CollaborativeClaimingView', () => {
     })
   })
 
-  // CR-04: was POSTs undone:true, now POSTs done:false
-  it('Test 7 (back from Tip without host items): POSTs done:false and returns to claiming', async () => {
+  // CR-04: POSTs done:false, not undone:true
+  it('Test 7 (back from Tip): POSTs done:false and returns to claiming', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
@@ -202,45 +147,7 @@ describe('CollaborativeClaimingView', () => {
     })
   })
 
-  it('Test 9 (FAB host-only): when hash has hostToken and hostPersonId matches, FAB renders', async () => {
-    await selectAlice({ asHost: true })
-    expect(screen.getByTestId('host-panel-fab')).toBeDefined()
-  })
-
-  it('Test 10 (FAB hidden for guests): when no hash token, no FAB renders', async () => {
-    await selectAlice()
-    expect(screen.queryByTestId('host-panel-fab')).toBeNull()
-  })
-
-  it('Test 11 (FAB badge): pendingCount reflects pending editRequests + unclaimed + disputes', async () => {
-    const sessionWithPending: PublicSessionPayload = {
-      // HOST_SESSION_FIXTURE.hostPersonId='p1' — auto-restore fires, no slot click needed
-      ...HOST_SESSION_FIXTURE,
-      editRequests: {
-        r1: { personId: 'p1', type: 'remove', payload: { itemId: 'i1' }, status: 'pending', createdAt: 1 },
-      },
-      disputes: {
-        d1: { itemId: 'i1', personId: 'p1', status: 'pending', createdAt: 2 },
-      },
-    }
-    useSWRMock.mockReturnValue({ data: sessionWithPending, error: undefined, mutate: mutateMock })
-    mutateMock.mockResolvedValue(sessionWithPending)
-    window.location.hash = '#hostToken=host-token-abc'
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
-    render(<CollaborativeClaimingView sessionId="s1" />)
-    // No slot click — auto-restore selects Alice via hostPersonId='p1'
-    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
-    // i1 (qty 1, claimed 0) + i2 (qty 4, claimed 0) = 2 unclaimed; + 1 edit + 1 dispute = 4
-    expect(screen.getByTestId('host-panel-fab-badge').textContent?.trim()).toBe('4')
-  })
-
-  it('Test 12 (FAB opens HostPanel): tapping FAB shows host-panel', async () => {
-    await selectAlice({ asHost: true })
-    fireEvent.click(screen.getByTestId('host-panel-fab'))
-    expect(screen.getByTestId('host-panel')).toBeDefined()
-  })
-
-  it('Test 13 (per-item pencil opens inline edit form with name + price)', async () => {
+  it('Test 9 (per-item pencil opens inline edit form with name + price)', async () => {
     await selectAlice()
     fireEvent.click(screen.getByTestId('edit-pencil-i1'))
     // inline edit form shows name and price inputs pre-filled
@@ -251,7 +158,7 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
-  it('Test 14 (Add item button opens inline add form)', async () => {
+  it('Test 10 (Add item button opens inline add form)', async () => {
     await selectAlice()
     fireEvent.click(screen.getByTestId('add-item-button'))
     // inline add form appears with name + confirm + cancel
@@ -262,114 +169,132 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
-  // WR-07: mutate() return value drives the host-assigned routing — not stale session closure.
-  it("Test 15 (host-assigned items → Review): I'm done routes to ReviewHostAssignedScreen", async () => {
-    const sessionWithHost: PublicSessionPayload = {
-      ...SESSION_FIXTURE,
+  it('Test 11 (handleInlineSubmit — edit): calls /api/session/[id]/edit (not /edit-request)', async () => {
+    await selectAlice()
+    fireEvent.click(screen.getByTestId('edit-pencil-i1'))
+    const editInput = screen.getByLabelText('Item name')
+    fireEvent.change(editInput, { target: { value: 'Margherita' } })
+    const editFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', editFetch)
+    fireEvent.click(screen.getByLabelText('Confirm edit'))
+    await waitFor(() => expect(editFetch).toHaveBeenCalled())
+    const [url] = editFetch.mock.calls[0]
+    // Must call /edit, NOT /edit-request
+    expect(url).toMatch(/\/api\/session\/s1\/edit$/)
+    expect(url).not.toContain('edit-request')
+    const body = JSON.parse((editFetch.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.op).toBe('edit_name')
+  })
+
+  it('Test 12 (handleInlineSubmit — add): calls /api/session/[id]/edit with op:add', async () => {
+    await selectAlice()
+    fireEvent.click(screen.getByTestId('add-item-button'))
+    fireEvent.change(screen.getByLabelText('Item name'), { target: { value: 'Garlic Bread' } })
+    fireEvent.change(screen.getByPlaceholderText('Price'), { target: { value: '5.00' } })
+    const addFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', addFetch)
+    fireEvent.click(screen.getByLabelText('Confirm'))
+    await waitFor(() => expect(addFetch).toHaveBeenCalled())
+    const [url] = addFetch.mock.calls[0]
+    expect(url).toMatch(/\/api\/session\/s1\/edit$/)
+    const body = JSON.parse((addFetch.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.op).toBe('add')
+    expect(body.name).toBe('Garlic Bread')
+  })
+
+  it('Test 13 (D-02 delete confirm — no claims): shows confirm dialog "Delete X?" before remove POST', async () => {
+    await selectAlice()
+    const confirmMock = vi.fn().mockReturnValue(true)
+    vi.stubGlobal('confirm', confirmMock)
+    const deleteFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', deleteFetch)
+    fireEvent.click(screen.getByTestId('delete-item-i1'))
+    await waitFor(() => expect(confirmMock).toHaveBeenCalled())
+    // Confirm message for unclaimed item is "Delete X?"
+    expect(confirmMock.mock.calls[0][0]).toMatch(/Delete Pizza/i)
+    await waitFor(() => expect(deleteFetch).toHaveBeenCalled())
+    const [url] = deleteFetch.mock.calls[0]
+    expect(url).toMatch(/\/api\/session\/s1\/edit$/)
+    const body = JSON.parse((deleteFetch.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.op).toBe('remove')
+    expect(body.itemId).toBe('i1')
+  })
+
+  it('Test 14 (D-02 delete confirm — with claims): confirm message names claimant count', async () => {
+    // Session with 2 claimants on i1
+    const sessionWithClaims: Partial<SessionPayload> = {
       claims: {
-        ...SESSION_FIXTURE.claims,
         items: {
-          i1: { p1: { qty: 1, assignedBy: 'host' as const } },
+          i1: { p1: { qty: 1 }, p2: { qty: 1 } },
         },
+        personSlots: {},
+        donePeople: {},
       },
     }
-    // WR-07: mutateMock must return the updated session so handleDone sees host-assigned items
-    mutateMock.mockResolvedValue(sessionWithHost)
-    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice({ session: sessionWithHost })
-    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', doneFetch)
-    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
-    await waitFor(() => {
-      expect(screen.getByText('Review assigned items')).toBeDefined()
-    })
+    await selectAlice({ session: sessionWithClaims })
+    const confirmMock = vi.fn().mockReturnValue(false) // cancel delete
+    vi.stubGlobal('confirm', confirmMock)
+    vi.stubGlobal('fetch', vi.fn())
+    fireEvent.click(screen.getByTestId('delete-item-i1'))
+    await waitFor(() => expect(confirmMock).toHaveBeenCalled())
+    // With 2 claimants: "2 people have claimed Pizza — delete anyway?"
+    expect(confirmMock.mock.calls[0][0]).toMatch(/2 people have claimed Pizza/i)
   })
 
-  it('Test 16 (Accept all → Tip): clicking Accept all transitions to TipScreen', async () => {
-    const sessionWithHost: PublicSessionPayload = {
-      ...SESSION_FIXTURE,
-      claims: {
-        ...SESSION_FIXTURE.claims,
-        items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
-      },
-    }
-    mutateMock.mockResolvedValue(sessionWithHost)
-    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice({ session: sessionWithHost })
-    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', doneFetch)
-    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
-    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
-    fireEvent.click(screen.getByRole('button', { name: /Accept all and continue/i }))
-    await waitFor(() => {
-      expect(screen.getByText('Add a tip?')).toBeDefined()
-    })
+  it('Test 15 (D-02 cancel delete): when user cancels confirm, no /edit POST is made', async () => {
+    await selectAlice()
+    const confirmMock = vi.fn().mockReturnValue(false)
+    vi.stubGlobal('confirm', confirmMock)
+    const deleteFetch = vi.fn()
+    vi.stubGlobal('fetch', deleteFetch)
+    fireEvent.click(screen.getByTestId('delete-item-i1'))
+    await waitFor(() => expect(confirmMock).toHaveBeenCalled())
+    // No fetch should have been made
+    expect(deleteFetch).not.toHaveBeenCalled()
   })
 
-  // CR-04: was checking undone:true, now checks done:false
-  it('Test 17 (Back from Review → claiming with done:false)', async () => {
-    const sessionWithHost: PublicSessionPayload = {
-      ...SESSION_FIXTURE,
-      claims: {
-        ...SESSION_FIXTURE.claims,
-        items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
-      },
-    }
-    mutateMock.mockResolvedValue(sessionWithHost)
-    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice({ session: sessionWithHost })
-    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', doneFetch)
-    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
-    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
-    const backFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', backFetch)
-    fireEvent.click(screen.getByRole('button', { name: /Back to claiming/i }))
-    await waitFor(() => {
-      const lastCall = backFetch.mock.calls[backFetch.mock.calls.length - 1]
-      const body = JSON.parse((lastCall[1] as RequestInit).body as string)
-      // CR-04: must send done:false, not undone:true
-      expect(body.done).toBe(false)
-      expect(body.undone).toBeUndefined()
-    })
+  it('Test 16: delete button is present for each item', async () => {
+    await selectAlice()
+    // Both items should have a delete button
+    expect(screen.getByTestId('delete-item-i1')).toBeDefined()
+    expect(screen.getByTestId('delete-item-i2')).toBeDefined()
   })
 
-  it('Test 18 (Confirm tip → Results): clicking Confirm tip transitions to PersonResultsScreen', async () => {
+  it('Test 17: No "Assigned by host" label anywhere in the claiming view (flat model)', async () => {
+    await selectAlice()
+    expect(screen.queryByText(/assigned by host/i)).toBeNull()
+  })
+
+  // Previously the historically-failing Test 18 ("You're all set" path).
+  // The flat component should now pass this: claiming → done → TipScreen → confirmTip → PersonResultsScreen.
+  it('Test 18 (Confirm tip → Results): clicking Confirm tip transitions to PersonResultsScreen (You\'re all set)', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
     await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    // Update mock so all items are claimed (allItemsFullyClaimed = true) so onTipConfirmed → 'results'
+    useSWRMock.mockReturnValue({
+      data: {
+        ...SESSION_FIXTURE,
+        claims: {
+          items: {
+            i1: { p1: { qty: 1 } },
+            i2: { p1: { qty: 4 } },
+          },
+          personSlots: { p1: true },
+          donePeople: { p1: true },
+        },
+        tips: { p1: 0 },
+      },
+      error: undefined,
+      mutate: mutateMock,
+    })
     const tipFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', tipFetch)
     fireEvent.click(screen.getByRole('button', { name: /Confirm tip/i }))
     await waitFor(() => {
       expect(screen.getByText(/You.?re all set/)).toBeDefined()
     })
-  })
-
-  it('Test 19 (Back from Tip with host items → Review, no /done POST)', async () => {
-    const sessionWithHost: PublicSessionPayload = {
-      ...SESSION_FIXTURE,
-      claims: {
-        ...SESSION_FIXTURE.claims,
-        items: { i1: { p1: { qty: 1, assignedBy: 'host' as const } } },
-      },
-    }
-    mutateMock.mockResolvedValue(sessionWithHost)
-    useSWRMock.mockReturnValue({ data: sessionWithHost, error: undefined, mutate: mutateMock })
-    await selectAlice({ session: sessionWithHost })
-    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', doneFetch)
-    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
-    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
-    fireEvent.click(screen.getByRole('button', { name: /Accept all and continue/i }))
-    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
-    const backFetch = vi.fn()
-    vi.stubGlobal('fetch', backFetch)
-    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }))
-    await waitFor(() => expect(screen.getByText('Review assigned items')).toBeDefined())
-    // No fetch should have been made — going from Tip back to Review is local-only
-    expect(backFetch).not.toHaveBeenCalled()
   })
 })

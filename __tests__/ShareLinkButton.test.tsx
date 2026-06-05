@@ -5,7 +5,6 @@ import { ShareLinkButton } from '@/components/wizard/ShareLinkButton'
 // Mocks must not reference variables before initialization in vi.mock factories.
 // Use module-level spies that are reset in beforeEach instead.
 const setSessionIdMock = vi.fn()
-const setHostTokenMock = vi.fn()
 const routerPushMock = vi.fn()
 
 vi.mock('next/navigation', () => ({
@@ -16,18 +15,17 @@ vi.mock('@/stores/useBillStore', () => {
   const state = {
     people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }],
     items: [{ id: 'i1', name: 'Pizza', priceCents: 1000, quantity: 1 }],
+    currencyCode: 'EUR',
     setSessionId: (...args: unknown[]) => setSessionIdMock(...args),
-    setHostToken: (...args: unknown[]) => setHostTokenMock(...args),
   }
   const useBillStore = (selector: (s: typeof state) => unknown) => selector(state)
   useBillStore.getState = () => state
   return { useBillStore }
 })
 
-describe('ShareLinkButton — Phase 6', () => {
+describe('ShareLinkButton — Phase 8 flat model', () => {
   beforeEach(() => {
     setSessionIdMock.mockReset()
-    setHostTokenMock.mockReset()
     routerPushMock.mockReset()
     // Fake timers so we can fast-forward the 1200ms copy→redirect delay.
     // shouldAdvanceTime:true keeps real-time advancing so waitFor still works.
@@ -53,10 +51,10 @@ describe('ShareLinkButton — Phase 6', () => {
     expect(screen.getByRole('button', { name: /Share link/i })).toBeDefined()
   })
 
-  it('Test 2 (POST body): POSTs /api/session with people + items (no tipPercent)', async () => {
+  it('Test 2 (POST body): POSTs /api/session with people + items + currencyCode (no tipPercent, no hostToken)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }),
+      json: async () => ({ sessionId: 's1' }),
     })
     vi.stubGlobal('fetch', fetchMock)
     render(<ShareLinkButton />)
@@ -67,22 +65,23 @@ describe('ShareLinkButton — Phase 6', () => {
     const body = JSON.parse((init as RequestInit).body as string)
     expect(body.people).toBeDefined()
     expect(body.items).toBeDefined()
+    // D-04: currencyCode must be in the POST body
+    expect(body.currencyCode).toBe('EUR')
+    // No legacy/host fields
     expect(body.tipPercent).toBeUndefined()
+    expect(body.hostToken).toBeUndefined()
   })
 
-  it('Test 3 (response handling): calls setSessionId + setHostToken + router.push', async () => {
-    // The component now shows a Dialog after API success; router.push fires 1200ms
-    // after the user clicks "Copy link". Trigger the full flow here.
+  it('Test 3 (response handling): calls setSessionId and router.push to /split/[id] (no #hostToken fragment)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }),
+      json: async () => ({ sessionId: 's1' }),
     })
     vi.stubGlobal('fetch', fetchMock)
     render(<ShareLinkButton />)
     fireEvent.click(screen.getByRole('button', { name: /Share link/i }))
-    // Wait for API to resolve and store state (setSessionId/setHostToken called here)
+    // Wait for API to resolve and store state
     await waitFor(() => expect(setSessionIdMock).toHaveBeenCalledWith('s1'))
-    expect(setHostTokenMock).toHaveBeenCalledWith('host-token-abc')
     // Dialog should now be open with the guest URL
     expect(screen.getByRole('dialog')).toBeDefined()
     // Click "Copy link" — triggers clipboard write + schedules router.push after 1200ms
@@ -91,14 +90,16 @@ describe('ShareLinkButton — Phase 6', () => {
     })
     // Fast-forward the 1200ms setTimeout to fire the redirect
     await act(async () => { vi.advanceTimersByTime(1200) })
-    expect(routerPushMock).toHaveBeenCalledWith('/split/s1#hostToken=host-token-abc')
+    // Flat model: redirect goes to /split/s1 (no #hostToken= fragment)
+    expect(routerPushMock).toHaveBeenCalledWith('/split/s1')
+    // setHostToken must NOT have been called (no hostToken in flat model)
+    // (The mock state doesn't even have setHostToken — if it's called it would throw)
   })
 
   it('Test 4 (no setStep / setSyncStatus): router.push is used, not step/syncStatus', async () => {
-    // Same Dialog flow as Test 3 — verify router.push eventually fires (not setStep/setSyncStatus)
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }),
+      json: async () => ({ sessionId: 's1' }),
     })
     vi.stubGlobal('fetch', fetchMock)
     render(<ShareLinkButton />)
@@ -135,8 +136,8 @@ describe('ShareLinkButton — Phase 6', () => {
     fireEvent.click(btn)
     // Button should be disabled while the fetch is in-flight
     await waitFor(() => expect(btn.disabled).toBe(true))
-    // Resolve the fetch — component opens the Dialog (not an immediate redirect)
-    resolveFetch({ ok: true, json: async () => ({ sessionId: 's1', hostToken: 'host-token-abc' }) })
+    // Resolve the fetch — component opens the Dialog
+    resolveFetch({ ok: true, json: async () => ({ sessionId: 's1' }) })
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined())
     // Complete the copy→redirect flow
     await act(async () => {

@@ -3,6 +3,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
+/** Flat mockSession — no hostToken, editRequests, disputes */
 const mockSession: SessionPayload = {
   people: [
     { id: 'p1', name: 'Alice', colorIndex: 0 },
@@ -10,15 +11,13 @@ const mockSession: SessionPayload = {
     { id: 'p3', name: 'Carol', colorIndex: 2 },
   ],
   items: [{ id: 'i1', name: 'Pizza', priceCents: 1500, quantity: 1 }],
-  hostToken: 'host-token-abc',
   claims: {
     items: {},
     personSlots: { p2: true }, // Bob's slot is taken
     donePeople: {},
   },
   tips: {},
-  editRequests: {},
-  disputes: {},
+  currencyCode: 'USD',
   createdAt: Date.now(),
 }
 

@@ -34,7 +34,8 @@ describe('ClaimableItemCard — Phase 6', () => {
 
   it('Test 2 (qty=1, mine): tap calls onQtyChange(0) (un-claim)', () => {
     const onQtyChange = vi.fn()
-    const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1, assignedBy: 'self' } }
+    // Flat ClaimEntry: { qty } only — no assignedBy
+    const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1 } }
     render(
       <ClaimableItemCard
         item={singleQtyItem}
@@ -51,7 +52,7 @@ describe('ClaimableItemCard — Phase 6', () => {
 
   it('Test 3 (qty=1, claimed by others, not me): shows claimant avatar stack', () => {
     const onQtyChange = vi.fn()
-    const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1, assignedBy: 'self' } }
+    const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1 } }
     render(
       <ClaimableItemCard
         item={singleQtyItem}
@@ -98,7 +99,7 @@ describe('ClaimableItemCard — Phase 6', () => {
 
   it('Test 6 (qty>1): + button is disabled when myQty === item.quantity', () => {
     const onQtyChange = vi.fn()
-    const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 4, assignedBy: 'self' } }
+    const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 4 } }
     render(
       <ClaimableItemCard
         item={multiQtyItem}
@@ -114,8 +115,8 @@ describe('ClaimableItemCard — Phase 6', () => {
 
   it('Test 7 (qty>1): "X of N claimed" label', () => {
     const claims: Record<PersonId, ClaimEntry> = {
-      p1: { qty: 1, assignedBy: 'self' },
-      p2: { qty: 2, assignedBy: 'self' },
+      p1: { qty: 1 },
+      p2: { qty: 2 },
     }
     render(
       <ClaimableItemCard
@@ -129,30 +130,14 @@ describe('ClaimableItemCard — Phase 6', () => {
     expect(screen.getByTestId('claimed-count').textContent).toMatch(/3 of 4 claimed/)
   })
 
-  it('Test 8 (host-assigned): renders "Assigned by host" label + amber-200 border', () => {
-    const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1, assignedBy: 'host' } }
-    const { container } = render(
-      <ClaimableItemCard
-        item={singleQtyItem}
-        claimsForItem={claims}
-        myPersonId="p1"
-        peopleById={peopleById}
-        onQtyChange={vi.fn()}
-      />
-    )
-    expect(screen.getByText(/Assigned by host/i)).toBeDefined()
-    const card = container.querySelector('[class*="border-amber-200"]')
-    expect(card).not.toBeNull()
-  })
-
-  it('Test 9 (overflow): 6+ other claimants — shows 5 avatars + "+N" overflow', () => {
+  it('Test 8 (overflow): 6+ other claimants — shows 5 avatars + "+N" overflow', () => {
     const claims: Record<PersonId, ClaimEntry> = {
-      p2: { qty: 1, assignedBy: 'self' },
-      p3: { qty: 1, assignedBy: 'self' },
-      p4: { qty: 1, assignedBy: 'self' },
-      eve: { qty: 1, assignedBy: 'self' },
-      frank: { qty: 1, assignedBy: 'self' },
-      grace: { qty: 1, assignedBy: 'self' },
+      p2: { qty: 1 },
+      p3: { qty: 1 },
+      p4: { qty: 1 },
+      eve: { qty: 1 },
+      frank: { qty: 1 },
+      grace: { qty: 1 },
     }
     render(
       <ClaimableItemCard
