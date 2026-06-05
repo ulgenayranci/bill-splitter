@@ -5,7 +5,7 @@ source: [07-04-SUMMARY.md]
 round: 2
 note: "Re-verification of the 7 gap closures from plan 07-04 (round 1 archived as 07-UAT-round1.md)"
 started: 2026-06-05T18:07:48Z
-updated: 2026-06-05T18:13:30Z
+updated: 2026-06-05T19:25:00Z
 ---
 
 ## Current Test
@@ -30,10 +30,11 @@ expected: |
   heading showing the number of people added, updating as you add/remove people;
   (c) the "Add people now or after scanning." helper line is gone, and the
   Continue button reads "Continue to Assign" with no trailing arrow.
-result: issue
+result: pass
 reported: "a - ok. b - move chip to the end of the line, right constrained. c - ok. d - button label ok but the placement should be bottom constrained."
 severity: cosmetic
-note: "All three round-1 gaps confirmed closed (extra spacing present, chip exists & bound to people.length, helper text removed, arrow removed). Two NEW placement refinements requested: (1) right-align the count chip to the far end of the heading row; (2) anchor the Continue button to the bottom of the screen."
+resolution: "Both placement refinements closed by quick task 260605-v0g (commits 19f1c3d, 109f6a6): count chip moved after the flex-1 divider (right-pinned); Continue button bottom-anchored via sticky-footer pattern. Re-verified on-device — both confirmed. Round-1 gaps (a/c) were already closed by 07-04."
+note: "Original round-1 gaps confirmed closed (extra spacing, chip bound to people.length, helper text removed, arrow removed). Two follow-up placement tweaks (right-align chip, bottom-anchor button) subsequently closed by quick task 260605-v0g and re-verified."
 
 ### 4. Failed Re-Scan Recovery — Stale Count Cleared + Inline Error (GAPs 6, 7)
 expected: |
@@ -47,16 +48,18 @@ result: pass
 ## Summary
 
 total: 4
-passed: 3
-issues: 1
+passed: 4
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
+note: "Test 3's two placement follow-ups resolved post-hoc by quick task 260605-v0g and re-verified on-device; flipped from issue → pass. All Phase 7 UAT gaps closed."
 
 ## Gaps
 
 - truth: "The people count chip is right-constrained to the far end of the 'Who's involved in the split?' heading row (pushed to the right edge), not sitting immediately after the heading text"
-  status: failed
+  status: closed
+  closed_by: "quick task 260605-v0g (commit 19f1c3d) — chip moved after the flex-1 divider; re-verified on-device"
   reason: "User reported during Test 3 (round 2): chip exists but should move to the end of the line, right-constrained"
   severity: cosmetic
   test: 3
@@ -69,7 +72,8 @@ blocked: 0
   debug_session: ""
 
 - truth: "The 'Continue to Assign' button is bottom-constrained — anchored to the bottom of the Setup screen rather than sitting directly below the people section"
-  status: failed
+  status: closed
+  closed_by: "quick task 260605-v0g (commit 109f6a6) — sticky-footer pattern (main flex-col → root flex-1 → wrapper mt-auto); re-verified on-device"
   reason: "User reported during Test 3 (round 2): button label is fine but its placement should be bottom constrained"
   severity: cosmetic
   test: 3
