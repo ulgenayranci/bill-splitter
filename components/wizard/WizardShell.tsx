@@ -55,12 +55,12 @@ export function WizardShell({ children }: WizardShellProps) {
       {/* App shell header — present on every screen (SHELL-01/02) */}
       <AppHeader />
 
-      {/* Progress strip — 3px tall, 3 segments (Setup / Bill View / Results) */}
-      <div className="flex h-[3px] w-full gap-1 px-5 pt-2.5">
+      {/* Progress strip — 3px tall bars, 3 segments (Setup / Bill View / Results) */}
+      <div className="flex w-full gap-1 px-5 pt-2.5">
         {Array.from({ length: PROGRESS_SEGMENTS }, (_, idx) => (
           <div
             key={idx}
-            className={`flex-1 rounded-sm ${idx + 1 <= filled ? 'bg-amber-600' : 'bg-zinc-200'}`}
+            className={`h-[3px] flex-1 rounded-sm ${idx + 1 <= filled ? 'bg-amber-600' : 'bg-zinc-200'}`}
           />
         ))}
       </div>

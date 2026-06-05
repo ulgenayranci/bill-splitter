@@ -23,4 +23,13 @@ describe('WizardShell — Phase 7 (3 segments)', () => {
     const { container } = render(<WizardShell><div data-testid="content" /></WizardShell>)
     expect(container.querySelectorAll('div.flex-1.bg-amber-600').length).toBe(1)
   })
+
+  it('each segment bar carries a non-collapsed h-[3px] height (GAP 1 / D-07)', () => {
+    const { container } = render(<WizardShell><div data-testid="content" /></WizardShell>)
+    const bars = container.querySelectorAll('div.flex-1.rounded-sm')
+    expect(bars.length).toBe(3)
+    bars.forEach((bar) => {
+      expect(bar.className).toContain('h-[3px]')
+    })
+  })
 })
