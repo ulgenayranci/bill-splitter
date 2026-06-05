@@ -1,34 +1,8 @@
 import type { Item, ItemId, Person, PersonId } from '@/stores/useBillStore'
 
-/** A single person's claim on an item — quantity owned and who assigned it. */
+/** A single person's claim on an item — quantity owned. Every claim is a self-claim in the flat model. */
 export interface ClaimEntry {
   qty: number
-  assignedBy: 'self' | 'host'
-  /** true once a guest has explicitly accepted a host-assigned item on ReviewHostAssignedScreen */
-  accepted?: boolean
-}
-
-/** Payload shape varies by EditRequest.type — kept as a flat union for storage simplicity. */
-export type EditPayload =
-  | { name: string; priceCents: number; quantity: number }
-  | { itemId: ItemId }
-  | { itemId: ItemId; newPriceCents: number }
-  | { itemId: ItemId; newName: string }
-  | { itemId: ItemId; newQuantity: number }
-
-export interface EditRequest {
-  personId: PersonId
-  type: 'add' | 'remove' | 'edit_price' | 'edit_name' | 'edit_quantity'
-  payload: EditPayload
-  status: 'pending' | 'approved' | 'rejected'
-  createdAt: number
-}
-
-export interface Dispute {
-  itemId: ItemId
-  personId: PersonId
-  status: 'pending' | 'resolved' | 'rejected'
-  createdAt: number
 }
 
 export interface SessionClaims {
@@ -44,25 +18,16 @@ export interface SessionPayload {
   people: Person[]
   items: Item[]
   claims: SessionClaims
-  /** Durable host capability token (D-02). Generated server-side at POST /api/session.
-   *  NEVER returned by GET /api/session — stripped before the response is sent (CR-01).
-   *  Only present in Redis and in the POST /api/session creation response. */
-  hostToken: string
-  /** Set when the host picks their identity slot (D-13). */
-  hostPersonId?: PersonId
   /** Per-person tip in cents (D-07). Absent personId means tip not yet confirmed. */
   tips: Record<PersonId, number>
-  /** Keyed by nanoid request id. */
-  editRequests: Record<string, EditRequest>
-  /** Keyed by nanoid dispute id. */
-  disputes: Record<string, Dispute>
   createdAt: number
-  // NOTE: tipPercent intentionally removed (D-17). Phase 4 sessions are incompatible.
+  /** ISO 4217 currency code. Defaults to 'USD' at creation. Display threading is Phase 10. */
+  currencyCode: string
 }
 
 /**
  * The safe subset of SessionPayload returned by GET /api/session/[sessionId].
- * hostToken is stripped server-side (CR-01) — clients must never see it.
- * Use this type for SWR fetcher return types and client component props.
+ * In the flat model there are no secrets to strip — PublicSessionPayload equals SessionPayload.
+ * Kept as an alias so existing imports continue to compile without changes.
  */
-export type PublicSessionPayload = Omit<SessionPayload, 'hostToken'>
+export type PublicSessionPayload = SessionPayload
