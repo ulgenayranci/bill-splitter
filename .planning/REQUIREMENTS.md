@@ -15,13 +15,13 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - [ ] **SHELL-01**: User sees the "easy-billsy" wordmark header on every screen
 - [ ] **SHELL-02**: User can open a hamburger menu with New Split, History, and About Us (History is an inert stub this milestone)
 - [ ] **SHELL-03**: User can start a fresh split from the menu (resets the current bill)
-- [ ] **SHELL-04**: Progress indicator reflects the 3-step flow (Setup → Bill View → Results)
+- [x] **SHELL-04**: Progress indicator reflects the 3-step flow (Setup → Bill View → Results)
 
 ### Setup (SETUP)
 
-- [ ] **SETUP-01**: User lands on a single scan-first Setup screen where scanning the bill is the primary action
-- [ ] **SETUP-02**: User can add people inline on the Setup screen (no separate step)
-- [ ] **SETUP-03**: After a scan, Setup shows the captured bill (thumbnail + item-found count) with a Retake option, not a re-scan-many affordance
+- [x] **SETUP-01**: User lands on a single scan-first Setup screen where scanning the bill is the primary action
+- [x] **SETUP-02**: User can add people inline on the Setup screen (no separate step)
+- [x] **SETUP-03**: After a scan, Setup shows the captured bill (thumbnail + item-found count) with a Retake option, not a re-scan-many affordance
 - [ ] **SETUP-04**: "Continue" is disabled until the bill is scanned and at least one person is added
 
 ### Identity (IDENT)
@@ -75,10 +75,10 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | SHELL-01 | Phase 7 | Pending |
 | SHELL-02 | Phase 7 | Pending |
 | SHELL-03 | Phase 7 | Pending |
-| SHELL-04 | Phase 7 | Pending |
-| SETUP-01 | Phase 7 | Pending |
-| SETUP-02 | Phase 7 | Pending |
-| SETUP-03 | Phase 7 | Pending |
+| SHELL-04 | Phase 7 | Complete |
+| SETUP-01 | Phase 7 | Complete |
+| SETUP-02 | Phase 7 | Complete |
+| SETUP-03 | Phase 7 | Complete |
 | SETUP-04 | Phase 7 | Pending |
 | CURR-01 | Phase 7 | Pending |
 | CLAIM-01 | Phase 8 | Pending |

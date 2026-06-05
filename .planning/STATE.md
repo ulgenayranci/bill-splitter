@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: easy-billsy Redesign
-status: planning
-last_updated: "2026-06-04T13:34:14.310Z"
-last_activity: 2026-06-04 — Roadmap created for v2.0 (Phases 7–10)
+status: verifying
+last_updated: "2026-06-05T17:39:20.454Z"
+last_activity: 2026-06-05 — Retroactive plans for Phase 7 (shell, setup, currency); plan-check passed
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 4
+  completed_plans: 1
   percent: 0
 ---
 
@@ -30,13 +30,13 @@ progress:
 
 ## Current Position
 
-Phase: 7 (shipped — retroactively documented)
-Plan: 07-01, 07-02, 07-03 (3/3)
-Status: Phase 7 code already shipped (commits cb10468, 430b02f); plans written retroactively + plan-check PASSED — ready to verify
-Last activity: 2026-06-05 — Retroactive plans for Phase 7 (shell, setup, currency); plan-check passed
+Phase: 7 (App Shell + Setup Screen)
+Plan: 07-04 complete (UAT gap closure — 7 gaps closed)
+Status: Phase 7 plans 01-03 shipped + 07-04 gap closure executed (commits eae4aea, b700926, 8b77c3e); all 7 UAT gaps closed, WizardShell + SetupStep tests green
+Last activity: 2026-06-05 — Executed 07-04: visible progress strip, gallery capture, count chip, copy cleanup, failed-scan item clear, inline scan error
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
+Progress: [███░░░░░░░] 25%
 ```
 
 ## Performance Metrics (v1.0 final)
@@ -73,6 +73,9 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4
 | done route uses done: boolean (not undone: true) | Wave 0 test contract sends done:boolean; tests are ground truth over plan prose | Phase 6 |
 | Claim action defaults to 'qty' when itemId present | Wave 0 tests send { personId, itemId, qty } without action field; inference avoids 400 on valid bodies | Phase 6 |
 | currency stored as ISO 4217 code + Intl.NumberFormat | Disambiguates $ (USD/CAD/AUD) and handles zero-decimal currencies (JPY); decided in Phase 7 discussion, supersedes the earlier raw-symbol lean | Phase 7 |
+| D-09 softened to scan-FIRST (camera hero + photo-library picker) | UAT gap: forced re-capture when the physical bill is gone; dropped capture=environment so the native picker offers gallery too. Manual item entry still out of scope | Phase 7 (07-04) |
+| Scan failure feedback inline (role=alert) near the scan tile, not bottom toast | UAT: bottom base-ui toast was too low to notice; surface error where the user is looking | Phase 7 (07-04) |
+| Clear items[] on every OCR failure path | billScanned = items.length>0 gates the count chip; failure paths cleared billImageUrl but not items, leaving a stale "N items found" chip | Phase 7 (07-04) |
 | migrateSession normalizer must be first commit in Phase 8 | Live Redis sessions written by v1 code coexist for 24h after deploy; normalizer on read protects against null-access on new fields | Phase 8 (pending) |
 | Lua script strings audited separately from TypeScript | TypeScript type errors cascade on schema removal, but Lua strings are opaque — must grep separately | Phase 8 (pending) |
 | formatCents gains optional currencyCode param (backward-compatible) | All existing call sites omit the param and continue to get "$"; new call sites pass session.currencyCode | Phase 10 (pending) |
@@ -122,7 +125,7 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 
 ## Session Continuity
 
-**Last session:** 2026-06-05 — Retroactive Phase 7 plans written + plan-check passed
+**Last session:** 2026-06-05T17:39:20.449Z
 **Next action:** `/gsd:verify-work 7` to verify the shipped Phase 7 code against the plan must_haves, then close the phase.
 
 ## Operator Next Steps

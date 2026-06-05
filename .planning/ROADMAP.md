@@ -44,7 +44,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [ ] 07-01-PLAN.md — App Shell: easy-billsy header on every screen, hamburger menu (New Split / disabled History + About Us), 3-segment progress strip (SHELL-01..04)
 - [ ] 07-02-PLAN.md — Setup Screen: scan-first single screen, inline people add, post-scan thumbnail + "N items found" + Retake, Continue gated on scan + ≥2 people, bridge to Assign (SETUP-01..04)
 - [ ] 07-03-PLAN.md — Currency Detection: OCR returns ISO 4217 currencyCode (strict schema), stored on useBillStore; detection + store only, display threading deferred to Phase 10 (CURR-01)
-- [ ] 07-04-PLAN.md — UAT Gap Closure: visible progress strip; gallery+camera capture (revises D-09); spacing, people count chip, copy cleanup; clear items on failed scan; inline scan-error (SHELL-04, SETUP-01..03)
+- [x] 07-04-PLAN.md — UAT Gap Closure: visible progress strip; gallery+camera capture (revises D-09); spacing, people count chip, copy cleanup; clear items on failed scan; inline scan-error (SHELL-04, SETUP-01..03)
 **UI hint**: yes
 
 ---
@@ -101,7 +101,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 4. Shareable Links | v1.0 | 3/3 | Complete | 2026-05-13 |
 | 5. Polish & Hardening | v1.0 | 3/3 | Complete | 2026-05-14 |
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
-| 7. App Shell + Setup Screen | v2.0 | 3/3 | Shipped (retroactively documented) | 2026-06-04 |
+| 7. App Shell + Setup Screen | v2.0 | 1/4 | In Progress|  |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 0/? | Not started | - |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 0/? | Not started | - |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
