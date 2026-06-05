@@ -30,10 +30,10 @@ progress:
 
 ## Current Position
 
-Phase: 7 (not started)
-Plan: —
-Status: Roadmap defined — ready to plan Phase 7
-Last activity: 2026-06-04 — Roadmap created for v2.0 (Phases 7–10)
+Phase: 7 (shipped — retroactively documented)
+Plan: 07-01, 07-02, 07-03 (3/3)
+Status: Phase 7 code already shipped (commits cb10468, 430b02f); plans written retroactively + plan-check PASSED — ready to verify
+Last activity: 2026-06-05 — Retroactive plans for Phase 7 (shell, setup, currency); plan-check passed
 
 ```
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
@@ -122,9 +122,11 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 
 ## Session Continuity
 
-**Last session:** 2026-06-04T13:34:14.304Z
-**Next action:** `/gsd:plan-phase 7` to plan Phase 7 (App Shell + Setup Screen).
+**Last session:** 2026-06-05 — Retroactive Phase 7 plans written + plan-check passed
+**Next action:** `/gsd:verify-work 7` to verify the shipped Phase 7 code against the plan must_haves, then close the phase.
 
 ## Operator Next Steps
 
-- Run `/gsd:plan-phase 7` to decompose Phase 7 into executable plans
+- Run `/gsd:verify-work 7` to verify shipped Phase 7 code against SHELL/SETUP/CURR requirements
+- Optional `/gsd-quick`: fix stale JSDoc at `components/wizard/SetupStep.tsx:18` (says ≥1 person; gate is ≥2)
+- After verification passes, honor the ROADMAP reassess gate before planning Phase 8
