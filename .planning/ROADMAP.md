@@ -41,9 +41,9 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   4. After scanning, Setup shows a bill thumbnail with item count and a Retake option; "Continue" is enabled only when a bill is scanned and at least two people are added
   5. OCR returns a currency symbol alongside item data; the value is stored in Zustand
 **Plans**: 4 plans (3 retroactively documented — work shipped in commits cb10468 / 430b02f; 07-04 gap closure from UAT)
-- [ ] 07-01-PLAN.md — App Shell: easy-billsy header on every screen, hamburger menu (New Split / disabled History + About Us), 3-segment progress strip (SHELL-01..04)
-- [ ] 07-02-PLAN.md — Setup Screen: scan-first single screen, inline people add, post-scan thumbnail + "N items found" + Retake, Continue gated on scan + ≥2 people, bridge to Assign (SETUP-01..04)
-- [ ] 07-03-PLAN.md — Currency Detection: OCR returns ISO 4217 currencyCode (strict schema), stored on useBillStore; detection + store only, display threading deferred to Phase 10 (CURR-01)
+- [x] 07-01-PLAN.md — App Shell: easy-billsy header on every screen, hamburger menu (New Split / disabled History + About Us), 3-segment progress strip (SHELL-01..04)
+- [x] 07-02-PLAN.md — Setup Screen: scan-first single screen, inline people add, post-scan thumbnail + "N items found" + Retake, Continue gated on scan + ≥2 people, bridge to Assign (SETUP-01..04)
+- [x] 07-03-PLAN.md — Currency Detection: OCR returns ISO 4217 currencyCode (strict schema), stored on useBillStore; detection + store only, display threading deferred to Phase 10 (CURR-01)
 - [x] 07-04-PLAN.md — UAT Gap Closure: visible progress strip; gallery+camera capture (revises D-09); spacing, people count chip, copy cleanup; clear items on failed scan; inline scan-error (SHELL-04, SETUP-01..03)
 **UI hint**: yes
 

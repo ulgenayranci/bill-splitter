@@ -2,38 +2,39 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: easy-billsy Redesign
-status: verifying
-last_updated: "2026-06-05T17:39:20.454Z"
-last_activity: 2026-06-05 — Retroactive plans for Phase 7 (shell, setup, currency); plan-check passed
+status: ready_to_plan
+last_updated: 2026-06-05T19:34:25.874Z
+last_activity: 2026-06-05 — Phase 7 complete: UAT (both rounds) passed, security verified (7/7 threats closed), all 9 reqs done
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 1
-  percent: 0
+  completed_plans: 4
+  percent: 25
+stopped_at: Phase 07 complete (4/4) — ready to discuss Phase 8
 ---
 
 # Project State
 
 **Project:** Bill Splitter
 **Milestone:** v2.0 — easy-billsy Redesign
-**Last updated:** 2026-06-04
+**Last updated:** 2026-06-05
 
 ---
 
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** v2.0 — easy-billsy redesign (roadmap defined; ready to plan Phase 7)
+**Current focus:** Phase 8 — flat model — schema + api surgery
 
 ---
 
 ## Current Position
 
-Phase: 7 (App Shell + Setup Screen)
-Plan: 07-04 complete (UAT gap closure — 7 gaps closed)
-Status: Phase 7 plans 01-03 shipped + 07-04 gap closure executed (commits eae4aea, b700926, 8b77c3e); all 7 UAT gaps closed, WizardShell + SetupStep tests green
-Last activity: 2026-06-05 — Completed quick task 260605-v0g: right-align count chip + bottom-anchor Continue button (Phase 7 round-2 UAT polish)
+Phase: 8
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-05
 
 ```
 Progress: [███░░░░░░░] 25%
@@ -131,11 +132,11 @@ All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-bills
 
 ## Session Continuity
 
-**Last session:** 2026-06-05T17:39:20.449Z
-**Next action:** `/gsd:verify-work 7` to verify the shipped Phase 7 code against the plan must_haves, then close the phase.
+**Last session:** 2026-06-05 — Phase 7 closed: round-2 UAT 4/4 pass, all 7 gaps closed (07-04 + quick task 260605-v0g), security verified (07-SECURITY.md, 7/7 threats closed), all 9 Phase 7 requirements complete.
+**Next action:** Honor the ROADMAP **reassess gate** — review scope/sequencing of Phases 8–10 — before running `/gsd:discuss-phase 8` or `/gsd:plan-phase 8`.
 
 ## Operator Next Steps
 
-- Run `/gsd:verify-work 7` to verify shipped Phase 7 code against SHELL/SETUP/CURR requirements
-- Optional `/gsd-quick`: fix stale JSDoc at `components/wizard/SetupStep.tsx:18` (says ≥1 person; gate is ≥2)
-- After verification passes, honor the ROADMAP reassess gate before planning Phase 8
+- **Reassess gate (ROADMAP):** review scope and sequencing of Phases 8–10 before continuing — Phase 7 shipped a notable scan-first/currency change that may shift downstream assumptions.
+- Then `/gsd:discuss-phase 8` (Flat Model — Schema + API Surgery) → `/gsd:plan-phase 8`.
+- Pre-milestone cleanup candidates (deferred, logged in `07-.../deferred-items.md`): add `eslint.config.js` so lint can gate CI; retire/repair the 5 stale v1 wizard tests (AddItemsStep, AddPeopleStep, CollaborativeClaimingView, PersonSlotPicker).

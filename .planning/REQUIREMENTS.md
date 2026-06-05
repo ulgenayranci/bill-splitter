@@ -12,9 +12,9 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 ### App Shell (SHELL)
 
-- [ ] **SHELL-01**: User sees the "easy-billsy" wordmark header on every screen
-- [ ] **SHELL-02**: User can open a hamburger menu with New Split, History, and About Us (History is an inert stub this milestone)
-- [ ] **SHELL-03**: User can start a fresh split from the menu (resets the current bill)
+- [x] **SHELL-01**: User sees the "easy-billsy" wordmark header on every screen
+- [x] **SHELL-02**: User can open a hamburger menu with New Split, History, and About Us (History is an inert stub this milestone)
+- [x] **SHELL-03**: User can start a fresh split from the menu (resets the current bill)
 - [x] **SHELL-04**: Progress indicator reflects the 3-step flow (Setup → Bill View → Results)
 
 ### Setup (SETUP)
@@ -22,7 +22,7 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - [x] **SETUP-01**: User lands on a single scan-first Setup screen where scanning the bill is the primary action
 - [x] **SETUP-02**: User can add people inline on the Setup screen (no separate step)
 - [x] **SETUP-03**: After a scan, Setup shows the captured bill (thumbnail + item-found count) with a Retake option, not a re-scan-many affordance
-- [ ] **SETUP-04**: "Continue" is disabled until the bill is scanned and at least one person is added
+- [x] **SETUP-04**: "Continue" is disabled until the bill is scanned and at least one person is added
 
 ### Identity (IDENT)
 
@@ -42,7 +42,7 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 ### Currency (CURR)
 
-- [ ] **CURR-01**: The OCR step detects the receipt's currency
+- [x] **CURR-01**: The OCR step detects the receipt's currency
 - [ ] **CURR-02**: All monetary amounts render in the detected currency with correct symbol and decimal places (including zero-decimal currencies like JPY)
 - [ ] **CURR-03**: If currency can't be detected, the app falls back gracefully (sensible default; user can set it)
 
@@ -72,15 +72,15 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SHELL-01 | Phase 7 | Pending |
-| SHELL-02 | Phase 7 | Pending |
-| SHELL-03 | Phase 7 | Pending |
+| SHELL-01 | Phase 7 | Complete |
+| SHELL-02 | Phase 7 | Complete |
+| SHELL-03 | Phase 7 | Complete |
 | SHELL-04 | Phase 7 | Complete |
 | SETUP-01 | Phase 7 | Complete |
 | SETUP-02 | Phase 7 | Complete |
 | SETUP-03 | Phase 7 | Complete |
-| SETUP-04 | Phase 7 | Pending |
-| CURR-01 | Phase 7 | Pending |
+| SETUP-04 | Phase 7 | Complete |
+| CURR-01 | Phase 7 | Complete |
 | CLAIM-01 | Phase 8 | Pending |
 | CLAIM-03 | Phase 8 | Pending |
 | IDENT-01 | Phase 9 | Pending |
