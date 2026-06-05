@@ -64,7 +64,7 @@ export function WizardShell({ children }: WizardShellProps) {
           />
         ))}
       </div>
-      <main className="flex-1 px-6 py-8 pb-24">{children}</main>
+      <main className="flex flex-1 flex-col px-6 py-8 pb-24">{children}</main>
     </div>
   )
 }

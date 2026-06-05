@@ -173,7 +173,7 @@ export function SetupStep() {
   )
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-1 flex-col gap-5">
       <input
         ref={fileInputRef}
         type="file"
@@ -324,7 +324,7 @@ export function SetupStep() {
       </div>
 
       {/* Continue (gated — D-11) */}
-      <div className="mt-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+      <div className="mt-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button
           onClick={() => setStep(3)}
           disabled={!canContinue}
