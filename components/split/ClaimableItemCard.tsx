@@ -4,7 +4,7 @@ import { Check, Minus, Plus } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
-import { formatCents } from '@/lib/billMath'
+import { formatCents, computeEqualShareCents } from '@/lib/billMath'
 import type { ClaimEntry } from '@/lib/sessionSchema'
 import type { Item, Person, PersonId } from '@/stores/useBillStore'
 
@@ -14,10 +14,11 @@ interface ClaimableItemCardProps {
   myPersonId: PersonId
   peopleById: Record<PersonId, Person>
   onQtyChange: (newQty: number) => void
+  onShareChange?: (joining: boolean) => void
   errorMessage?: string
 }
 
-const MAX_VISIBLE_AVATARS = 5
+const MAX_VISIBLE_AVATARS = 3
 
 export function ClaimableItemCard({
   item,
@@ -25,6 +26,7 @@ export function ClaimableItemCard({
   myPersonId,
   peopleById,
   onQtyChange,
+  onShareChange,
   errorMessage,
 }: ClaimableItemCardProps) {
   const myEntry = claimsForItem[myPersonId]
@@ -46,9 +48,13 @@ export function ClaimableItemCard({
     0
   )
 
-  // Single-qty toggle handler
+  // Single-qty toggle handler — routes through onShareChange if provided (D-13)
   const handleToggle = () => {
-    onQtyChange(myQty === 0 ? 1 : 0)
+    if (onShareChange) {
+      onShareChange(myQty === 0)
+    } else {
+      onQtyChange(myQty === 0 ? 1 : 0)
+    }
   }
 
   // How many more this person can claim = total item qty minus everyone else's claims
@@ -62,9 +68,19 @@ export function ClaimableItemCard({
     if (myQty < remainingForMe) onQtyChange(myQty + 1)
   }
 
+  // Compute "your share" for shared single-qty items (D-15)
+  const claimantCount = allClaimantEntries.length
+  let yourShareCents: number | null = null
+  if (!isMultiQty && mine && claimantCount > 1) {
+    // Sort claimant personIds lexicographically ascending (determinism rule from computeEqualShareCents JSDoc)
+    const sortedIds = allClaimantEntries.map(([pid]) => pid).sort()
+    const myIndex = sortedIds.indexOf(myPersonId)
+    yourShareCents = computeEqualShareCents(item.priceCents, claimantCount, myIndex)
+  }
+
   const cardClasses = [
     'flex min-h-[44px] flex-col gap-2 px-4 py-3 transition-colors',
-    mine ? 'bg-amber-50' : '',
+    mine ? 'bg-amber-50 border border-amber-400' : '',
     !isMultiQty ? 'cursor-pointer' : '',
   ].filter(Boolean).join(' ')
 
@@ -163,7 +179,7 @@ export function ClaimableItemCard({
             )
           })}
           {overflowCount > 0 && (
-            <span className="text-[13px] text-zinc-400">+{overflowCount}</span>
+            <span className="text-[14px] text-zinc-400">+{overflowCount}</span>
           )}
           <span className="ml-1 text-[13px] text-zinc-500" data-testid="claimant-names">
             {mine
@@ -172,6 +188,13 @@ export function ClaimableItemCard({
             }
           </span>
         </div>
+      )}
+
+      {/* Your share line — shown for shared single-qty items the current user has joined (D-15) */}
+      {yourShareCents !== null && (
+        <p className="text-[14px] text-zinc-500 mt-1" data-testid="your-share">
+          your share: {formatCents(yourShareCents)}
+        </p>
       )}
 
       {errorMessage && (
