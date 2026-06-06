@@ -67,4 +67,34 @@ describe('PersonSlotPicker', () => {
     expect(aliceCard.className).not.toMatch(/opacity-50/)
     expect(aliceCard.getAttribute('aria-disabled')).not.toBe('true')
   })
+
+  it('Test 6: "I\'m not listed" link is present', () => {
+    render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
+    expect(screen.getByText("I'm not listed")).toBeDefined()
+  })
+
+  it('Test 7: Clicking "I\'m not listed" reveals input with placeholder "Your name" and "Add me" button', () => {
+    render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
+    fireEvent.click(screen.getByText("I'm not listed"))
+    expect(screen.getByPlaceholderText('Your name')).toBeDefined()
+    expect(screen.getByText('Add me')).toBeDefined()
+  })
+
+  it('Test 8: Submitting inline add with a name calls onAddPerson with the trimmed name', async () => {
+    const onAddPerson = vi.fn().mockResolvedValue(undefined)
+    render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} onAddPerson={onAddPerson} />)
+    fireEvent.click(screen.getByText("I'm not listed"))
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: '  Dave  ' } })
+    fireEvent.click(screen.getByText('Add me'))
+    expect(onAddPerson).toHaveBeenCalledWith('Dave')
+  })
+
+  it('Test 9: Submitting inline add with empty name does NOT call onAddPerson', () => {
+    const onAddPerson = vi.fn()
+    render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} onAddPerson={onAddPerson} />)
+    fireEvent.click(screen.getByText("I'm not listed"))
+    // Leave input empty, click Add me
+    fireEvent.click(screen.getByText('Add me'))
+    expect(onAddPerson).not.toHaveBeenCalled()
+  })
 })
