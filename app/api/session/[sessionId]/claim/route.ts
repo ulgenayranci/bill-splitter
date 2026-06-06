@@ -63,6 +63,44 @@ return 'OK'
 `
 
 /**
+ * Phase 9 atomic tap-to-join/leave for single-qty shared items (D-13, CLAIM-02).
+ * Unlike QTY_CLAIM_SCRIPT there is NO bounds check — multiple people may each hold
+ * qty:1 on the same qty:1 item (that is the point of tap-to-join sharing).
+ * ARGV: [itemId, personId, joining] where joining is 'true' or 'false'.
+ * Returns 'OK', 'session_not_found', or 'invalid_session'.
+ * Per RESEARCH Pitfall 1 and Pitfall 4: Lua is required for atomicity; Lua strings
+ * are audited separately from TypeScript — only flat schema fields used here.
+ */
+const SHARE_CLAIM_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok then return 'invalid_session' end
+
+local itemId = ARGV[1]
+local personId = ARGV[2]
+local joining = ARGV[3]
+
+if not session.claims then session.claims = {} end
+if not session.claims.items then session.claims.items = {} end
+if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
+
+if joining == 'true' then
+  session.claims.items[itemId][personId] = { qty = 1 }
+else
+  session.claims.items[itemId][personId] = nil
+end
+
+-- Clean up empty item entry (cjson encodes empty Lua table as [] not {})
+local hasAny = false
+for _ in pairs(session.claims.items[itemId]) do hasAny = true; break end
+if not hasAny then session.claims.items[itemId] = nil end
+
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
  * Phase 8 atomic slot claim (flat model).
  * Sets claims.personSlots[personId] = true.
  * Returns 'OK', 'slot_taken', 'session_not_found', or 'invalid_session'.
@@ -90,9 +128,10 @@ return 'OK'
 
 type ClaimBody = {
   personId: string
-  action: 'qty' | 'slot'
+  action: 'qty' | 'slot' | 'share'
   itemId?: string
   qty?: number
+  joining?: boolean
 }
 
 function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; error: string } {
@@ -103,7 +142,7 @@ function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; 
   }
   // Infer action: if action is omitted but itemId+qty present, default to 'qty'
   const action = r.action ?? (r.itemId !== undefined ? 'qty' : undefined)
-  if (action !== 'qty' && action !== 'slot') {
+  if (action !== 'qty' && action !== 'slot' && action !== 'share') {
     return { ok: false, error: 'Invalid action' }
   }
   if (action === 'qty') {
@@ -112,6 +151,14 @@ function validateBody(b: unknown): { ok: true; body: ClaimBody } | { ok: false; 
     }
     if (!Number.isInteger(r.qty) || (r.qty as number) < 0) {
       return { ok: false, error: 'Invalid qty: must be integer >= 0' }
+    }
+  }
+  if (action === 'share') {
+    if (typeof r.itemId !== 'string' || r.itemId.length === 0) {
+      return { ok: false, error: 'Invalid itemId for share action' }
+    }
+    if (typeof r.joining !== 'boolean') {
+      return { ok: false, error: 'Invalid joining: must be boolean for share action' }
     }
   }
   return { ok: true, body: { ...r, action } as unknown as ClaimBody }
@@ -131,9 +178,26 @@ export async function POST(
   }
   const v = validateBody(body)
   if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
-  const { personId, action, itemId, qty } = v.body
+  const { personId, action, itemId, qty, joining } = v.body
 
   try {
+    if (action === 'share') {
+      // D-13 tap-to-join: bounds-check-free Lua write. Multiple people may each hold
+      // qty:1 on a single-qty item. ARGV: [itemId, personId, String(joining)].
+      const result = await redis.eval(
+        SHARE_CLAIM_SCRIPT,
+        [`session:${sessionId}`],
+        [itemId as string, personId, String(joining)]
+      )
+      if (result === 'session_not_found') {
+        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
+      if (result === 'invalid_session') {
+        return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+      }
+      return NextResponse.json({ ok: true })
+    }
+
     if (action === 'qty') {
       // CR-03: bounds check now lives inside QTY_CLAIM_SCRIPT (atomic with the write).
       // A pre-Lua GET + TS bounds check had a race window — two callers could both pass
