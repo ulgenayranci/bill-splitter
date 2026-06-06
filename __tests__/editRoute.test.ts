@@ -6,12 +6,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const mockGet = vi.fn()
 const mockSet = vi.fn()
+const mockEval = vi.fn()
 
 vi.mock('@upstash/redis', () => ({
   Redis: class {
     get = mockGet
     set = mockSet
-    eval = vi.fn()
+    eval = mockEval
     multi = vi.fn().mockReturnValue({ set: vi.fn(), exec: vi.fn() })
   },
 }))
@@ -20,6 +21,7 @@ beforeEach(() => {
   vi.resetModules()
   mockGet.mockReset()
   mockSet.mockReset()
+  mockEval.mockReset()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -216,5 +218,76 @@ describe('POST /api/session/[sessionId]/edit', () => {
       itemId: 'nonexistent-item',
     })
     expect(status).toBe(400)
+  })
+
+  // --- op: add_person ---
+  it('Test 11 (add_person ok): creates person atomically via Lua, returns 200 { ok:true, personId:<string> }; redis.eval called exactly once', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status, json } = await callPOST('test-session', {
+      op: 'add_person',
+      name: 'Carol',
+    })
+    expect(status).toBe(200)
+    const body = json as { ok: boolean; personId: string }
+    expect(body.ok).toBe(true)
+    expect(typeof body.personId).toBe('string')
+    expect(body.personId.length).toBeGreaterThan(0)
+    expect(mockEval).toHaveBeenCalledTimes(1)
+    // GET (redis.get) must NOT be called for add_person (Lua does the read internally)
+    expect(mockGet).not.toHaveBeenCalled()
+  })
+
+  it('Test 12 (add_person name empty): returns 400; eval NOT called', async () => {
+    const { status, json } = await callPOST('test-session', {
+      op: 'add_person',
+      name: '',
+    })
+    expect(status).toBe(400)
+    expect(typeof (json as { error: string }).error).toBe('string')
+    expect(mockEval).not.toHaveBeenCalled()
+  })
+
+  it('Test 13 (add_person name too long): name length 51 returns 400; eval NOT called', async () => {
+    const { status, json } = await callPOST('test-session', {
+      op: 'add_person',
+      name: 'A'.repeat(51),
+    })
+    expect(status).toBe(400)
+    expect(typeof (json as { error: string }).error).toBe('string')
+    expect(mockEval).not.toHaveBeenCalled()
+  })
+
+  it('Test 14 (add_person name trimmed): whitespace-padded name is trimmed before eval; ARGV[0] receives trimmed value', async () => {
+    mockEval.mockResolvedValue('OK')
+    await callPOST('test-session', {
+      op: 'add_person',
+      name: '  Carol  ',
+    })
+    expect(mockEval).toHaveBeenCalledTimes(1)
+    // eval is called as redis.eval(script, keys, args) — args[0] is trimmed name
+    const evalArgs = mockEval.mock.calls[0]
+    // evalArgs[2] is the ARGV array: [trimmedName, newPersonId]
+    const argv = evalArgs[2] as string[]
+    expect(argv[0]).toBe('Carol')
+  })
+
+  it('Test 15 (add_person session full): eval resolves "session_full" → 409', async () => {
+    mockEval.mockResolvedValue('session_full')
+    const { status, json } = await callPOST('test-session', {
+      op: 'add_person',
+      name: 'Extra',
+    })
+    expect(status).toBe(409)
+    expect(typeof (json as { error: string }).error).toBe('string')
+  })
+
+  it('Test 16 (add_person session not found): eval resolves "session_not_found" → 404', async () => {
+    mockEval.mockResolvedValue('session_not_found')
+    const { status, json } = await callPOST('test-session', {
+      op: 'add_person',
+      name: 'Ghost',
+    })
+    expect(status).toBe(404)
+    expect(typeof (json as { error: string }).error).toBe('string')
   })
 })
