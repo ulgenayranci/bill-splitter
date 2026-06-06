@@ -3,8 +3,12 @@
 // Phase 6 (D-13): Identity-only picker. Host is NOT pre-locked — host identity
 // derives from URL hostToken match in CollaborativeClaimingView, not from being
 // the first person in session.people. No 'taken by host' special treatment.
+// Phase 9 (IDENT-03): Added "I'm not listed" inline add form + opacity-50 fix.
 
+import { useState } from 'react'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
@@ -12,16 +16,22 @@ import type { PersonId } from '@/stores/useBillStore'
 interface PersonSlotPickerProps {
   session: PublicSessionPayload
   onSelect: (personId: PersonId) => void | Promise<void>
+  onAddPerson?: (name: string) => Promise<void>
 }
 
-export function PersonSlotPicker({ session, onSelect }: PersonSlotPickerProps) {
+export function PersonSlotPicker({ session, onSelect, onAddPerson }: PersonSlotPickerProps) {
   const slots = session.claims?.personSlots ?? {}
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newName, setNewName] = useState('')
+
+  const handleAddMe = () => {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    onAddPerson?.(trimmed)
+  }
+
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
-      <div>
-        <h1 className="text-[20px] font-semibold leading-[1.2]">Who are you?</h1>
-        <p className="mt-1 text-[16px] text-zinc-500">Pick your name from the list below.</p>
-      </div>
+    <div className="flex flex-col gap-6">
       <ul className="grid grid-cols-2 gap-3">
         {session.people.map((person) => {
           const taken = slots[person.id] === true
@@ -34,7 +44,7 @@ export function PersonSlotPicker({ session, onSelect }: PersonSlotPickerProps) {
                 onClick={taken ? undefined : () => onSelect(person.id)}
                 className={[
                   'flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 transition-opacity',
-                  taken ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
+                  taken ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
                 ].join(' ')}
               >
                 <div
@@ -52,6 +62,34 @@ export function PersonSlotPicker({ session, onSelect }: PersonSlotPickerProps) {
           )
         })}
       </ul>
+
+      {!showAddForm && (
+        <button
+          type="button"
+          onClick={() => setShowAddForm(true)}
+          className="text-[14px] text-amber-600 underline self-start"
+        >
+          I&apos;m not listed
+        </button>
+      )}
+
+      {showAddForm && (
+        <div className="flex flex-col gap-2">
+          <Input
+            placeholder="Your name"
+            maxLength={50}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <Button
+            type="button"
+            className="bg-amber-600 hover:bg-amber-700"
+            onClick={handleAddMe}
+          >
+            Add me
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
