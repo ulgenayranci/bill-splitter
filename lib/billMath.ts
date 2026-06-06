@@ -124,3 +124,34 @@ export function computePersonShareFromClaims(
     lineItems,
   }
 }
+
+/**
+ * Equal share in cents for one sharer, using largest-remainder.
+ *
+ * Guarantees: sum of computeEqualShareCents(p, n, 0..n-1) === priceCents exactly.
+ * No floating-point splits: integer division + remainder distribution avoids any
+ * rounding loss that Math.round would introduce on 3-way or other uneven splits.
+ *
+ * Determinism rule: the CALLER must sort claimant personIds lexicographically
+ * ascending before assigning myIndex. The lowest personId (index 0) gets the extra
+ * cent when the price doesn't divide evenly — this is stable across all devices and
+ * renders because personId order is consistent (Phase 9, Critical Decision C).
+ *
+ * Only for single-qty tap-to-join items (D-13). Multi-qty proportional splits use
+ * computePersonShareFromClaims instead.
+ *
+ * @param priceCents  Full line price in integer cents.
+ * @param numSharers  Total number of people sharing this item (>= 1).
+ * @param myIndex     0-based index of this sharer in sorted claimant list.
+ * @returns           This person's share in integer cents.
+ */
+export function computeEqualShareCents(
+  priceCents: number,
+  numSharers: number,
+  myIndex: number
+): number {
+  if (numSharers <= 0) return 0
+  const base = Math.floor(priceCents / numSharers)
+  const remainder = priceCents % numSharers
+  return base + (myIndex < remainder ? 1 : 0)
+}

@@ -6,6 +6,7 @@ import {
   computeTipCents,
   computePersonTotals,
   computePersonShareFromClaims,
+  computeEqualShareCents,
 } from '@/lib/billMath'
 import type { Item, Person } from '@/stores/useBillStore'
 
@@ -211,5 +212,43 @@ describe('computePersonShareFromClaims', () => {
     const r = computePersonShareFromClaims('p1', items, claims, 200)
     expect(r.total).toBe(r.itemSubtotal + r.tip)
     expect(r.total).toBe(1200)
+  })
+})
+
+describe('computeEqualShareCents', () => {
+  it('2-way split of 1000: index 0 → 500, index 1 → 500', () => {
+    expect(computeEqualShareCents(1000, 2, 0)).toBe(500)
+    expect(computeEqualShareCents(1000, 2, 1)).toBe(500)
+  })
+
+  it('3-way split of 1000: index 0 → 334 (gets remainder), index 1 → 333, index 2 → 333', () => {
+    expect(computeEqualShareCents(1000, 3, 0)).toBe(334)
+    expect(computeEqualShareCents(1000, 3, 1)).toBe(333)
+    expect(computeEqualShareCents(1000, 3, 2)).toBe(333)
+  })
+
+  it('3-way split of 1000: sum over all indices equals 1000 exactly (sum conservation)', () => {
+    const sum = [0, 1, 2].reduce((acc, idx) => acc + computeEqualShareCents(1000, 3, idx), 0)
+    expect(sum).toBe(1000)
+  })
+
+  it('general sum conservation: reduce over all indices always equals priceCents', () => {
+    const cases: Array<[number, number]> = [
+      [999, 4],
+      [1001, 3],
+      [500, 7],
+      [10000, 6],
+      [1, 3],
+    ]
+    for (const [priceCents, numSharers] of cases) {
+      const sum = Array.from({ length: numSharers }, (_, i) => computeEqualShareCents(priceCents, numSharers, i))
+        .reduce((acc, v) => acc + v, 0)
+      expect(sum).toBe(priceCents)
+    }
+  })
+
+  it('numSharers <= 0 returns 0 (guard)', () => {
+    expect(computeEqualShareCents(1000, 0, 0)).toBe(0)
+    expect(computeEqualShareCents(1000, -1, 0)).toBe(0)
   })
 })
