@@ -5,8 +5,44 @@ import type { SessionPayload } from '@/lib/sessionSchema'
 
 export const maxDuration = 10
 
-const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity'] as const
+const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person'] as const
 type EditOp = (typeof VALID_OPS)[number]
+
+/**
+ * ADD_PERSON_SCRIPT: Atomically appends a new person to session.people and locks
+ * their identity slot in session.claims.personSlots in a single redis.eval call.
+ * Prevents the append race (Pitfall 2) where two concurrent "I'm not listed" requests
+ * both read the same people[] and overwrite each other.
+ *
+ * ARGV[1] = trimmed name
+ * ARGV[2] = newPersonId (generated in TypeScript before eval; Lua has no nanoid)
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'session_full'
+ *
+ * Lua field paths use only current flat-schema fields confirmed in lib/sessionSchema.ts.
+ * No stale v1 host-role fields referenced (Pitfall 4 audit — flat schema only).
+ */
+const ADD_PERSON_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok then return 'invalid_session' end
+
+local name = ARGV[1]
+local newPersonId = ARGV[2]
+
+if not session.people then session.people = {} end
+if not session.claims then session.claims = {} end
+if not session.claims.personSlots then session.claims.personSlots = {} end
+
+if #session.people >= 20 then return 'session_full' end
+
+local colorIndex = #session.people % 6
+table.insert(session.people, { id = newPersonId, name = name, colorIndex = colorIndex })
+session.claims.personSlots[newPersonId] = true
+
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
 
 /**
  * Validate and normalize the incoming body for each op.
@@ -18,6 +54,18 @@ function validateOp(
   b: Record<string, unknown>,
   session: SessionPayload
 ): { ok: true } | { ok: false; error: string } {
+  if (op === 'add_person') {
+    // V5 input validation: name must be a non-empty string after trim, max 50 chars (T-09-04)
+    if (typeof b.name !== 'string')
+      return { ok: false, error: 'Invalid add_person: name must be a string' }
+    const trimmed = b.name.trim()
+    if (trimmed.length === 0)
+      return { ok: false, error: 'Invalid add_person: name must be a non-empty string' }
+    if (trimmed.length > 50)
+      return { ok: false, error: 'Invalid add_person: name must be 50 characters or fewer' }
+    return { ok: true }
+  }
+
   if (op === 'add') {
     if (typeof b.name !== 'string' || b.name.length === 0)
       return { ok: false, error: 'Invalid add: name must be a non-empty string' }
@@ -89,6 +137,38 @@ export async function POST(
 
   if (typeof op !== 'string' || !(VALID_OPS as readonly string[]).includes(op)) {
     return NextResponse.json({ error: 'Invalid op' }, { status: 400 })
+  }
+
+  // add_person: validate name, then run ADD_PERSON_SCRIPT atomically via Lua.
+  // This branch runs BEFORE the GET→mutate→SET path to avoid the append race (Pitfall 2 / T-09-06).
+  if (op === 'add_person') {
+    const nameRaw = typeof b.name === 'string' ? b.name : ''
+    const trimmedName = nameRaw.trim()
+
+    // Reuse validateOp for consistent validation messaging (V5 / T-09-04)
+    const validation = validateOp('add_person', b, {} as SessionPayload)
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+
+    try {
+      const newPersonId = nanoid()
+      const result = await redis.eval(ADD_PERSON_SCRIPT, [`session:${sessionId}`], [trimmedName, newPersonId])
+      if (result === 'session_not_found') {
+        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
+      if (result === 'session_full') {
+        return NextResponse.json({ error: 'Session is full (max 20 people)' }, { status: 409 })
+      }
+      if (result === 'invalid_session') {
+        return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+      }
+      // result === 'OK'
+      return NextResponse.json({ ok: true, personId: newPersonId })
+    } catch (err) {
+      console.error('Edit error:', err)
+      return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
+    }
   }
 
   try {
