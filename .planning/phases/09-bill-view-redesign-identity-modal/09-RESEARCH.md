@@ -610,7 +610,7 @@ function getUnclaimedCounts(session: SessionPayload): { unclaimed: number; total
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should WaitingForClaimsScreen be deleted or kept as dead code?**
    - What we know: Component is 19 lines; removing its only render site is a Phase 9 change; no tests directly exercise it
