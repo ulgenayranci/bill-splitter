@@ -116,4 +116,70 @@ describe('POST /api/session/[sessionId]/claim', () => {
     const { status } = await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: -1 })
     expect(status).toBe(400)
   })
+
+  it('Test 8 (share join): POST { action:"share", joining:true } → 200 { ok:true }; ARGV=[itemId, personId, "true"]', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status, json } = await callPOSTWithParams('test-session', {
+      personId: 'p1',
+      itemId: 'i1',
+      action: 'share',
+      joining: true,
+    })
+    expect(status).toBe(200)
+    expect((json as { ok: boolean }).ok).toBe(true)
+    expect(mockEval).toHaveBeenCalledTimes(1)
+    const [script, keys, args] = mockEval.mock.calls[0]
+    expect(typeof script).toBe('string')
+    expect(script).toContain('cjson.decode') // Lua script contains JSON decode (shared pattern)
+    expect(script).not.toContain('totalClaimed') // SHARE_CLAIM_SCRIPT has no bounds check (no totalClaimed)
+    expect(keys).toEqual(['session:test-session'])
+    expect(args).toEqual(['i1', 'p1', 'true'])
+  })
+
+  it('Test 9 (share leave): POST { action:"share", joining:false } → 200; ARGV third element is "false"', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status, json } = await callPOSTWithParams('test-session', {
+      personId: 'p1',
+      itemId: 'i1',
+      action: 'share',
+      joining: false,
+    })
+    expect(status).toBe(200)
+    expect((json as { ok: boolean }).ok).toBe(true)
+    const [, , args] = mockEval.mock.calls[0]
+    expect(args[2]).toBe('false')
+  })
+
+  it('Test 10 (share validation): action:"share" without boolean joining → 400', async () => {
+    const { status } = await callPOSTWithParams('test-session', {
+      personId: 'p1',
+      itemId: 'i1',
+      action: 'share',
+      // joining omitted → invalid
+    })
+    expect(status).toBe(400)
+  })
+
+  it('Test 11 (share session not found): eval resolves "session_not_found" → 404', async () => {
+    mockEval.mockResolvedValue('session_not_found')
+    const { status, json } = await callPOSTWithParams('test-session', {
+      personId: 'p1',
+      itemId: 'i1',
+      action: 'share',
+      joining: true,
+    })
+    expect(status).toBe(404)
+    expect((json as { error: string }).error).toBe('session_not_found')
+  })
+
+  it('Test 12 (share invalid session): eval resolves "invalid_session" → 500', async () => {
+    mockEval.mockResolvedValue('invalid_session')
+    const { status } = await callPOSTWithParams('test-session', {
+      personId: 'p1',
+      itemId: 'i1',
+      action: 'share',
+      joining: true,
+    })
+    expect(status).toBe(500)
+  })
 })
