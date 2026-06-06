@@ -1,10 +1,11 @@
 ---
 phase: 9
 slug: bill-view-redesign-identity-modal
-status: draft
+status: approved
 shadcn_initialized: true
 preset: base-nova
 created: 2026-06-06
+reviewed_at: 2026-06-06
 ---
 
 # Phase 9 — UI Design Contract
@@ -54,7 +55,7 @@ Exceptions:
 |------|------|--------|-------------|-------|
 | Display | 20px | 600 (semibold) | 1.2 | Bill title ("Bill — Jun 26") in BillViewHeader; identity modal heading ("Who are you?") |
 | Body | 16px | 400 (regular) | 1.5 | Item names, identity modal subtext, banner body copy, claimant names in shared-with row |
-| Label | 14px | 400 (regular) | 1.5 | Item prices, "X of N claimed", overflow chip "+N", date line below bill title, "(taken)" suffix |
+| Label | 14px | 400 (regular) | 1.5 | Item prices, "X of N claimed", overflow chip "+N", date line below bill title, "(taken)" suffix, "Your share" line, overflow badge "+N" |
 | Micro | 11px | 600 (semibold) | 1.0 | Avatar chip initials (fixed: all-caps single character) |
 
 Source: Extracted from existing `ClaimableItemCard.tsx` (`text-[16px]`, `text-[14px]`), `PersonSlotPicker.tsx` (`text-[20px] font-semibold`, `text-[16px]`). Micro is existing chip size.
@@ -129,7 +130,7 @@ Matches `09-design-bill-view-header.png` exactly.
 |---------|------|
 | Own-identity pill | `h-8 rounded-full bg-amber-50 border border-amber-400 flex items-center gap-2 px-3` — avatar circle on left (32×32, own AVATAR_COLOR, white initial) + name text at `text-[14px] font-semibold text-zinc-900` |
 | Other-person circle | `h-8 w-8 rounded-full` in that person's AVATAR_COLOR, white initial at `text-[11px] font-semibold`, no label |
-| Overflow badge | `+N` text at `text-[13px] font-semibold text-zinc-500` in a `h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center` |
+| Overflow badge | `+N` text at `text-[14px] font-semibold text-zinc-500` in a `h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center` |
 | Strip container | `flex items-center gap-2 cursor-pointer` (entire strip is tappable — D-03) |
 | Max visible (others) | 3 other people shown before +N |
 | Tap behavior | Entire strip opens identity modal (change identity — D-03) |
@@ -145,8 +146,8 @@ Header right icons (receipt + share):
 
 | Element | Spec |
 |---------|------|
-| Receipt icon | `lucide-react Receipt` at `size={22}`, `text-zinc-500`, tappable (opens bill photo lightbox if photo exists — planner decides; icon is present regardless) |
-| Share icon | `lucide-react Share2` at `size={22}`, `text-zinc-500`, tappable (triggers `ShareLinkButton` share action — D-11) |
+| Receipt icon | `lucide-react Receipt` at `size={22}`, `text-zinc-500`, tappable (opens bill photo lightbox if photo exists — planner decides; icon is present regardless), `aria-label="View receipt"` |
+| Share icon | `lucide-react Share2` at `size={22}`, `text-zinc-500`, tappable (triggers `ShareLinkButton` share action — D-11), `aria-label="Share bill link"` |
 | Container | `flex items-center gap-3 ml-auto` |
 
 ---
@@ -230,13 +231,13 @@ Matches D-05 through D-08.
 | Initial | First letter of name, `text-[11px] font-semibold text-white`, uppercase |
 | My chip label | "Y" (for "You") with `ring-2 ring-amber-600 ring-offset-1` |
 | Max visible | 3 chips before "+N" (reduced from current `MAX_VISIBLE_AVATARS = 5` — D-07) |
-| Overflow | `text-[13px] text-zinc-400` "+N" |
+| Overflow | `text-[14px] text-zinc-400` "+N" |
 
 ### "Your share" line (D-15)
 
 Shown below the chip row when current user has joined a shared single item.
 - Copy: `"your share: $X.XX"` (lowercase, uses `formatCents` with `computeEqualShareCents` result)
-- Style: `text-[13px] text-zinc-500 mt-1`
+- Style: `text-[14px] text-zinc-500 mt-1`
 
 ---
 
@@ -262,6 +263,8 @@ Shown below the chip row when current user has joined a shared single item.
 | Bill title fallback | "Bill — {Mon DD}" (e.g. "Bill — Jun 26"; no merchant name available) |
 | Single item claim | `aria-label`: "Claim {item name}" / "Un-claim {item name}" |
 | Accessibility label (people strip) | `aria-label="People — tap to change identity"` |
+| Receipt icon (icon-only) | `aria-label="View receipt"` |
+| Share icon (icon-only) | `aria-label="Share bill link"` |
 
 ### Destructive and Warning Actions
 
