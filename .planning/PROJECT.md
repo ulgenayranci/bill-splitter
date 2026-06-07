@@ -133,6 +133,6 @@ This document evolves at phase transitions and milestone boundaries.
 
 **v1.0 MVP shipped (2026-06-04)** — the full photo → OCR → AI-cleaned items → collaborative per-person claiming → per-person tips → results flow is live on Vercel. ~6,270 LOC TS/TSX across 6 phases. Stack: Next.js 16, React 19, Tailwind v4, shadcn/ui, Zustand, Upstash Redis, GPT-4o-mini vision.
 
-**v2.0 easy-billsy redesign in progress** — clarity-driven rebuild (flat model, scan-first flow). Phase 7 (App Shell + Setup) and Phase 8 (Flat Model — Schema + API Surgery) complete: all host-role concepts removed from the schema, Lua scripts, and routes; the direct `/edit` route is live; `currencyCode` now rides the shared-bill payload (USD default). Next: Phase 9 — Bill View Redesign + Identity Modal.
+**v2.0 easy-billsy redesign in progress** — clarity-driven rebuild (flat model, scan-first flow). Phases 7–9 complete: all host-role concepts removed from the schema, Lua scripts, and routes; the direct `/edit` route is live; `currencyCode` rides the shared-bill payload (USD default). Phase 9 delivered the fully flat collaborative Bill View: "Who are you?" identity modal (auto-show, localStorage restore, change-identity, "I'm not listed" add_person), tap-to-join equal splits via the `share` claim action, live attribution chips, BillViewHeader + UnclaimedBanner chrome, and the warn-but-allow done flow (blocking waiting screen removed). 6 human UAT items pending (09-HUMAN-UAT.md). Next: Phase 10 — Results Screen + Tip Modal + Currency Display.
 
-*Last updated: 2026-06-06 after Phase 8*
+*Last updated: 2026-06-07 after Phase 9*
