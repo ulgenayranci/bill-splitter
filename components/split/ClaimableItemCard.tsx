@@ -35,16 +35,18 @@ export function ClaimableItemCard({
   const mine = myQty > 0
 
   // All claimants with qty > 0 — current user first, then others
+  // WR-03: guard entry?.qty everywhere — a null entry in claimsForItem would otherwise crash
+  // this component, blanking the entire bill view (it renders once per item in a list).
   const allClaimantEntries = [
-    ...Object.entries(claimsForItem).filter(([pid, entry]) => pid === myPersonId && entry.qty > 0),
-    ...Object.entries(claimsForItem).filter(([pid, entry]) => pid !== myPersonId && entry.qty > 0),
+    ...Object.entries(claimsForItem).filter(([pid, entry]) => pid === myPersonId && (entry?.qty ?? 0) > 0),
+    ...Object.entries(claimsForItem).filter(([pid, entry]) => pid !== myPersonId && (entry?.qty ?? 0) > 0),
   ]
   const visibleClaimants = allClaimantEntries.slice(0, MAX_VISIBLE_AVATARS)
   const overflowCount = Math.max(0, allClaimantEntries.length - MAX_VISIBLE_AVATARS)
 
   // Total qty claimed across everyone — for "X of N claimed" display on multi-qty items
   const totalClaimedQty = Object.values(claimsForItem).reduce(
-    (sum, entry) => sum + entry.qty,
+    (sum, entry) => sum + (entry?.qty ?? 0),
     0
   )
 
