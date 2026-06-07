@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -94,6 +94,12 @@ export function CollaborativeClaimingView({
     revalidateOnFocus: false,
   })
 
+  // WR-06: one-shot guard for the identity-restore effect. Using a ref (instead of an
+  // eslint-disable that omits selectedPersonId from deps) ensures the restore/modal-trigger
+  // runs exactly once on the session's first arrival, not on every 3s refreshInterval poll
+  // while selectedPersonId is still null.
+  const restoreAttempted = useRef(false)
+
   // Persist guest's chosen identity to localStorage so page refresh can restore it (IDENT-04).
   // The key is scoped to the sessionId so multiple sessions don't interfere.
   useEffect(() => {
@@ -111,7 +117,11 @@ export function CollaborativeClaimingView({
   // server; otherwise open the Who-are-you modal.
   useEffect(() => {
     if (!session) return
-    if (selectedPersonId !== null) return // already have identity
+    // WR-06: run once on first session arrival. The ref (not an exhaustive-deps suppression)
+    // prevents re-running on every refreshInterval poll while no identity is selected, which
+    // previously re-read localStorage and could re-open the modal on each poll tick.
+    if (restoreAttempted.current) return
+    restoreAttempted.current = true
 
     let stored: string | null = null
     try {
@@ -126,8 +136,6 @@ export function CollaborativeClaimingView({
     } else {
       setIdentityModalOpen(true) // no (valid) stored identity — show modal
     }
-    // selectedPersonId intentionally not in deps — only fire on session load while unset.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, sessionId])
 
   const peopleById = useMemo<Record<PersonId, Person>>(() => {
@@ -429,29 +437,38 @@ export function CollaborativeClaimingView({
         const newQty = Math.max(1, Math.min(99, parseInt(inlineForm.qty, 10) || 1))
         const qtyChanged = String(newQty) !== inlineForm.originalQty
         if (!nameChanged && !priceChanged && !qtyChanged) { setInlineForm(null); return }
-        if (nameChanged) {
+
+        // WR-01: these are three independent POSTs (the server has no combined op). If a later
+        // one fails after an earlier one committed, the earlier change is already persisted.
+        // Track what actually saved so we can (a) re-sync the UI to server truth via mutate()
+        // and (b) report which fields did NOT save, instead of a misleading "nothing saved".
+        const saved: string[] = []
+        const failed: string[] = []
+        const sendOp = async (op: string, extra: Record<string, unknown>, label: string) => {
           const r = await fetch(`/api/session/${sessionId}/edit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ op: 'edit_name', itemId: inlineForm.itemId, newName: trimmedName }),
+            body: JSON.stringify({ op, itemId: inlineForm.itemId, ...extra }),
           })
-          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
+          if (r.ok) saved.push(label)
+          else failed.push(label)
+          return r.ok
         }
-        if (priceChanged) {
-          const r = await fetch(`/api/session/${sessionId}/edit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ op: 'edit_price', itemId: inlineForm.itemId, newPriceCents }),
-          })
-          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
-        }
-        if (qtyChanged) {
-          const r = await fetch(`/api/session/${sessionId}/edit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ op: 'edit_quantity', itemId: inlineForm.itemId, newQuantity: newQty }),
-          })
-          if (!r.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
+
+        if (nameChanged) await sendOp('edit_name', { newName: trimmedName }, 'name')
+        // Continue attempting the remaining fields even if one failed, so the partial-failure
+        // report is complete and a transient single-field error doesn't silently skip the rest.
+        if (priceChanged) await sendOp('edit_price', { newPriceCents }, 'price')
+        if (qtyChanged) await sendOp('edit_quantity', { newQuantity: newQty }, 'quantity')
+
+        if (failed.length > 0) {
+          // Re-sync to server truth so the form/list reflects what actually persisted.
+          await mutate()
+          const savedMsg = saved.length > 0 ? ` Saved: ${saved.join(', ')}.` : ''
+          setInlineForm((f) =>
+            f ? { ...f, error: `Couldn't save ${failed.join(', ')} — try again.${savedMsg}` } : f
+          )
+          return
         }
       }
       await mutate()
