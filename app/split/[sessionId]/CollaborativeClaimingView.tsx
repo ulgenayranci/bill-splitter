@@ -5,17 +5,25 @@ import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Check, X, Plus, Pencil } from 'lucide-react'
-import { AVATAR_COLORS } from '@/stores/useBillStore'
-import { parseCents, formatCents } from '@/lib/billMath'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Check, X, Plus, Pencil, Share2 } from 'lucide-react'
+import { parseCents } from '@/lib/billMath'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
-import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
+import { IdentityModal } from '@/components/split/IdentityModal'
+import { BillViewHeader } from '@/components/split/BillViewHeader'
+import { UnclaimedBanner } from '@/components/split/UnclaimedBanner'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
-import { WaitingForClaimsScreen } from '@/components/split/WaitingForClaimsScreen'
 import { computePersonShareFromClaims } from '@/lib/billMath'
 
 type InlineForm =
@@ -41,22 +49,23 @@ interface CollaborativeClaimingViewProps {
   sessionId: string
 }
 
-type Phase = 'claiming' | 'tip' | 'waiting' | 'results'
+type Phase = 'claiming' | 'tip' | 'results'
 
-function allItemsFullyClaimed(session: SessionPayload): boolean {
-  return session.items.every((item) => {
-    const total = Object.values(session.claims?.items?.[item.id] ?? {})
-      .reduce((sum, e) => sum + (e?.qty ?? 0), 0)
-    return total >= (item.quantity ?? 1)
-  })
+/** Count items whose total claimed qty is below their quantity (mirrors UnclaimedBanner). */
+function getUnclaimedCounts(session: SessionPayload): { unclaimed: number; total: number } {
+  let unclaimed = 0
+  for (const item of session.items) {
+    const entries = session.claims?.items?.[item.id] ?? {}
+    const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
+    if (totalClaimed < (item.quantity ?? 1)) unclaimed++
+  }
+  return { unclaimed, total: session.items.length }
 }
 
-/** Derive which phase a returning guest should land on based on persisted server state. */
+/** Derive which phase a returning guest should land on based on persisted server state.
+ *  D-12: no 'waiting' branch — results are reachable regardless of unclaimed items. */
 function derivePhase(personId: PersonId, session: SessionPayload): Phase {
-  if (session.tips?.[personId] !== undefined) {
-    if (!allItemsFullyClaimed(session)) return 'waiting'
-    return 'results'
-  }
+  if (session.tips?.[personId] !== undefined) return 'results'
   if (session.claims?.donePeople?.[personId]) {
     return 'tip'
   }
@@ -71,13 +80,21 @@ export function CollaborativeClaimingView({
   const [doneError, setDoneError] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('claiming')
 
+  // Identity modal state (IDENT-01/03): changingIdentity controls dismissibility.
+  const [identityModalOpen, setIdentityModalOpen] = useState(false)
+  const [changingIdentity, setChangingIdentity] = useState(false)
+
+  // Warn-but-allow done flow (D-09): dialog open state.
+  const [showUnclaimedWarning, setShowUnclaimedWarning] = useState(false)
+  const [warningLinkCopied, setWarningLinkCopied] = useState(false)
+
   const swrKey = `/api/session/${sessionId}`
   const { data: session, error, mutate } = useSWR<SessionPayload>(swrKey, fetcher, {
     refreshInterval: 3000,
     revalidateOnFocus: false,
   })
 
-  // Persist guest's chosen slot to localStorage so page refresh can restore it.
+  // Persist guest's chosen identity to localStorage so page refresh can restore it (IDENT-04).
   // The key is scoped to the sessionId so multiple sessions don't interfere.
   useEffect(() => {
     if (selectedPersonId !== null) {
@@ -89,12 +106,12 @@ export function CollaborativeClaimingView({
     }
   }, [selectedPersonId, sessionId])
 
-  // Auto-restore guest slot on mount: when session data loads and the guest
-  // hasn't selected a slot yet, check localStorage for a previously stored personId.
-  // If the slot is still claimed by that person on the server, restore the personId and phase.
+  // Identity restore / modal trigger (IDENT-01/02): when session loads and no identity
+  // is selected, restore from localStorage if the stored slot is still locked on the
+  // server; otherwise open the Who-are-you modal.
   useEffect(() => {
-    if (selectedPersonId !== null) return        // already selected
-    if (!session) return                         // session not loaded yet
+    if (!session) return
+    if (selectedPersonId !== null) return // already have identity
 
     let stored: string | null = null
     try {
@@ -102,21 +119,16 @@ export function CollaborativeClaimingView({
     } catch {
       // localStorage unavailable — cannot restore
     }
-    if (!stored) return
 
-    // Only restore if the server confirms this slot is taken (i.e. the claim is durable)
-    if (session.claims?.personSlots?.[stored] === true) {
+    if (stored && session.claims?.personSlots?.[stored] === true) {
       setSelectedPersonId(stored as PersonId)
       setPhase(derivePhase(stored as PersonId, session))
+    } else {
+      setIdentityModalOpen(true) // no (valid) stored identity — show modal
     }
-  }, [selectedPersonId, session, sessionId])
-
-  // Auto-advance from waiting once SWR polling detects all items are claimed.
-  useEffect(() => {
-    if (phase === 'waiting' && session && selectedPersonId && allItemsFullyClaimed(session)) {
-      setPhase('results')
-    }
-  }, [phase, session, selectedPersonId])
+    // selectedPersonId intentionally not in deps — only fire on session load while unset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, sessionId])
 
   const peopleById = useMemo<Record<PersonId, Person>>(() => {
     if (!session) return {}
@@ -144,6 +156,40 @@ export function CollaborativeClaimingView({
       const data = (await res.json()) as { ok: boolean; reason?: string }
       if (data.ok) {
         setSelectedPersonId(personId)
+        setIdentityModalOpen(false)
+        setChangingIdentity(false)
+      } else {
+        await mutate()
+      }
+    } catch {
+      await mutate()
+    }
+  }
+
+  // IDENT-03: "I'm not listed" — create a person via /edit add_person and adopt that identity.
+  async function handleAddPerson(name: string) {
+    try {
+      const res = await fetch(`/api/session/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'add_person', name }),
+      })
+      if (!res.ok) {
+        await mutate()
+        return
+      }
+      const data = (await res.json()) as { ok: boolean; personId?: string }
+      if (data.ok && data.personId) {
+        // Refresh session first so the new person exists locally before we adopt the identity.
+        await mutate()
+        setSelectedPersonId(data.personId as PersonId)
+        try {
+          localStorage.setItem(`split:${sessionId}:personId`, data.personId)
+        } catch {
+          // private browsing — ignore
+        }
+        setIdentityModalOpen(false)
+        setChangingIdentity(false)
       } else {
         await mutate()
       }
@@ -207,7 +253,77 @@ export function CollaborativeClaimingView({
     }
   }
 
-  async function handleDone() {
+  // CLAIM-02 (D-13): tap-to-join/leave a single-qty item via the bounds-check-free share action.
+  // Mirrors handleQtyChange's optimistic mutate + rollbackOnError.
+  async function handleShareChange(itemId: ItemId, joining: boolean) {
+    if (!selectedPersonId || !session) return
+    const personId = selectedPersonId
+
+    const claimsForItem = { ...(session.claims?.items?.[itemId] ?? {}) }
+    if (joining) {
+      claimsForItem[personId] = { qty: 1 }
+    } else {
+      delete claimsForItem[personId]
+    }
+    const nextItems: SessionPayload['claims']['items'] = { ...session.claims?.items }
+    if (Object.keys(claimsForItem).length === 0) {
+      delete nextItems[itemId]
+    } else {
+      nextItems[itemId] = claimsForItem
+    }
+    const optimistic: SessionPayload = {
+      ...session,
+      claims: {
+        items: nextItems,
+        personSlots: session.claims?.personSlots ?? {},
+        donePeople: session.claims?.donePeople ?? {},
+      },
+    }
+
+    try {
+      await mutate(
+        async () => {
+          const res = await fetch(`/api/session/${sessionId}/claim`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ personId, itemId, action: 'share', joining }),
+          })
+          if (!res.ok) throw new Error('share_failed')
+          return fetcher(swrKey)
+        },
+        {
+          optimisticData: optimistic,
+          rollbackOnError: true,
+          revalidate: true,
+        }
+      )
+      setItemErrors((prev) => {
+        if (!prev[itemId]) return prev
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
+    } catch (err) {
+      setItemErrors((prev) => ({ ...prev, [itemId]: claimErrorMessage(err, 'save') }))
+    }
+  }
+
+  // D-10: scroll the first unclaimed item into view (banner tap target).
+  function scrollToFirstUnclaimed() {
+    if (!session) return
+    const first = session.items.find((item) => {
+      const entries = session.claims?.items?.[item.id] ?? {}
+      const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
+      return totalClaimed < (item.quantity ?? 1)
+    })
+    if (first) {
+      document.getElementById(`item-${first.id}`)?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  // The original done submission — runs directly when everything is claimed,
+  // or via "Continue anyway" from the unclaimed warning dialog (D-12).
+  async function submitDone() {
     if (!selectedPersonId || !session) return
     setDoneError(null)
     try {
@@ -222,6 +338,46 @@ export function CollaborativeClaimingView({
     } catch (err) {
       console.error('Done submission failed:', err)
       setDoneError(claimErrorMessage(err, 'submit'))
+    }
+  }
+
+  // D-09: warn-but-allow — with unclaimed items, open the warning dialog instead of advancing.
+  async function handleDone() {
+    if (!selectedPersonId || !session) return
+    const { unclaimed } = getUnclaimedCounts(session)
+    if (unclaimed > 0) {
+      setShowUnclaimedWarning(true)
+      return
+    }
+    await submitDone()
+  }
+
+  // D-11: share-link CTA inside the warning dialog (same link semantics as the header icon).
+  async function handleWarningShare() {
+    const origin =
+      typeof window !== 'undefined'
+        ? process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+        : ''
+    const url = `${origin}/split/${sessionId}`
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ url, title: 'Split the bill' })
+        setWarningLinkCopied(true)
+        setTimeout(() => setWarningLinkCopied(false), 2000)
+        return
+      } catch {
+        // fall through
+      }
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(url)
+        setWarningLinkCopied(true)
+        setTimeout(() => setWarningLinkCopied(false), 2000)
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -331,11 +487,19 @@ export function CollaborativeClaimingView({
     }
   }
 
-  // No slot yet — show picker
+  // No identity yet — bill view is gated behind the Who-are-you modal (IDENT-01).
+  // The full-page PersonSlotPicker gate is gone; the modal overlays a blank shell.
   if (selectedPersonId === null) {
     return (
       <main className="mx-auto min-h-screen max-w-[480px] bg-background">
-        <PersonSlotPicker session={session} onSelect={handleSelect} />
+        <IdentityModal
+          open={identityModalOpen}
+          allowClose={false}
+          session={session}
+          onSelect={handleSelect}
+          onAddPerson={handleAddPerson}
+          onOpenChange={setIdentityModalOpen}
+        />
       </main>
     )
   }
@@ -357,33 +521,34 @@ export function CollaborativeClaimingView({
         sessionId={sessionId}
         personId={selectedPersonId}
         itemSubtotalCents={personalShare.itemSubtotal}
-        onTipConfirmed={() => setPhase(allItemsFullyClaimed(session) ? 'results' : 'waiting')}
+        onTipConfirmed={() => setPhase('results')}
         onBack={() => void handleBackToClaiming()}
         mutate={mutate}
       />
     )
   }
 
-  if (phase === 'waiting') {
-    return <WaitingForClaimsScreen />
-  }
-
   if (phase === 'results') {
     return <PersonResultsScreen session={session} personId={selectedPersonId} onBack={() => setPhase('tip')} />
   }
 
+  const { unclaimed: unclaimedCount } = getUnclaimedCounts(session)
+
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
-      {/* Sticky header */}
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-6">
-        <div
-          className={`flex h-8 w-8 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[me.colorIndex % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
-          aria-hidden="true"
-        >
-          {me.name.charAt(0).toUpperCase()}
-        </div>
-        <h1 className="text-[20px] font-semibold">Hi, {me.name}!</h1>
-      </header>
+      {/* Bill View chrome: header (title/date, people strip, receipt + share icons) */}
+      <BillViewHeader
+        session={session}
+        myPersonId={selectedPersonId}
+        onStripTap={() => {
+          setChangingIdentity(true)
+          setIdentityModalOpen(true)
+        }}
+        sessionId={sessionId}
+      />
+
+      {/* Live unclaimed counter — hidden when everything is claimed (CLAIM-05 / D-10) */}
+      <UnclaimedBanner session={session} onTap={scrollToFirstUnclaimed} />
 
       {/* Item list */}
       <ul className="flex flex-col gap-2 px-6 py-4 pb-[160px]">
@@ -391,8 +556,9 @@ export function CollaborativeClaimingView({
           const claimsForItem = session.claims?.items?.[item.id] ?? {}
           const isEditing = inlineForm?.kind === 'edit' && inlineForm.itemId === item.id
           const originalPrice = (item.priceCents / 100).toFixed(2)
+          const isSingleQty = (item.quantity ?? 1) <= 1
           return (
-            <li key={item.id} className="flex flex-col gap-1">
+            <li key={item.id} id={`item-${item.id}`} className="flex flex-col gap-1">
               {isEditing ? (
                 <Card className="flex flex-row items-start gap-2 px-4 py-3">
                   <div className="flex flex-1 flex-col gap-1">
@@ -449,6 +615,7 @@ export function CollaborativeClaimingView({
                       myPersonId={selectedPersonId}
                       peopleById={peopleById}
                       onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
+                      onShareChange={isSingleQty ? (joining) => handleShareChange(item.id, joining) : undefined}
                       errorMessage={itemErrors[item.id]}
                     />
                   </div>
@@ -555,6 +722,60 @@ export function CollaborativeClaimingView({
           I&rsquo;m done
         </Button>
       </div>
+
+      {/* Change-identity modal (D-03/IDENT-03): dismissible when an identity already exists */}
+      <IdentityModal
+        open={identityModalOpen}
+        allowClose={changingIdentity}
+        session={session}
+        onSelect={handleSelect}
+        onAddPerson={handleAddPerson}
+        onOpenChange={(open) => {
+          setIdentityModalOpen(open)
+          if (!open) setChangingIdentity(false)
+        }}
+      />
+
+      {/* Unclaimed warning dialog (D-09/D-11/D-12): warn-but-allow done flow */}
+      <Dialog open={showUnclaimedWarning} onOpenChange={setShowUnclaimedWarning}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="text-[20px] font-semibold leading-[1.2]">
+              {unclaimedCount} {unclaimedCount === 1 ? 'item' : 'items'} still unclaimed
+            </DialogTitle>
+            <DialogDescription className="text-[16px] text-zinc-500">
+              Totals will only reflect what&rsquo;s been claimed. Share the link so others can add their items.
+            </DialogDescription>
+          </DialogHeader>
+          <button
+            type="button"
+            aria-label="Share bill link"
+            onClick={() => void handleWarningShare()}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border text-[14px] text-zinc-700 hover:bg-zinc-50"
+          >
+            {warningLinkCopied ? <Check size={16} /> : <Share2 size={16} />}
+            {warningLinkCopied ? 'Link copied!' : 'Share bill link'}
+          </button>
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              onClick={() => {
+                setShowUnclaimedWarning(false)
+                void submitDone()
+              }}
+              className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+            >
+              Continue anyway
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowUnclaimedWarning(false)}
+              className="h-12 w-full"
+            >
+              Go back
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
