@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 import { CollaborativeClaimingView } from '@/app/split/[sessionId]/CollaborativeClaimingView'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
@@ -29,8 +29,20 @@ const SESSION_FIXTURE: SessionPayload = {
   createdAt: Date.now(),
 }
 
+/** All items fully claimed by p1 — slots left free so selectAlice can still pick. */
+const FULLY_CLAIMED_CLAIMS: SessionPayload['claims'] = {
+  items: {
+    i1: { p1: { qty: 1 } },
+    i2: { p1: { qty: 4 } },
+  },
+  personSlots: {},
+  donePeople: {},
+}
+
 describe('CollaborativeClaimingView', () => {
   beforeEach(() => {
+    localStorage.clear()
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
     useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
     mutateMock.mockResolvedValue(SESSION_FIXTURE)
   })
@@ -42,7 +54,8 @@ describe('CollaborativeClaimingView', () => {
   })
 
   /**
-   * selectAlice — renders the component and reaches Alice's claiming view by clicking her slot.
+   * selectAlice — renders the component and reaches Alice's claiming view by
+   * clicking her slot inside the identity modal.
    */
   async function selectAlice(opts: { session?: Partial<SessionPayload> } = {}) {
     const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
@@ -59,13 +72,13 @@ describe('CollaborativeClaimingView', () => {
 
     render(<CollaborativeClaimingView sessionId="s1" />)
     fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
-    await waitFor(() => expect(screen.getByText(/hi, alice/i)).toBeDefined())
+    await waitFor(() => expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined())
     return slotFetch
   }
 
-  it('Test 1: Shows PersonSlotPicker when no slot is selected', () => {
+  it('Test 1 (IDENT-01): with no stored identity, the Who-are-you modal shows with slot buttons', () => {
     render(<CollaborativeClaimingView sessionId="s1" />)
-    // PersonSlotPicker should render slot buttons
+    expect(screen.getByText('Who are you?')).toBeDefined()
     expect(screen.getByRole('button', { name: /claim slot alice/i })).toBeDefined()
     expect(screen.getByRole('button', { name: /claim slot bob/i })).toBeDefined()
   })
@@ -80,12 +93,13 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByTestId('host-panel-fab')).toBeNull()
   })
 
-  it('Test 4: Selecting slot shows claiming view with Hi, Alice!', async () => {
+  it('Test 4: Selecting slot closes the modal and shows the claiming view', async () => {
     await selectAlice()
-    expect(screen.getByText(/hi, alice/i)).toBeDefined()
+    expect(screen.queryByText('Who are you?')).toBeNull()
+    expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined()
   })
 
-  it('Test 5: handleQtyChange calls mutate with optimisticData (qty path)', async () => {
+  it('Test 5: handleShareChange calls mutate with optimisticData (single-qty tap)', async () => {
     await selectAlice()
     const qtyFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', qtyFetch)
@@ -100,19 +114,21 @@ describe('CollaborativeClaimingView', () => {
     expect(options.optimisticData).toBeDefined()
   })
 
-  it("Test 6 (flat model): I'm done jumps directly to TipScreen (no review branch)", async () => {
-    await selectAlice()
+  it("Test 6 (D-09 all-claimed): I'm done with zero unclaimed advances directly to TipScreen", async () => {
+    await selectAlice({ session: { claims: FULLY_CLAIMED_CLAIMS } })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
     await waitFor(() => {
       expect(screen.getByText('Add a tip?')).toBeDefined()
     })
+    // No warning dialog appeared
+    expect(screen.queryByText(/still unclaimed$/)).toBeNull()
   })
 
   // CR-04: POSTs done:false, not undone:true
   it('Test 7 (back from Tip): POSTs done:false and returns to claiming', async () => {
-    await selectAlice()
+    await selectAlice({ session: { claims: FULLY_CLAIMED_CLAIMS } })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
@@ -265,22 +281,23 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByText(/assigned by host/i)).toBeNull()
   })
 
-  // Previously the historically-failing Test 18 ("You're all set" path).
-  // The flat component should now pass this: claiming → done → TipScreen → confirmTip → PersonResultsScreen.
-  it('Test 18 (Confirm tip → Results): clicking Confirm tip transitions to PersonResultsScreen (You\'re all set)', async () => {
+  // D-12: previously this path could land on a blocking 'waiting' screen when items were
+  // unclaimed. Now: done (through the warning) → tip → Confirm tip → results, always.
+  it('Test 18 (D-12, Confirm tip → Results): with unclaimed items, Continue anyway → tip → Confirm tip lands on results (no waiting screen)', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    // Unclaimed items exist → warning dialog appears (D-09)
+    await waitFor(() => expect(screen.getByText(/still unclaimed/i)).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: /continue anyway/i }))
     await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
-    // Update mock so all items are claimed (allItemsFullyClaimed = true) so onTipConfirmed → 'results'
     useSWRMock.mockReturnValue({
       data: {
         ...SESSION_FIXTURE,
         claims: {
           items: {
             i1: { p1: { qty: 1 } },
-            i2: { p1: { qty: 4 } },
           },
           personSlots: { p1: true },
           donePeople: { p1: true },
@@ -296,5 +313,156 @@ describe('CollaborativeClaimingView', () => {
     await waitFor(() => {
       expect(screen.getByText(/You.?re all set/)).toBeDefined()
     })
+  })
+
+  // ——— Phase 9 identity modal tests (IDENT-01..04) ———
+
+  it('Test 19 (IDENT-02/04): valid stored personId restores identity, modal NOT shown', async () => {
+    localStorage.setItem('split:s1:personId', 'p2')
+    useSWRMock.mockReturnValue({
+      data: {
+        ...SESSION_FIXTURE,
+        claims: { items: {}, personSlots: { p2: true }, donePeople: {} },
+      },
+      error: undefined,
+      mutate: mutateMock,
+    })
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined())
+    expect(screen.queryByText('Who are you?')).toBeNull()
+  })
+
+  it('Test 20 (IDENT-02 edge): stored personId whose slot is gone → modal shown again', () => {
+    localStorage.setItem('split:s1:personId', 'p2')
+    // personSlots is empty — the stored slot is no longer locked on the server
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    expect(screen.getByText('Who are you?')).toBeDefined()
+  })
+
+  it('Test 21 (IDENT-04): chosen identity persists to localStorage', async () => {
+    await selectAlice()
+    expect(localStorage.getItem('split:s1:personId')).toBe('p1')
+  })
+
+  it("Test 22 (IDENT-03 add): I'm not listed → add_person POST, sets identity + localStorage, closes modal", async () => {
+    const addPersonFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, personId: 'p9' }),
+    })
+    vi.stubGlobal('fetch', addPersonFetch)
+    // Session including the soon-to-be-added person so the claiming view can render Charlie
+    useSWRMock.mockReturnValue({
+      data: {
+        ...SESSION_FIXTURE,
+        people: [...SESSION_FIXTURE.people, { id: 'p9', name: 'Charlie', colorIndex: 2 }],
+      },
+      error: undefined,
+      mutate: mutateMock,
+    })
+    mutateMock.mockResolvedValue({
+      ...SESSION_FIXTURE,
+      people: [...SESSION_FIXTURE.people, { id: 'p9', name: 'Charlie', colorIndex: 2 }],
+    })
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByText(/i.?m not listed/i))
+    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'Charlie' } })
+    fireEvent.click(screen.getByRole('button', { name: /add me/i }))
+    await waitFor(() => expect(addPersonFetch).toHaveBeenCalled())
+    const [url] = addPersonFetch.mock.calls[0]
+    expect(url).toMatch(/\/api\/session\/s1\/edit$/)
+    const body = JSON.parse((addPersonFetch.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.op).toBe('add_person')
+    expect(body.name).toBe('Charlie')
+    await waitFor(() => expect(screen.queryByText('Who are you?')).toBeNull())
+    expect(localStorage.getItem('split:s1:personId')).toBe('p9')
+  })
+
+  it('Test 23 (IDENT-03 change): tapping the people strip reopens the modal (dismissible)', async () => {
+    await selectAlice()
+    fireEvent.click(screen.getByRole('button', { name: /people — tap to change identity/i }))
+    await waitFor(() => expect(screen.getByText('Who are you?')).toBeDefined())
+    // Change-identity mode is dismissible — a Close button is present
+    expect(screen.getByRole('button', { name: /close/i })).toBeDefined()
+  })
+
+  // ——— Phase 9 share / header / banner / done-warning tests ———
+
+  it('Test 24 (CLAIM-02): single-qty card tap POSTs action:share with joining boolean', async () => {
+    await selectAlice()
+    mutateMock.mockImplementation(async (fn: () => Promise<unknown>) => {
+      if (typeof fn === 'function') return fn()
+      return undefined
+    })
+    const shareFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', shareFetch)
+    fireEvent.click(screen.getByRole('button', { name: /claim pizza/i }))
+    await waitFor(() => expect(shareFetch).toHaveBeenCalled())
+    const [url] = shareFetch.mock.calls[0]
+    expect(url).toMatch(/\/api\/session\/s1\/claim$/)
+    const body = JSON.parse((shareFetch.mock.calls[0][1] as RequestInit).body as string)
+    expect(body.action).toBe('share')
+    expect(body.joining).toBe(true)
+    expect(body.itemId).toBe('i1')
+  })
+
+  it('Test 25 (CLAIM-05): UnclaimedBanner renders above the item list when unclaimed > 0', async () => {
+    await selectAlice()
+    expect(screen.getByTestId('unclaimed-banner')).toBeDefined()
+    expect(screen.getByText(/2 of 2 items still unclaimed — tap to find them/)).toBeDefined()
+  })
+
+  it('Test 26 (CLAIM-06): BillViewHeader renders with a share affordance', async () => {
+    await selectAlice()
+    expect(screen.getByRole('button', { name: /share bill link/i })).toBeDefined()
+  })
+
+  it('Test 27 (D-10): tapping the banner scrolls to the first unclaimed item', async () => {
+    await selectAlice()
+    const scrollSpy = window.HTMLElement.prototype.scrollIntoView as ReturnType<typeof vi.fn>
+    fireEvent.click(screen.getByTestId('unclaimed-banner'))
+    expect(scrollSpy).toHaveBeenCalled()
+  })
+
+  it("Test 28 (D-09 warn): I'm done with unclaimed items opens the warning dialog, does NOT advance", async () => {
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText(/2 items still unclaimed/i)).toBeDefined())
+    // Phase did NOT advance to tip
+    expect(screen.queryByText('Add a tip?')).toBeNull()
+    // No done POST yet
+    expect(doneFetch).not.toHaveBeenCalled()
+  })
+
+  it('Test 29 (D-11): the warning dialog contains a share-link affordance', async () => {
+    await selectAlice()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined())
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: /share bill link/i })).toBeDefined()
+  })
+
+  it('Test 30 (D-09 go back): "Go back" closes the dialog and stays in claiming', async () => {
+    await selectAlice()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText(/2 items still unclaimed/i)).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: /go back/i }))
+    await waitFor(() => expect(screen.queryByText(/2 items still unclaimed/i)).toBeNull())
+    expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined()
+    expect(screen.queryByText('Add a tip?')).toBeNull()
+  })
+
+  it('Test 31 (D-12 continue): "Continue anyway" runs the done path and advances to tip', async () => {
+    await selectAlice()
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText(/2 items still unclaimed/i)).toBeDefined())
+    fireEvent.click(screen.getByRole('button', { name: /continue anyway/i }))
+    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    expect(doneFetch).toHaveBeenCalled()
   })
 })
