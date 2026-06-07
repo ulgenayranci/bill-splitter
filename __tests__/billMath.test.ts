@@ -199,11 +199,46 @@ describe('computePersonShareFromClaims', () => {
     expect(r.total).toBe(1180)
   })
 
-  it('proportional rounding: 3-way share of 1000 → 333 per person', () => {
+  // CR-01: single-unit-each shared items now use largest-remainder (computeEqualShareCents)
+  // for billing so the billed value matches the card's displayed "your share" AND the shares
+  // conserve cents exactly. Previously this used proportional rounding (333 each → lost a cent).
+  it('CR-01: 3-way single-qty share of 1000 — index-0 (sorted) claimant billed 334, matching the card', () => {
     const items = [makeItem('i1', 1000)]
     const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } }
+    // sorted ascending p1 < p2 < p3 → p1 is index 0 → gets the extra cent (334)
+    const r1 = computePersonShareFromClaims('p1', items, claims, 0)
+    expect(r1.itemSubtotal).toBe(334)
+    const r2 = computePersonShareFromClaims('p2', items, claims, 0)
+    expect(r2.itemSubtotal).toBe(333)
+    const r3 = computePersonShareFromClaims('p3', items, claims, 0)
+    expect(r3.itemSubtotal).toBe(333)
+  })
+
+  it('CR-01: billed shares for a single-qty shared item conserve cents exactly (sum === priceCents)', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } }
+    const sum =
+      computePersonShareFromClaims('p1', items, claims, 0).itemSubtotal +
+      computePersonShareFromClaims('p2', items, claims, 0).itemSubtotal +
+      computePersonShareFromClaims('p3', items, claims, 0).itemSubtotal
+    expect(sum).toBe(1000)
+  })
+
+  it('CR-01: billed share === card-displayed computeEqualShareCents for the index-0 claimant', () => {
+    const items = [makeItem('i1', 1000)]
+    const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } }
+    // The card renders computeEqualShareCents(price, N, myIndex) for sorted ids ['p1','p2','p3'].
+    const cardValueForP1 = computeEqualShareCents(1000, 3, 0)
+    const billedForP1 = computePersonShareFromClaims('p1', items, claims, 0).itemSubtotal
+    expect(billedForP1).toBe(cardValueForP1)
+  })
+
+  it('CR-01: multi-qty items still use proportional rounding (largest-remainder only for single-unit-each)', () => {
+    // i1 has quantity 3 → NOT a single-unit-each shared item, proportional rounding applies.
+    const items = [makeItem('i1', 1000, 3)]
+    const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } }
     const r = computePersonShareFromClaims('p1', items, claims, 0)
-    expect(r.itemSubtotal).toBe(333)
+    expect(r.itemSubtotal).toBe(333) // round(1000 * 1 / 3)
   })
 
   it('no tax: total === itemSubtotal + tip only', () => {

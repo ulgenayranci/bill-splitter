@@ -112,7 +112,26 @@ export function computePersonShareFromClaims(
     )
     if (totalQty === 0) continue // defense-in-depth (Pitfall 2)
 
-    const shareCents = Math.round((item.priceCents * myQty) / totalQty)
+    // CR-01: For a single-unit-each shared item (item.quantity <= 1 and every claimant
+    // holds qty 1) the billed share MUST use the same largest-remainder method the card
+    // displays via computeEqualShareCents — otherwise proportional rounding
+    // (Math.round(price * myQty / totalQty)) makes each claimant 333 for a $10/3-way split,
+    // which (a) sums to 999 not 1000 (a lost cent) and (b) disagrees with the "$3.34" shown
+    // on the card for the index-0 claimant. Largest-remainder keyed on personIds sorted
+    // ascending guarantees display === billed AND exact cent conservation.
+    const sharerIds = Object.keys(claimsForItem)
+      .filter((p) => (claimsForItem[p]?.qty ?? 0) > 0)
+      .sort()
+    const allSingle =
+      (item.quantity ?? 1) <= 1 && sharerIds.every((p) => claimsForItem[p]?.qty === 1)
+
+    let shareCents: number
+    if (allSingle) {
+      const myIndex = sharerIds.indexOf(personId)
+      shareCents = computeEqualShareCents(item.priceCents, sharerIds.length, myIndex)
+    } else {
+      shareCents = Math.round((item.priceCents * myQty) / totalQty)
+    }
     itemSubtotal += shareCents
     lineItems.push({ item, shareCents, claimedQty: myQty })
   }
