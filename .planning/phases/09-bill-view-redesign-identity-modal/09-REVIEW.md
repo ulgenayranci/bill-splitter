@@ -27,7 +27,22 @@ findings:
   warning: 6
   info: 5
   total: 13
-status: issues_found
+status: fixed
+fixed_at: 2026-06-07T00:00:00Z
+fixes:
+  CR-01: fixed
+  CR-02: fixed
+  WR-01: fixed
+  WR-02: fixed
+  WR-03: fixed
+  WR-04: fixed
+  WR-05: fixed
+  WR-06: fixed
+  IN-01: not_fixed (out of scope — info severity)
+  IN-02: not_fixed (out of scope — info severity)
+  IN-03: not_fixed (out of scope — info severity)
+  IN-04: not_fixed (out of scope — info severity)
+  IN-05: not_fixed (out of scope — info severity)
 ---
 
 # Phase 9: Code Review Report
@@ -35,7 +50,7 @@ status: issues_found
 **Reviewed:** 2026-06-07
 **Depth:** standard
 **Files Reviewed:** 18
-**Status:** issues_found
+**Status:** fixed (all Critical + Warning findings fixed 2026-06-07; Info findings out of scope)
 
 ## Summary
 
@@ -55,7 +70,7 @@ edit that can persist a partial edit and leave the item in a half-saved state.
 
 ## Critical Issues
 
-### CR-01: Shared single-qty item — displayed share ≠ billed share, and billed shares lose a cent
+### CR-01: Shared single-qty item — displayed share ≠ billed share, and billed shares lose a cent  [FIXED 0209ae1]
 
 **File:** `lib/billMath.ts:89-126`, `components/split/ClaimableItemCard.tsx:71-79`, `app/split/[sessionId]/CollaborativeClaimingView.tsx:511-516`
 
@@ -97,7 +112,7 @@ if (allSingle) {
 
 This makes the card line and the bill agree and restores cent conservation.
 
-### CR-02: `/claim` qty + share actions and `/edit` item ops accept any personId with no slot-ownership check
+### CR-02: `/claim` qty + share actions and `/edit` item ops accept any personId with no slot-ownership check  [FIXED 0ac2b02 — /claim guarded; /edit item ops intentionally left open per flat model, see note below]
 
 **File:** `app/api/session/[sessionId]/claim/route.ts:137-244`, `app/api/session/[sessionId]/edit/route.ts:123-240`
 
@@ -133,9 +148,18 @@ claimed identity as well (or document explicitly that anonymous edits are an int
 product decision — but the current asymmetry with `/done` looks like an oversight, not a
 decision).
 
+**Fix applied (2026-06-07):** The slot-ownership guard was added inside `QTY_CLAIM_SCRIPT` and
+`SHARE_CLAIM_SCRIPT` (atomic with the write); the route maps the `forbidden` sentinel to HTTP
+403. The `slot` action stays unguarded (unclaimed slots must remain claimable) and `add_person`
+creates its own slot. **`/edit` item ops were deliberately left open**: per the Phase 9 flat
+collaborative model, any participant may add/edit/remove items on the shared bill — this is an
+intentional product decision, not the same threat as impersonating another person's *claims*.
+Only the `/claim` asymmetry with `/done` was a genuine bypass and is now closed. Regression
+tests cover the Lua guard presence and the 403 mapping for both `qty` and `share`.
+
 ## Warnings
 
-### WR-01: Multi-step inline edit can persist a partial edit on failure
+### WR-01: Multi-step inline edit can persist a partial edit on failure  [FIXED f61ef81]
 
 **File:** `app/split/[sessionId]/CollaborativeClaimingView.tsx:421-456`
 
@@ -151,7 +175,7 @@ request, or (b) compute all three intended values up front and send them as one 
 the server applies them transactionally. At minimum, on partial failure refresh via `mutate()`
 and surface which fields did/didn't save rather than a blanket "nothing saved" message.
 
-### WR-02: `UnclaimedBanner` dereferences `e.qty` without null-guard; inconsistent with the rest of the codebase
+### WR-02: `UnclaimedBanner` dereferences `e.qty` without null-guard; inconsistent with the rest of the codebase  [FIXED 738c2a8]
 
 **File:** `components/split/UnclaimedBanner.tsx:14`
 
@@ -168,7 +192,7 @@ elsewhere degrades gracefully.
 const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
 ```
 
-### WR-03: `ClaimableItemCard` reads `entry.qty` unguarded in three reducers/filters
+### WR-03: `ClaimableItemCard` reads `entry.qty` unguarded in three reducers/filters  [FIXED 59b7a54]
 
 **File:** `components/split/ClaimableItemCard.tsx:39-49,46-49`
 
@@ -179,7 +203,7 @@ once per item in a list, so a single bad entry blanks the entire bill view.
 
 **Fix:** Use `entry?.qty ?? 0` consistently in the filters and the reducer.
 
-### WR-04: `remainingForMe` can be negative, producing a misleading disabled state
+### WR-04: `remainingForMe` can be negative, producing a misleading disabled state  [FIXED 1386916]
 
 **File:** `components/split/ClaimableItemCard.tsx:61-69`
 
@@ -196,7 +220,7 @@ N+ claimed. The user is silently blocked with no explanation.
 consider showing an "over-claimed" hint when `totalClaimedQty > (item.quantity ?? 1)` so the
 disabled "+" is understandable.
 
-### WR-05: `add_person` validation is run twice and re-derives the name independently
+### WR-05: `add_person` validation is run twice and re-derives the name independently  [FIXED cb2026b]
 
 **File:** `app/api/session/[sessionId]/edit/route.ts:144-156`
 
@@ -210,7 +234,7 @@ form is persisted. The single source of truth is split across two code paths.
 **Fix:** Have `validateOp` return the normalized name (or have the branch use the same trimmed
 value it validates) so the validated value and the persisted value are guaranteed identical.
 
-### WR-06: Identity-restore effect omits `selectedPersonId` from deps and relies on an eslint-disable
+### WR-06: Identity-restore effect omits `selectedPersonId` from deps and relies on an eslint-disable  [FIXED f61ef81]
 
 **File:** `app/split/[sessionId]/CollaborativeClaimingView.tsx:112-131`
 
