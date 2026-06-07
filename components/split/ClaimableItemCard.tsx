@@ -59,8 +59,13 @@ export function ClaimableItemCard({
     }
   }
 
-  // How many more this person can claim = total item qty minus everyone else's claims
-  const remainingForMe = (item.quantity ?? 1) - (totalClaimedQty - myQty)
+  // How many more this person can claim = total item qty minus everyone else's claims.
+  // WR-04: clamp at 0. If the server state is transiently over-claimed (totalClaimedQty >
+  // quantity, reachable via optimistic update + concurrent claimants), an unclamped negative
+  // value would make `myQty < remainingForMe` disable the "+" button even when the user has
+  // legitimately claimed fewer than the max, silently blocking them with no explanation.
+  const remainingForMe = Math.max(0, (item.quantity ?? 1) - (totalClaimedQty - myQty))
+  const isOverClaimed = totalClaimedQty > (item.quantity ?? 1)
 
   // Multi-qty stepper handlers
   const handleDecrement = () => {
@@ -154,8 +159,12 @@ export function ClaimableItemCard({
               <Plus size={16} />
             </Button>
           </div>
-          <span className="text-[14px] text-zinc-400" data-testid="claimed-count">
+          <span
+            className={`text-[14px] ${isOverClaimed ? 'text-red-600' : 'text-zinc-400'}`}
+            data-testid="claimed-count"
+          >
             {totalClaimedQty} of {item.quantity ?? 1} claimed
+            {isOverClaimed && ' — over-claimed'}
           </span>
         </div>
       )}
