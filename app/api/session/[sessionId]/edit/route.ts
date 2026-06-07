@@ -53,7 +53,7 @@ function validateOp(
   op: EditOp,
   b: Record<string, unknown>,
   session: SessionPayload
-): { ok: true } | { ok: false; error: string } {
+): { ok: true; normalizedName?: string } | { ok: false; error: string } {
   if (op === 'add_person') {
     // V5 input validation: name must be a non-empty string after trim, max 50 chars (T-09-04)
     if (typeof b.name !== 'string')
@@ -63,7 +63,9 @@ function validateOp(
       return { ok: false, error: 'Invalid add_person: name must be a non-empty string' }
     if (trimmed.length > 50)
       return { ok: false, error: 'Invalid add_person: name must be 50 characters or fewer' }
-    return { ok: true }
+    // WR-05: return the normalized name so the caller persists the exact value that was
+    // validated — avoids a second independent trim that could drift out of lockstep.
+    return { ok: true, normalizedName: trimmed }
   }
 
   if (op === 'add') {
@@ -142,14 +144,14 @@ export async function POST(
   // add_person: validate name, then run ADD_PERSON_SCRIPT atomically via Lua.
   // This branch runs BEFORE the GET→mutate→SET path to avoid the append race (Pitfall 2 / T-09-06).
   if (op === 'add_person') {
-    const nameRaw = typeof b.name === 'string' ? b.name : ''
-    const trimmedName = nameRaw.trim()
-
-    // Reuse validateOp for consistent validation messaging (V5 / T-09-04)
+    // WR-05: validateOp is the single source of truth for both the check AND the normalized
+    // name. We persist validation.normalizedName (not a separate inline trim) so the value
+    // validated is guaranteed identical to the value sent to Lua.
     const validation = validateOp('add_person', b, {} as SessionPayload)
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
+    const trimmedName = validation.normalizedName ?? ''
 
     try {
       const newPersonId = nanoid()
