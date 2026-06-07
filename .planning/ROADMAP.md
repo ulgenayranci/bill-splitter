@@ -25,7 +25,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 - [x] **Phase 7: App Shell + Setup Screen** — easy-billsy branding on all screens; wizard replaced by scan-first single-screen setup; OCR returns ISO 4217 currency code ✅ 2026-06-05
 - [x] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated (completed 2026-06-05)
-- [ ] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning
+- [x] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning (completed 2026-06-07)
 - [ ] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays
 
 ## Phase Details
@@ -94,7 +94,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 09-03-PLAN.md — Identity modal: refactor PersonSlotPicker to modal content (opacity-50 fix, "I'm not listed" inline add) + IdentityModal Dialog wrapper (IDENT-01, IDENT-03)
 - [x] 09-04-PLAN.md — BillViewHeader (title/date, people strip, receipt+share icons) + UnclaimedBanner (live counter) (IDENT-03, CLAIM-05, CLAIM-06)
 - [x] 09-05-PLAN.md — ClaimableItemCard attribution: chips capped 3 +N, own-claim amber border, onShareChange tap-to-join, your-share line (CLAIM-02, CLAIM-04)
-- [ ] 09-06-PLAN.md — CollaborativeClaimingView rewrite: identity modal orchestration, header+banner mount, share handler, warn-but-allow done dialog, waiting phase removed (IDENT-01..04, CLAIM-02, CLAIM-04..06)
+- [x] 09-06-PLAN.md — CollaborativeClaimingView rewrite: identity modal orchestration, header+banner mount, share handler, warn-but-allow done dialog, waiting phase removed (IDENT-01..04, CLAIM-02, CLAIM-04..06)
 **UI hint**: yes
 
 ### Phase 10: Results Screen + Tip Modal + Currency Display
@@ -123,5 +123,5 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
-| 9. Bill View Redesign + Identity Modal | v2.0 | 5/6 | In Progress|  |
+| 9. Bill View Redesign + Identity Modal | v2.0 | 6/6 | Complete   | 2026-06-07 |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
