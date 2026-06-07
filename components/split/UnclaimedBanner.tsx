@@ -11,7 +11,10 @@ function getUnclaimedCounts(session: SessionPayload): { unclaimed: number; total
   let unclaimed = 0
   for (const item of session.items) {
     const entries = session.claims?.items?.[item.id] ?? {}
-    const totalClaimed = Object.values(entries).reduce((sum, e) => sum + e.qty, 0)
+    // WR-02: guard the entry (e?.qty ?? 0) to match the defensive pattern used everywhere
+    // else (CollaborativeClaimingView, billMath). A null entry from a malformed payload would
+    // otherwise throw and crash the whole claiming view.
+    const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
     if (totalClaimed < (item.quantity ?? 1)) unclaimed++
   }
   return { unclaimed, total: session.items.length }
