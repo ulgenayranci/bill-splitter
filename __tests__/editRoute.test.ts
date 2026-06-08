@@ -290,4 +290,48 @@ describe('POST /api/session/[sessionId]/edit', () => {
     expect(status).toBe(404)
     expect(typeof (json as { error: string }).error).toBe('string')
   })
+
+  // --- op: update_currency ---
+  describe('update_currency op', () => {
+    it('Test 17 (update_currency valid): returns 200 { ok: true } and persists currencyCode to session', async () => {
+      mockGet.mockResolvedValue(baseSession)
+      mockSet.mockResolvedValue('OK')
+      const { status, json } = await callPOST('test-session', {
+        op: 'update_currency',
+        currencyCode: 'EUR',
+      })
+      expect(status).toBe(200)
+      expect((json as { ok: boolean }).ok).toBe(true)
+      expect(mockSet).toHaveBeenCalledTimes(1)
+      const [, savedPayload] = mockSet.mock.calls[0]
+      const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
+      expect(saved.currencyCode).toBe('EUR')
+    })
+
+    it('Test 18 (update_currency empty string): returns 400', async () => {
+      mockGet.mockResolvedValue(baseSession)
+      const { status } = await callPOST('test-session', {
+        op: 'update_currency',
+        currencyCode: '',
+      })
+      expect(status).toBe(400)
+    })
+
+    it('Test 19 (update_currency missing field): returns 400', async () => {
+      mockGet.mockResolvedValue(baseSession)
+      const { status } = await callPOST('test-session', {
+        op: 'update_currency',
+      })
+      expect(status).toBe(400)
+    })
+
+    it('Test 20 (update_currency too long): currencyCode > 10 chars returns 400', async () => {
+      mockGet.mockResolvedValue(baseSession)
+      const { status } = await callPOST('test-session', {
+        op: 'update_currency',
+        currencyCode: 'ABCDEFGHIJK', // 11 chars
+      })
+      expect(status).toBe(400)
+    })
+  })
 })
