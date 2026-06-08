@@ -95,7 +95,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 09-04-PLAN.md — BillViewHeader (title/date, people strip, receipt+share icons) + UnclaimedBanner (live counter) (IDENT-03, CLAIM-05, CLAIM-06)
 - [x] 09-05-PLAN.md — ClaimableItemCard attribution: chips capped 3 +N, own-claim amber border, onShareChange tap-to-join, your-share line (CLAIM-02, CLAIM-04)
 - [x] 09-06-PLAN.md — CollaborativeClaimingView rewrite: identity modal orchestration, header+banner mount, share handler, warn-but-allow done dialog, waiting phase removed (IDENT-01..04, CLAIM-02, CLAIM-04..06)
-- [ ] 09-07-PLAN.md — GAP-09-FLOW gap closure: SetupStep Continue creates session + routes to /split (shared createSession helper); retire AssignItemsStep/ResultsStep from main path; resume-redirect (IDENT-01..04, CLAIM-02, CLAIM-04..06)
+- [x] 09-07-PLAN.md — GAP-09-FLOW gap closure: SetupStep Continue creates session + routes to /split (shared createSession helper); retire AssignItemsStep/ResultsStep from main path; resume-redirect (IDENT-01..04, CLAIM-02, CLAIM-04..06)
 **UI hint**: yes
 
 ### Phase 10: Results Screen + Tip Modal + Currency Display
@@ -124,5 +124,5 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
-| 9. Bill View Redesign + Identity Modal | v2.0 | 6/6 | Complete   | 2026-06-07 |
+| 9. Bill View Redesign + Identity Modal | v2.0 | 7/7 | Complete   | 2026-06-08 |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
