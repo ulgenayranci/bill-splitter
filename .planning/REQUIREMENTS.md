@@ -43,8 +43,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 ### Currency (CURR)
 
 - [x] **CURR-01**: The OCR step detects the receipt's currency
-- [ ] **CURR-02**: All monetary amounts render in the detected currency with correct symbol and decimal places (including zero-decimal currencies like JPY)
-- [ ] **CURR-03**: If currency can't be detected, the app falls back gracefully (sensible default; user can set it)
+- [x] **CURR-02**: All monetary amounts render in the detected currency with correct symbol and decimal places (including zero-decimal currencies like JPY)
+- [x] **CURR-03**: If currency can't be detected, the app falls back gracefully (sensible default; user can set it)
 
 ### Results & Tip (RESULTS / TIP)
 
@@ -94,5 +94,5 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | RESULTS-03 | Phase 10 | Pending |
 | RESULTS-04 | Phase 10 | Pending |
 | TIP-02 | Phase 10 | Pending |
-| CURR-02 | Phase 10 | Pending |
-| CURR-03 | Phase 10 | Pending |
+| CURR-02 | Phase 10 | Complete |
+| CURR-03 | Phase 10 | Complete |

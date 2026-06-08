@@ -110,7 +110,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   4. All monetary amounts render in the currency detected from the receipt (correct symbol and decimal places); amounts are correct for the session's currency
   5. When currency cannot be detected, the app falls back gracefully (sensible default displayed; user can override it without blocking the flow)
 **Plans**: 4 plans (3 waves — formatCents + update_currency op (parallel) → Results screen → Tip Dialog + phase-machine wiring)
-- [ ] 10-01-PLAN.md — formatCents(cents, currencyCode?) upgrade: Intl.NumberFormat zero-decimal handling, legacy fallback, + tests (CURR-02, CURR-03)
+- [x] 10-01-PLAN.md — formatCents(cents, currencyCode?) upgrade: Intl.NumberFormat zero-decimal handling, legacy fallback, + tests (CURR-02, CURR-03)
 - [ ] 10-02-PLAN.md — update_currency op on /edit route (shared session-level currency write path) + tests (CURR-03)
 - [ ] 10-03-PLAN.md — PersonResultsScreen rewrite: all-people accordion, items-only grand total, Copy/Edit/New Split CTA bar, inline currency override (RESULTS-03, RESULTS-04, CURR-02, CURR-03)
 - [ ] 10-04-PLAN.md — TipScreen → Dialog content + CollaborativeClaimingView two-phase machine (tip optional from Results) (TIP-02, CURR-02)
@@ -129,4 +129,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
-| 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
+| 10. Results Screen + Tip Modal + Currency Display | v2.0 | 1/4 | In Progress|  |
