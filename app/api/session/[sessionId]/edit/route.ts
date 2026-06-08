@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/sessionSchema'
 
 export const maxDuration = 10
 
-const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person'] as const
+const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency'] as const
 type EditOp = (typeof VALID_OPS)[number]
 
 /**
@@ -78,7 +78,17 @@ function validateOp(
     return { ok: true }
   }
 
-  // All ops other than 'add' require itemId that exists in session.items
+  if (op === 'update_currency') {
+    // V5 input validation (T-10-03): currencyCode must be a non-empty string, max 10 chars
+    // ISO 4217 codes are 3 chars; 10 is a generous safe cap
+    if (typeof b.currencyCode !== 'string' || b.currencyCode.length === 0)
+      return { ok: false, error: 'Invalid update_currency: currencyCode must be a non-empty string' }
+    if (b.currencyCode.length > 10)
+      return { ok: false, error: 'Invalid update_currency: currencyCode too long' }
+    return { ok: true }
+  }
+
+  // All ops other than 'add', 'add_person', 'update_currency' require itemId that exists in session.items
   if (typeof b.itemId !== 'string' || b.itemId.length === 0)
     return { ok: false, error: 'Invalid payload: itemId must be a non-empty string' }
   if (!session.items.some((it) => it.id === b.itemId))
@@ -225,6 +235,12 @@ export async function POST(
       updatedItems = updatedItems.map((it) =>
         it.id === targetId ? { ...it, quantity: b.newQuantity as number } : it
       )
+    } else if (op === 'update_currency') {
+      // D-07: currencyCode is a session-level singleton — last-write-wins is correct.
+      // No Lua atomicity needed (T-10-05 accepted). GET→mutate→SET pattern.
+      const updated: SessionPayload = { ...session, currencyCode: b.currencyCode as string }
+      await redis.set(`session:${sessionId}`, JSON.stringify(updated), { ex: 86400 })
+      return NextResponse.json({ ok: true })
     }
 
     const updated: SessionPayload = {
