@@ -53,21 +53,24 @@ blocked: 0
   reason: "User reported: scanned a Turkish Lira bill but the app showed USD ($) through the whole flow; only the Results screen corrected it to the right currency. Wrong currency shown for the entire flow then 'corrected' at the end reads as a trust issue. User suggests surfacing/controlling currency starting on the first screen."
   severity: major
   test: 1
-  artifacts: []
-  missing: []
+  root_cause: "ClaimableItemCard.tsx (Phase 9 live component) has NO currencyCode prop; its formatCents calls at :126 (item price) and :207 (your share) hit the legacy $ default. It is rendered at CollaborativeClaimingView.tsx:658-666 without currencyCode, even though session.currencyCode is in scope (and already passed to PersonResultsScreen:558 and TipScreen:570). Available-but-not-passed. Currency data flow from Phase 7 (OCR→store→createSession→Redis→SessionPayload) is intact."
+  artifacts: ["components/split/ClaimableItemCard.tsx:11-19,126,207", "app/split/[sessionId]/CollaborativeClaimingView.tsx:658-666"]
+  missing: ["currencyCode prop on ClaimableItemCardProps", "currencyCode passed at the ClaimableItemCard render site"]
 
 - truth: "Each person's breakdown clearly shows an items-only Subtotal row and a separated tip section, so the total reads as items → Subtotal → Your tip → Total."
   status: failed
   reason: "User reported the Results card is vague: items are listed then a 'Your tip' row sits directly under them with no Subtotal anchor, so it looks like the items themselves sum to the tip. The 'Your share' headline includes tip without showing the breakdown. Screenshot 2026-06-08 at 22.14.10.png. Math is correct but not legible."
   severity: minor
   test: 3
-  artifacts: []
-  missing: []
+  root_cause: "PersonResultsScreen.tsx current-user card renders items (lines 192-208) then a Your tip row (211-225) with no Subtotal and no in-card Total; the only total shown is the 28px 'Your share' headline (line 177) which = share.total (items+tip). share.itemSubtotal, share.tip, share.total are ALL already available from computePersonShareFromClaims (billMath.ts:164-169). No math change needed."
+  artifacts: ["components/split/PersonResultsScreen.tsx:177,192-225", "lib/billMath.ts:164-169"]
+  missing: ["Subtotal (items-only) row inserted between lines 209-211", "in-card Total row", "optional headline relabel 'Your share'->'Your total'"]
 
 - truth: "Tapping 'New Split' (and confirming) navigates the user to the home page to start a fresh split, and leaves the shared session intact for other participants."
   status: failed
   reason: "User reported on both mobile and laptop: New Split did not land on home on the FIRST tap; it cleared identity, showed the 'Who are you?' modal, and returned to the SAME bill. A SECOND tap then reaches the start/new-split screen. State/ordering bug — first-tap navigation to '/' is intercepted/re-redirected back to the active session before it settles; second tap works because identity is already cleared. Broken on all platforms."
   severity: major
   test: 4
-  artifacts: []
-  missing: []
+  root_cause: "handleNewSplit (PersonResultsScreen.tsx:113-120) removes only localStorage split:{sessionId}:personId (identity) then router.push('/'). It does NOT clear the persisted Zustand sessionId (store key easy-billsy-bill, persisted via partialize at useBillStore.ts:169). The home page app/page.tsx:22-26 unconditionally router.replace's back to /split/{sessionId} whenever the rehydrated store still has sessionId — so the user bounces back to the same bill, and CollaborativeClaimingView.tsx:141 re-opens the 'Who are you?' modal because identity was just cleared. Single deterministic root cause; the 'second tap works' was an incidental redirect-race artifact."
+  artifacts: ["components/split/PersonResultsScreen.tsx:113-120", "app/page.tsx:22-26", "stores/useBillStore.ts:141,169", "app/split/[sessionId]/CollaborativeClaimingView.tsx:122-143"]
+  missing: ["clear persisted store sessionId (setSessionId(null) or a reset() action) before router.push('/') in handleNewSplit"]
