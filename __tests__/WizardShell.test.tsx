@@ -1,7 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import { WizardShell } from '@/components/wizard/WizardShell'
 import { useBillStore } from '@/stores/useBillStore'
+
+// Mock next/navigation so AppHeader's useRouter() doesn't throw in jsdom
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}))
 
 afterEach(() => { cleanup(); useBillStore.getState().reset() })
 
