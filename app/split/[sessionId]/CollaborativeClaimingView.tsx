@@ -17,6 +17,7 @@ import { Check, X, Plus, Pencil, Share2 } from 'lucide-react'
 import { parseCents } from '@/lib/billMath'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
+import { AppHeader } from '@/components/wizard/AppHeader'
 import { IdentityModal } from '@/components/split/IdentityModal'
 import { BillViewHeader } from '@/components/split/BillViewHeader'
 import { UnclaimedBanner } from '@/components/split/UnclaimedBanner'
@@ -511,6 +512,7 @@ export function CollaborativeClaimingView({
   if (selectedPersonId === null) {
     return (
       <main className="mx-auto min-h-screen max-w-[480px] bg-background">
+        <AppHeader />
         <IdentityModal
           open={identityModalOpen}
           allowClose={false}
@@ -555,6 +557,7 @@ export function CollaborativeClaimingView({
 
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
+      <AppHeader />
       {/* Bill View chrome: header (title/date, people strip, receipt + share icons) */}
       <BillViewHeader
         session={session}

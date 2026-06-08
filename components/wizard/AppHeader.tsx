@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,8 @@ export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
 
+  const router = useRouter()
+
   const reset = useBillStore((s) => s.reset)
   const setStep = useBillStore((s) => s.setStep)
   const people = useBillStore((s) => s.people)
@@ -33,6 +36,7 @@ export function AppHeader() {
   const startNewSplit = () => {
     reset()
     setStep(1)
+    router.push('/')
   }
 
   const handleNewSplit = () => {
