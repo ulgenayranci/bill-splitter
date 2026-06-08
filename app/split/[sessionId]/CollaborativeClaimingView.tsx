@@ -113,8 +113,9 @@ export function CollaborativeClaimingView({
   }, [selectedPersonId, sessionId])
 
   // Identity restore / modal trigger (IDENT-01/02): when session loads and no identity
-  // is selected, restore from localStorage if the stored slot is still locked on the
-  // server; otherwise open the Who-are-you modal.
+  // is selected, restore from localStorage if the stored personId still EXISTS in
+  // session.people (membership check — no slot lock required, GAP-09-NOLOCK);
+  // otherwise open the Who-are-you modal.
   useEffect(() => {
     if (!session) return
     // WR-06: run once on first session arrival. The ref (not an exhaustive-deps suppression)
@@ -130,7 +131,7 @@ export function CollaborativeClaimingView({
       // localStorage unavailable — cannot restore
     }
 
-    if (stored && session.claims?.personSlots?.[stored] === true) {
+    if (stored && session.people.some((p) => p.id === stored)) {
       setSelectedPersonId(stored as PersonId)
       setPhase(derivePhase(stored as PersonId, session))
     } else {
@@ -167,6 +168,7 @@ export function CollaborativeClaimingView({
         setIdentityModalOpen(false)
         setChangingIdentity(false)
       } else {
+        // defensive fallback — slot route always returns ok:true under the no-lock model
         await mutate()
       }
     } catch {

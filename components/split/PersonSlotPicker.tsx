@@ -4,6 +4,8 @@
 // derives from URL hostToken match in CollaborativeClaimingView, not from being
 // the first person in session.people. No 'taken by host' special treatment.
 // Phase 9 (IDENT-03): Added "I'm not listed" inline add form + opacity-50 fix.
+// GAP-09-NOLOCK: All names are always selectable — no taken/greyed/disabled state.
+// The flat model has no host role, so exclusive slot ownership is removed entirely.
 
 import { useState } from 'react'
 import { Card } from '@/components/ui/card'
@@ -20,7 +22,6 @@ interface PersonSlotPickerProps {
 }
 
 export function PersonSlotPicker({ session, onSelect, onAddPerson }: PersonSlotPickerProps) {
-  const slots = session.claims?.personSlots ?? {}
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState('')
 
@@ -34,18 +35,13 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson }: PersonSlotP
     <div className="flex flex-col gap-6">
       <ul className="grid grid-cols-2 gap-3">
         {session.people.map((person) => {
-          const taken = slots[person.id] === true
           return (
             <li key={person.id}>
               <Card
-                role={taken ? undefined : 'button'}
-                aria-label={taken ? `${person.name} (taken)` : `Claim slot ${person.name}`}
-                aria-disabled={taken}
-                onClick={taken ? undefined : () => onSelect(person.id)}
-                className={[
-                  'flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 transition-opacity',
-                  taken ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                ].join(' ')}
+                role="button"
+                aria-label={`Claim slot ${person.name}`}
+                onClick={() => onSelect(person.id)}
+                className="flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 cursor-pointer"
               >
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[person.colorIndex % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
@@ -55,7 +51,6 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson }: PersonSlotP
                 </div>
                 <span className="text-[16px]">
                   {person.name}
-                  {taken && <span className="ml-1 text-[14px] text-zinc-500">(taken)</span>}
                 </span>
               </Card>
             </li>

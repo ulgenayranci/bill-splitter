@@ -183,16 +183,15 @@ describe('POST /api/session/[sessionId]/claim', () => {
     expect(status).toBe(500)
   })
 
-  // --- CR-02: slot-ownership guard on qty + share actions ---
-  it('CR-02: QTY_CLAIM_SCRIPT enforces the slot-ownership guard inside Lua (atomic with the write)', async () => {
+  // --- GAP-09-NOLOCK: CR-02 slot-ownership guard REMOVED — no-lock model ---
+  it('GAP-09-NOLOCK: QTY_CLAIM_SCRIPT no longer contains the slot-ownership guard', async () => {
     mockEval.mockResolvedValue('OK')
     await callPOSTWithParams('test-session', { personId: 'p1', itemId: 'i1', qty: 1 })
     const [script] = mockEval.mock.calls[0]
-    expect(script).toContain('personSlots[personId] == true')
-    expect(script).toContain("return 'forbidden'")
+    expect(script).not.toContain("return 'forbidden'")
   })
 
-  it('CR-02: SHARE_CLAIM_SCRIPT enforces the slot-ownership guard inside Lua', async () => {
+  it('GAP-09-NOLOCK: SHARE_CLAIM_SCRIPT no longer contains the slot-ownership guard', async () => {
     mockEval.mockResolvedValue('OK')
     await callPOSTWithParams('test-session', {
       personId: 'p1',
@@ -201,40 +200,17 @@ describe('POST /api/session/[sessionId]/claim', () => {
       joining: true,
     })
     const [script] = mockEval.mock.calls[0]
-    expect(script).toContain('personSlots[personId] == true')
-    expect(script).toContain("return 'forbidden'")
+    expect(script).not.toContain("return 'forbidden'")
   })
 
-  it('CR-02: qty action maps Lua "forbidden" sentinel → HTTP 403', async () => {
-    mockEval.mockResolvedValue('forbidden')
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p2',
-      itemId: 'i1',
-      qty: 1,
-    })
-    expect(status).toBe(403)
-    expect(typeof (json as { error: string }).error).toBe('string')
-  })
-
-  it('CR-02: share action maps Lua "forbidden" sentinel → HTTP 403', async () => {
-    mockEval.mockResolvedValue('forbidden')
-    const { status, json } = await callPOSTWithParams('test-session', {
-      personId: 'p2',
-      itemId: 'i1',
-      action: 'share',
-      joining: false,
-    })
-    expect(status).toBe(403)
-    expect(typeof (json as { error: string }).error).toBe('string')
-  })
-
-  it('CR-02: slot action is NOT guarded by personSlots (unclaimed slots must remain claimable)', async () => {
+  it('GAP-09-NOLOCK: slot action always returns 200 ok:true (no slot_taken guard)', async () => {
     mockEval.mockResolvedValue('OK')
     const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', action: 'slot' })
     expect(status).toBe(200)
     expect((json as { ok: boolean }).ok).toBe(true)
-    // SLOT_CLAIM_SCRIPT only checks slot_taken, never returns 'forbidden'
+    // SLOT_CLAIM_SCRIPT never returns 'slot_taken' or 'forbidden' under the no-lock model
     const [script] = mockEval.mock.calls[0]
+    expect(script).not.toContain("return 'slot_taken'")
     expect(script).not.toContain("return 'forbidden'")
   })
 })

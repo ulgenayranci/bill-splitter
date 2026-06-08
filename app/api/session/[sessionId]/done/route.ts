@@ -32,14 +32,9 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
     }
-    // Validate personId is a known participant
+    // Validate personId is a known participant (real authorization — GAP-09-NOLOCK: no slot lock needed)
     if (!session.people.some((p) => p.id === personId)) {
       return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
-    }
-    // CR-02: Verify caller has claimed their slot — prevents anonymous callers from
-    // marking someone else as done (or un-done) without having picked that identity.
-    if (!session.claims?.personSlots?.[personId]) {
-      return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
     }
 
     // WR-01: This is a non-atomic read-modify-write. Two concurrent done/undone submissions

@@ -318,12 +318,13 @@ describe('CollaborativeClaimingView', () => {
 
   // ——— Phase 9 identity modal tests (IDENT-01..04) ———
 
-  it('Test 19 (IDENT-02/04): valid stored personId restores identity, modal NOT shown', async () => {
+  it('Test 19 (IDENT-02/04 restore-by-existence): stored personId present in session.people restores identity (no slot marker needed), modal NOT shown', async () => {
     localStorage.setItem('split:s1:personId', 'p2')
+    // personSlots:{} — membership in session.people (not the slot marker) drives restore
     useSWRMock.mockReturnValue({
       data: {
         ...SESSION_FIXTURE,
-        claims: { items: {}, personSlots: { p2: true }, donePeople: {} },
+        claims: { items: {}, personSlots: {}, donePeople: {} },
       },
       error: undefined,
       mutate: mutateMock,
@@ -333,9 +334,25 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByText('Who are you?')).toBeNull()
   })
 
-  it('Test 20 (IDENT-02 edge): stored personId whose slot is gone → modal shown again', () => {
+  it('Test 20 (IDENT-02/04 restore-by-existence): stored personId present in session.people restores identity (no slot marker needed), modal NOT shown', async () => {
     localStorage.setItem('split:s1:personId', 'p2')
-    // personSlots is empty — the stored slot is no longer locked on the server
+    // personSlots:{} — no slot marker at all; restore is driven purely by membership in people
+    useSWRMock.mockReturnValue({
+      data: {
+        ...SESSION_FIXTURE,
+        claims: { items: {}, personSlots: {}, donePeople: {} },
+      },
+      error: undefined,
+      mutate: mutateMock,
+    })
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined())
+    expect(screen.queryByText('Who are you?')).toBeNull()
+  })
+
+  it('Test 20b (IDENT-04 miss): stored personId not in session.people opens modal', () => {
+    localStorage.setItem('split:s1:personId', 'p999')
+    // p999 is NOT present in SESSION_FIXTURE.people (only p1/p2) — must show modal
     render(<CollaborativeClaimingView sessionId="s1" />)
     expect(screen.getByText('Who are you?')).toBeDefined()
   })
