@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–6 (shipped 2026-06-04) → [archive](milestones/v1.0-ROADMAP.md)
-- 📋 **v2.0 easy-billsy Redesign** — Phases 7–10 (in progress)
+- 📋 **v2.0 easy-billsy Redesign** — Phases 7–11 (in progress; reopened 2026-06-09 to add Phase 11 bug fixes)
 
 ## Phases
 
@@ -27,6 +27,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated (completed 2026-06-05)
 - [x] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning (completed 2026-06-07)
 - [x] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays (completed 2026-06-08)
+- [ ] **Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management** — post-v2 UAT bug fixes + participant management (added 2026-06-09; milestone reopened)
 
 ## Phase Details
 
@@ -56,8 +57,6 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 > 2. **Move the currencyCode shared-bill (SessionPayload) field + v1 migration default up into Phase 8** (done while the schema/normalizer are already open). Phase 10 keeps only the visible currency-display work.
 > 3. Doc drift fixed: Phase 7 "currency symbol" → "ISO 4217 code"; SETUP-04 "≥1" → "≥2".
 > 4. Open for Phase 9 discuss: unclaimed-items UX (recommended: warn + share-join-link CTA).
-
----
 
 ### Phase 8: Flat Model — Schema + API Surgery
 **Goal**: The session data model is clean of all host-role concepts; the direct-edit route is live; the shared-bill payload carries the detected currencyCode; test suite reflects the new model
@@ -117,6 +116,23 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 10-05-PLAN.md — UAT gap closure: currencyCode threaded into ClaimableItemCard/Bill View; Results Subtotal+Total rows; New Split clears persisted store sessionId (CURR-01, CURR-02)
 **UI hint**: yes
 
+---
+
+### Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management
+**Goal**: Fix post-v2 UAT bugs and usability issues on the bill and results screens, and add participant management, so the collaborative split flow is clear and correctable end-to-end
+**Depends on**: Phase 10
+**Requirements**: TBD (assigned during planning)
+**Success Criteria** (what must be TRUE) — *decisions marked ⚑ to be locked in discussion*:
+  1. The Receipt button on the bill screen works as intended (⚑ confirm intent — likely shows the scanned receipt image), or is removed if it has no purpose
+  2. The Share and Receipt buttons are large enough to be easily identified and tapped on mobile
+  3. The Results screen shows an "Unclaimed items" section at the top whenever items remain unallocated, and the "You're all set!" message is replaced with appropriate wording when the bill is not fully claimed (⚑ brainstorm phrasing + what counts as "unclaimed")
+  4. Participants can be removed and their names edited for corrections / group management, with defined handling of items they had claimed (⚑ decide: re-open to unclaimed vs. delete; per-device vs. shared-session effect)
+  5. The "Add a tip" affordance is more prominent on the bill/results screen, and the currency-change menu is relocated (smaller, beneath the total amount, left-aligned)
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 11 to break down)
+**UI hint**: yes
+**Source**: Post-v2.0 UAT bug list reported 2026-06-08 (see 10-UAT.md re-verification; new issues beyond it)
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -131,3 +147,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 5/5 | Complete   | 2026-06-08 |
+| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 0/0 | Not planned | — |

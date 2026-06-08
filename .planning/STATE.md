@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: easy-billsy Redesign
-status: milestone_complete
-last_updated: 2026-06-08T18:34:17.013Z
-last_activity: 2026-06-08
+status: in_progress
+last_updated: 2026-06-09T00:00:00.000Z
+last_activity: 2026-06-09
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 4
   total_plans: 21
   completed_plans: 21
-  percent: 100
-stopped_at: Milestone complete (Phase 10 was final phase)
+  percent: 80
+stopped_at: Milestone reopened 2026-06-09 — Phase 11 (post-v2 UAT bug fixes) added, not yet planned
 ---
 
 # Project State
@@ -25,19 +25,19 @@ stopped_at: Milestone complete (Phase 10 was final phase)
 ## Project Reference
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Milestone complete
+**Current focus:** Phase 11 — post-v2 UAT bug fixes + participant management (needs discussion → planning)
 
 ---
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-06-08
+Phase: 11
+Plan: Not planned yet
+Status: Milestone reopened — Phase 11 added
+Last activity: 2026-06-09
 
 ```
-Progress: [██████████] 100%
+Progress: [████████░░] 80% (4/5 phases — Phase 11 added 2026-06-09)
 ```
 
 ## Performance Metrics (v1.0 final)
@@ -48,6 +48,10 @@ Progress: [██████████] 100%
 **LOC:** ~6,270 TS/TSX · **Commits:** 232 · **Timeline:** 2026-05-08 → 2026-06-04
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- 2026-06-09 — v2.0 milestone reopened (was marked complete after Phase 10 execution, before UAT). Phase 11 added: "Bug Fixes & Polish — Bill/Results Screens + Participant Management" — post-v2 UAT bug list (receipt button non-functional; share/receipt buttons too small; unclaimed-items section + revised "all set" copy on Results; participant remove/edit; tip prominence + currency menu relocation). Not yet planned; needs discussion (open decisions on receipt-button intent, unclaimed phrasing, participant-removal handling of claimed items).
 
 ### Key Decisions
 
