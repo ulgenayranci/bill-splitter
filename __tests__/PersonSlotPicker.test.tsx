@@ -33,15 +33,14 @@ describe('PersonSlotPicker', () => {
     expect(screen.getByText('Carol')).toBeDefined()
   })
 
-  it('Test 2: A person whose slot is taken renders with opacity-50 class and the literal "(taken)" string', () => {
+  it('Test 2 (GAP-09-NOLOCK): even when personSlots:{p2:true}, NO "(taken)" text and NO opacity-50/aria-disabled on any card', () => {
     render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
-    // Bob's card should have "(taken)"
-    expect(screen.getByText('(taken)')).toBeDefined()
-    // Bob's card should have opacity-50 class somewhere
-    const takenText = screen.getByText('(taken)')
-    const bobCard = takenText.closest('li')!
-    const cardEl = bobCard.querySelector('[class*="opacity-50"]')
-    expect(cardEl).not.toBeNull()
+    // No "(taken)" text anywhere — no greyed-out names under the no-lock model
+    expect(screen.queryByText('(taken)')).toBeNull()
+    // Bob's card must NOT have opacity-50 or aria-disabled
+    const bobCard = screen.getByLabelText(/Claim slot Bob/i).closest('li')!
+    expect(bobCard.querySelector('[class*="opacity-50"]')).toBeNull()
+    expect(screen.getByLabelText(/Claim slot Bob/i).getAttribute('aria-disabled')).toBeNull()
   })
 
   it('Test 3: Tapping an available card calls onSelect(person.id)', () => {
@@ -52,12 +51,12 @@ describe('PersonSlotPicker', () => {
     expect(onSelect).toHaveBeenCalledWith('p1')
   })
 
-  it('Test 4: Tapping a taken card does NOT call onSelect', () => {
+  it('Test 4 (GAP-09-NOLOCK): tapping Bob (formerly "taken") DOES call onSelect("p2") — all names always selectable', () => {
     const onSelect = vi.fn()
     render(<PersonSlotPicker session={mockSession} onSelect={onSelect} />)
-    // Bob's slot is taken
-    fireEvent.click(screen.getByLabelText(/Bob \(taken\)/i))
-    expect(onSelect).not.toHaveBeenCalled()
+    // Bob's card is now always selectable — aria-label is "Claim slot Bob" (no "(taken)")
+    fireEvent.click(screen.getByLabelText(/Claim slot Bob/i))
+    expect(onSelect).toHaveBeenCalledWith('p2')
   })
 
   it('Test 5 (D-13): The first person in session.people is not pre-locked when their slot is unclaimed', () => {
