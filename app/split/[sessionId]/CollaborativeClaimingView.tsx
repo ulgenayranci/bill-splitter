@@ -550,7 +550,24 @@ export function CollaborativeClaimingView({
   }
 
   if (phase === 'results') {
-    return <PersonResultsScreen session={session} personId={selectedPersonId} onBack={() => setPhase('tip')} />
+    return (
+      <PersonResultsScreen
+        session={session}
+        personId={selectedPersonId}
+        currencyCode={session.currencyCode ?? 'USD'}
+        onAddTip={() => {}}
+        onEditBill={() => void handleBackToClaiming()}
+        onCurrencyChange={async (newCode: string) => {
+          await fetch(`/api/session/${sessionId}/edit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ op: 'update_currency', currencyCode: newCode }),
+          })
+          await mutate()
+        }}
+        sessionId={sessionId}
+      />
+    )
   }
 
   const { unclaimed: unclaimedCount } = getUnclaimedCounts(session)
