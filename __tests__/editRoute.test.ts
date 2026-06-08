@@ -293,45 +293,60 @@ describe('POST /api/session/[sessionId]/edit', () => {
 
   // --- op: update_currency ---
   describe('update_currency op', () => {
-    it('Test 17 (update_currency valid): returns 200 { ok: true } and persists currencyCode to session', async () => {
-      mockGet.mockResolvedValue(baseSession)
-      mockSet.mockResolvedValue('OK')
+    it('Test 17 (update_currency valid): CR-01 — uses atomic Lua eval, NOT GET+SET; redis.eval called once with currencyCode in ARGV', async () => {
+      // CR-01 fix: update_currency now runs atomically via Lua (mirrors add_person pattern).
+      // redis.get must NOT be called; redis.set must NOT be called; redis.eval called exactly once.
+      mockEval.mockResolvedValue('OK')
       const { status, json } = await callPOST('test-session', {
         op: 'update_currency',
         currencyCode: 'EUR',
       })
       expect(status).toBe(200)
       expect((json as { ok: boolean }).ok).toBe(true)
-      expect(mockSet).toHaveBeenCalledTimes(1)
-      const [, savedPayload] = mockSet.mock.calls[0]
-      const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
-      expect(saved.currencyCode).toBe('EUR')
+      expect(mockEval).toHaveBeenCalledTimes(1)
+      expect(mockGet).not.toHaveBeenCalled()
+      expect(mockSet).not.toHaveBeenCalled()
+      // Confirm ARGV[0] is the currency code passed to Lua
+      const evalArgs = mockEval.mock.calls[0]
+      // evalArgs[2] is the ARGV array: [currencyCode]
+      const argv = evalArgs[2] as string[]
+      expect(argv[0]).toBe('EUR')
     })
 
-    it('Test 18 (update_currency empty string): returns 400', async () => {
-      mockGet.mockResolvedValue(baseSession)
+    it('Test 17b (update_currency session_not_found): eval returns "session_not_found" → 404', async () => {
+      mockEval.mockResolvedValue('session_not_found')
+      const { status, json } = await callPOST('test-session', {
+        op: 'update_currency',
+        currencyCode: 'EUR',
+      })
+      expect(status).toBe(404)
+      expect(typeof (json as { error: string }).error).toBe('string')
+    })
+
+    it('Test 18 (update_currency empty string): returns 400; eval NOT called', async () => {
       const { status } = await callPOST('test-session', {
         op: 'update_currency',
         currencyCode: '',
       })
       expect(status).toBe(400)
+      expect(mockEval).not.toHaveBeenCalled()
     })
 
-    it('Test 19 (update_currency missing field): returns 400', async () => {
-      mockGet.mockResolvedValue(baseSession)
+    it('Test 19 (update_currency missing field): returns 400; eval NOT called', async () => {
       const { status } = await callPOST('test-session', {
         op: 'update_currency',
       })
       expect(status).toBe(400)
+      expect(mockEval).not.toHaveBeenCalled()
     })
 
-    it('Test 20 (update_currency too long): currencyCode > 10 chars returns 400', async () => {
-      mockGet.mockResolvedValue(baseSession)
+    it('Test 20 (update_currency too long): currencyCode > 10 chars returns 400; eval NOT called', async () => {
       const { status } = await callPOST('test-session', {
         op: 'update_currency',
         currencyCode: 'ABCDEFGHIJK', // 11 chars
       })
       expect(status).toBe(400)
+      expect(mockEval).not.toHaveBeenCalled()
     })
   })
 })

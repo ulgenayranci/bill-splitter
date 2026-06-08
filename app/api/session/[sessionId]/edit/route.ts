@@ -9,6 +9,29 @@ const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 
 type EditOp = (typeof VALID_OPS)[number]
 
 /**
+ * UPDATE_CURRENCY_SCRIPT: Atomically sets session.currencyCode in a single redis.eval call.
+ * Fixes CR-01: the previous GET→mutate→SET wrote the entire session back, so any concurrent
+ * claim/tip/add-person write landing between the GET and SET was silently clobbered.
+ * This field-level Lua update eliminates that cross-field data-loss window.
+ *
+ * ARGV[1] = new currencyCode (already validated by TypeScript before eval)
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session'
+ *
+ * Mirrors ADD_PERSON_SCRIPT pattern. EX 86400 matches all other scripts in this file.
+ */
+const UPDATE_CURRENCY_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok then return 'invalid_session' end
+
+session.currencyCode = ARGV[1]
+
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
  * ADD_PERSON_SCRIPT: Atomically appends a new person to session.people and locks
  * their identity slot in session.claims.personSlots in a single redis.eval call.
  * Prevents the append race (Pitfall 2) where two concurrent "I'm not listed" requests
@@ -151,6 +174,35 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid op' }, { status: 400 })
   }
 
+  // update_currency: validate code, then run UPDATE_CURRENCY_SCRIPT atomically via Lua.
+  // CR-01: runs BEFORE the GET→mutate→SET path so the field-level write cannot clobber
+  // concurrent claim/tip/add-person writes that land between a GET and SET on the full session.
+  if (op === 'update_currency') {
+    const validation = validateOp('update_currency', b, {} as SessionPayload)
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+
+    try {
+      const result = await redis.eval(
+        UPDATE_CURRENCY_SCRIPT,
+        [`session:${sessionId}`],
+        [b.currencyCode as string]
+      )
+      if (result === 'session_not_found') {
+        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
+      if (result === 'invalid_session') {
+        return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+      }
+      // result === 'OK'
+      return NextResponse.json({ ok: true })
+    } catch (err) {
+      console.error('Edit error:', err)
+      return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
+    }
+  }
+
   // add_person: validate name, then run ADD_PERSON_SCRIPT atomically via Lua.
   // This branch runs BEFORE the GET→mutate→SET path to avoid the append race (Pitfall 2 / T-09-06).
   if (op === 'add_person') {
@@ -235,12 +287,6 @@ export async function POST(
       updatedItems = updatedItems.map((it) =>
         it.id === targetId ? { ...it, quantity: b.newQuantity as number } : it
       )
-    } else if (op === 'update_currency') {
-      // D-07: currencyCode is a session-level singleton — last-write-wins is correct.
-      // No Lua atomicity needed (T-10-05 accepted). GET→mutate→SET pattern.
-      const updated: SessionPayload = { ...session, currencyCode: b.currencyCode as string }
-      await redis.set(`session:${sessionId}`, JSON.stringify(updated), { ex: 86400 })
-      return NextResponse.json({ ok: true })
     }
 
     const updated: SessionPayload = {

@@ -15,6 +15,9 @@ findings:
   info: 4
   total: 11
 status: issues_found
+cr01_status: resolved
+cr01_resolved_at: 2026-06-08T00:00:00Z
+cr01_fix_commit: fix(10): make update_currency atomic via Lua (CR-01)
 ---
 
 # Phase 10: Code Review Report
@@ -48,7 +51,7 @@ No structural findings block was provided.
 
 ## Critical Issues
 
-### CR-01: `update_currency` clobbers concurrent claim/tip/person writes (data loss)
+### CR-01: `update_currency` clobbers concurrent claim/tip/person writes (data loss) — RESOLVED
 
 **File:** `app/api/session/[sessionId]/edit/route.ts:238-243`
 **Issue:** The `update_currency` branch does a non-atomic read-modify-write that serializes the
