@@ -6,14 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { formatCents } from '@/lib/billMath'
-import { AppHeader } from '@/components/wizard/AppHeader'
 
 export interface TipScreenProps {
   sessionId: string
   personId: string
   itemSubtotalCents: number
+  currencyCode?: string
   onTipConfirmed: () => void
-  onBack: () => void
   mutate: () => Promise<unknown>
 }
 
@@ -27,8 +26,8 @@ export function TipScreen({
   sessionId,
   personId,
   itemSubtotalCents,
+  currencyCode,
   onTipConfirmed,
-  onBack,
   mutate,
 }: TipScreenProps) {
   // Tip stored as integer cents. Starts at 0 per D-07.
@@ -82,91 +81,71 @@ export function TipScreen({
   const personalTotal = itemSubtotalCents + tipCents
 
   return (
-    <main className="mx-auto min-h-screen max-w-[480px] bg-background">
-      <AppHeader />
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-6">
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-10 px-3"
-          onClick={onBack}
-          aria-label="Back"
+    <div className="flex flex-col gap-6 px-6 py-4">
+      <h1 className="text-[20px] font-semibold leading-[1.2]">Add a tip?</h1>
+
+      <div className="flex flex-col gap-1">
+        <span
+          className="text-[28px] font-semibold text-amber-600"
+          data-testid="tip-amount-display"
         >
-          Back
-        </Button>
-      </header>
+          {formatCents(tipCents, currencyCode)}
+        </span>
+        <span className="text-[14px] text-zinc-500">Your tip</span>
+      </div>
 
-      <div className="flex flex-col gap-6 px-6 py-12">
-        <h1 className="text-[20px] font-semibold leading-[1.2]">Add a tip?</h1>
-
-        <div className="flex flex-col gap-1">
-          <span
-            className="text-[28px] font-semibold text-amber-600"
-            data-testid="tip-amount-display"
+      <div className="flex gap-2" data-testid="tip-presets">
+        {PRESETS.map((p) => (
+          <Button
+            key={p.percent}
+            type="button"
+            variant="outline"
+            className="h-11 flex-1"
+            onClick={() => applyPreset(p.percent)}
+            aria-label={`Set tip to ${p.label}`}
           >
-            {formatCents(tipCents)}
-          </span>
-          <span className="text-[14px] text-zinc-500">Your tip</span>
-        </div>
-
-        <div className="flex gap-2" data-testid="tip-presets">
-          {PRESETS.map((p) => (
-            <Button
-              key={p.percent}
-              type="button"
-              variant="outline"
-              className="h-11 flex-1"
-              onClick={() => applyPreset(p.percent)}
-              aria-label={`Set tip to ${p.label}`}
-            >
-              {p.label}
-            </Button>
-          ))}
-        </div>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-[14px] text-zinc-600">Custom %</span>
-          <Input
-            value={customPercentText}
-            onChange={(e) => applyCustom(e.target.value)}
-            inputMode="numeric"
-            placeholder="0"
-            aria-label="Custom tip percent"
-          />
-        </label>
-
-        <Separator />
-
-        <div className="flex justify-between text-[16px] font-semibold">
-          <span>Your total</span>
-          <span data-testid="tip-total-display">{formatCents(personalTotal)}</span>
-        </div>
-
-        {error && (
-          <p role="alert" className="text-[14px] text-red-600">
-            {error}
-          </p>
-        )}
+            {p.label}
+          </Button>
+        ))}
       </div>
 
-      <div
-        className="fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] border-t border-border bg-background px-6 py-4"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+      <label className="flex flex-col gap-1">
+        <span className="text-[14px] text-zinc-600">Custom %</span>
+        <Input
+          value={customPercentText}
+          onChange={(e) => applyCustom(e.target.value)}
+          inputMode="numeric"
+          placeholder="0"
+          aria-label="Custom tip percent"
+        />
+      </label>
+
+      <Separator />
+
+      <div className="flex justify-between text-[16px] font-semibold">
+        <span>Your total</span>
+        <span data-testid="tip-total-display">{formatCents(personalTotal, currencyCode)}</span>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-[14px] text-red-600">
+          {error}
+        </p>
+      )}
+
+      <Button
+        type="button"
+        className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+        onClick={handleConfirm}
+        disabled={submitting}
+        aria-label={submitting ? 'Confirming tip…' : 'Confirm tip'}
       >
-        <Button
-          type="button"
-          className="h-12 w-full bg-amber-600 hover:bg-amber-700"
-          onClick={handleConfirm}
-          disabled={submitting}
-          aria-label="Confirm tip"
-        >
-          {submitting ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            'Confirm tip'
-          )}
-        </Button>
-      </div>
-    </main>
+        {submitting ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          'Confirm tip'
+        )}
+      </Button>
+    </div>
   )
 }
