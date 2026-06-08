@@ -19,16 +19,6 @@ local itemId = ARGV[1]
 local personId = ARGV[2]
 local qty = tonumber(ARGV[3])
 
--- CR-02: slot-ownership guard. The caller may only mutate claims for a personId whose
--- identity slot they have locked (personSlots[personId] == true). Mirrors the /done route's
--- check, but enforced inside Lua so the authorization and the write are a single atomic op.
--- Without this any holder of the public sessionId could add/change/un-claim items on another
--- participant's behalf, corrupting everyone's totals.
-if not (session.claims and session.claims.personSlots
-        and session.claims.personSlots[personId] == true) then
-  return 'forbidden'
-end
-
 if not session.claims then session.claims = {} end
 if not session.claims.items then session.claims.items = {} end
 if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
@@ -91,13 +81,6 @@ local itemId = ARGV[1]
 local personId = ARGV[2]
 local joining = ARGV[3]
 
--- CR-02: slot-ownership guard (see QTY_CLAIM_SCRIPT). The share action can un-claim
--- (joining=false), so an unguarded share lets an attacker silently drop others' claims.
-if not (session.claims and session.claims.personSlots
-        and session.claims.personSlots[personId] == true) then
-  return 'forbidden'
-end
-
 if not session.claims then session.claims = {} end
 if not session.claims.items then session.claims.items = {} end
 if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
@@ -134,9 +117,7 @@ local personId = ARGV[1]
 if not session.claims then session.claims = {} end
 if not session.claims.personSlots then session.claims.personSlots = {} end
 
-if session.claims.personSlots[personId] == true then
-  return 'slot_taken'
-end
+-- GAP-09-NOLOCK: no slot_taken guard — personSlots is a presence marker only (not an exclusive lock)
 session.claims.personSlots[personId] = true
 
 redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
@@ -212,9 +193,6 @@ export async function POST(
       if (result === 'invalid_session') {
         return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
       }
-      if (result === 'forbidden') {
-        return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
-      }
       return NextResponse.json({ ok: true })
     }
 
@@ -237,9 +215,6 @@ export async function POST(
       if (result === 'qty_exceeded') {
         return NextResponse.json({ error: 'qty exceeds available quantity' }, { status: 409 })
       }
-      if (result === 'forbidden') {
-        return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
-      }
       return NextResponse.json({ ok: true })
     }
 
@@ -255,9 +230,6 @@ export async function POST(
     }
     if (result === 'invalid_session') {
       return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
-    }
-    if (result === 'slot_taken') {
-      return NextResponse.json({ ok: false, reason: 'slot_taken' })
     }
     return NextResponse.json({ ok: true })
   } catch (err) {

@@ -41,10 +41,7 @@ export async function POST(
     if (!session.people.some((p) => p.id === personId)) {
       return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
     }
-    // CR-02: Verify caller has claimed their slot before accepting their tip.
-    if (!session.claims?.personSlots?.[personId]) {
-      return NextResponse.json({ error: 'Forbidden: slot not claimed' }, { status: 403 })
-    }
+    // GAP-09-NOLOCK: slot lock guard removed — membership check above is the real authorization
 
     // WR-01: Non-atomic read-modify-write. Concurrent tip writes from different people
     // are safe (tips is keyed by personId). Same-person concurrent tip writes can race

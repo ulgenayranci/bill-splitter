@@ -27,7 +27,7 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 ### Identity (IDENT)
 
 - [ ] **IDENT-01**: On continuing from Setup, a "Who are you?" modal prompts the user to pick their name before claiming
-- [ ] **IDENT-02** _(revised 2026-06-05)_: The identity prompt does not nag — it is skipped whenever the device already has a chosen identity for this session (see IDENT-04). The original "auto-skip when only one person is in the party" is unreachable under the ≥2-people Setup gate (SETUP-04) and is folded into this no-re-prompt behavior.
+- [ ] **IDENT-02** _(revised 2026-06-05)_: The identity prompt does not nag — it is skipped whenever the device already has a chosen identity for this session (see IDENT-04). The original "auto-skip when only one person is in the party" is unreachable under the ≥2-people Setup gate (SETUP-04) and is folded into this no-re-prompt behavior. _(override 2026-06-08, GAP-09-NOLOCK)_: the "greyed-out taken names" interpretation (D-01) is retired — the flat model has no host, so every name is always re-selectable and concurrent same-name co-editing is allowed.
 - [ ] **IDENT-03**: User can pick "I'm not listed" to add themselves, and can change identity later
 - [ ] **IDENT-04**: The chosen identity persists on the device so a page reload doesn't re-prompt
 

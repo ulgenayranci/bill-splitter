@@ -38,7 +38,7 @@ if #session.people >= 20 then return 'session_full' end
 
 local colorIndex = #session.people % 6
 table.insert(session.people, { id = newPersonId, name = name, colorIndex = colorIndex })
-session.claims.personSlots[newPersonId] = true
+-- GAP-09-NOLOCK: no personSlots lock set — the flat model has no exclusive slot ownership
 
 redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
 return 'OK'
