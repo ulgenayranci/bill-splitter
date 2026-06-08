@@ -663,6 +663,7 @@ export function CollaborativeClaimingView({
                       onQtyChange={(newQty) => handleQtyChange(item.id, newQty)}
                       onShareChange={isSingleQty ? (joining) => handleShareChange(item.id, joining) : undefined}
                       errorMessage={itemErrors[item.id]}
+                      currencyCode={session.currencyCode ?? 'USD'}
                     />
                   </div>
                   <button
