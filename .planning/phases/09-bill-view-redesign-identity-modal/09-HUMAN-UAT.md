@@ -122,3 +122,19 @@ open_gaps: 1  # GAP-09-NOLOCK (new design change raised during Test 5)
     - "Selecting a name already active on another device succeeds and does NOT block; both sessions remain active as that person."
     - "Server personSlot locking that previously rejected/claimed exclusive ownership of a name is removed or made non-exclusive so concurrent same-name selection co-edits the same share."
     - "Identity restore logic no longer drops/forces the modal because a slot is 'locked' elsewhere."
+  diagnosis:
+    root_cause: |
+      Name-locking is implemented in 6 places. The flat model has no host, so exclusive slot ownership
+      is the wrong model and must be removed. Claims are already keyed by personId (lib/billMath.ts:105),
+      so concurrent same-name co-editing works automatically once the locks/guards are removed — no math change.
+    locations:
+      - "components/split/PersonSlotPicker.tsx:23,37-48,56-59 — `taken = slots[person.id] === true` greys out (opacity-50, cursor-not-allowed, aria-disabled, '(taken)' label) and blocks onClick. REMOVE: render all names selectable."
+      - "app/api/session/[sessionId]/claim/route.ts:126-144 (SLOT_CLAIM_SCRIPT) — Lua guard `if personSlots[personId] == true then return 'slot_taken'` rejects a 2nd device. REMOVE the guard (always allow select)."
+      - "app/api/session/[sessionId]/claim/route.ts:27-30 (QTY_CLAIM_SCRIPT) & :96-99 (SHARE_CLAIM_SCRIPT) — CR-02 ownership guards return 'forbidden'(403) unless caller's slot is locked. REMOVE so claiming works without exclusive lock. (Accepted trade-off: flat-model link already grants full edit — T-09-FLOW-02.)"
+      - "app/split/[sessionId]/CollaborativeClaimingView.tsx:115-139 (esp. line 133) — restore drops identity unless `personSlots[stored] === true`. CHANGE to restore when `session.people.some(p => p.id === stored)`."
+      - "app/api/session/[sessionId]/edit/route.ts (ADD_PERSON_SCRIPT ~line 41) — `personSlots[newPersonId] = true` locks the slot on add. REMOVE the lock-set (keep person creation)."
+    tests_to_update:
+      - "__tests__/PersonSlotPicker.test.tsx Test 2 & Test 4 (taken greying + tap-blocked assertions) — invert to 'all selectable'."
+      - "__tests__/CollaborativeClaimingView.test.tsx Test 20 (restore fails when slot gone) — update to restore-by-person-existence."
+      - "__tests__/sessionClaimRoute.test.ts CR-02 tests (lines 187-229) + Test 5 (slot_taken) — remove/rewrite for no-lock model."
+      - "__tests__/editRoute.test.ts Test 11 (add_person locks slot) — drop the personSlots lock assertion."
