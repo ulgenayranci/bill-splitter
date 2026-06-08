@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useBillStore } from '@/stores/useBillStore'
 import { WizardShell } from '@/components/wizard/WizardShell'
 import { SetupStep } from '@/components/wizard/SetupStep'
-import { AssignItemsStep } from '@/components/wizard/AssignItemsStep'
-import { ResultsStep } from '@/components/wizard/ResultsStep'
 
 export default function Page() {
-  const step = useBillStore((s) => s.step)
+  const router = useRouter()
+  const sessionId = useBillStore((s) => s.sessionId)
   const hasHydrated = useBillStore((s) => s._hasHydrated)
 
   // Rehydrate the persisted bill session after mount (skipHydration avoids SSR mismatch).
@@ -16,18 +16,20 @@ export default function Page() {
     useBillStore.persist.rehydrate()
   }, [])
 
+  // Resume redirect: once the store has rehydrated, if we already have a sessionId the
+  // user has an in-progress collaborative bill — send them back to it so they don't land
+  // on an empty Setup screen. Use replace (not push) so back-button doesn't loop.
+  useEffect(() => {
+    if (hasHydrated && sessionId) {
+      router.replace(`/split/${sessionId}`)
+    }
+  }, [hasHydrated, sessionId, router])
+
   return (
     <WizardShell>
-      {/* Hold the step content until localStorage rehydrates so a refresh restores
-          the in-progress split instead of flashing the empty Setup screen. */}
-      {hasHydrated && (
-        <>
-          {/* Steps 1 & 2 are folded into the single scan-first Setup screen (D-08). */}
-          {(step === 1 || step === 2) && <SetupStep />}
-          {step === 3 && <AssignItemsStep />}
-          {step === 4 && <ResultsStep />}
-        </>
-      )}
+      {/* Hold until localStorage rehydrates. If a sessionId is found, the effect above
+          will redirect — render nothing to avoid a Setup flash during the redirect. */}
+      {hasHydrated && !sessionId && <SetupStep />}
     </WizardShell>
   )
 }
