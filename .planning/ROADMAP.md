@@ -124,5 +124,5 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
-| 9. Bill View Redesign + Identity Modal | v2.0 | 7/7 | Complete   | 2026-06-08 |
+| 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 0/? | Not started | - |
