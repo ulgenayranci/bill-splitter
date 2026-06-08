@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Camera, Check, RotateCcw, Receipt, Trash2 } from 'lucide-react'
+import { Camera, Check, RotateCcw, Receipt, Trash2, LoaderCircle } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
+import { createSession } from '@/lib/createSession'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
 
@@ -20,11 +22,12 @@ import { BillPhotoLightbox } from './BillPhotoLightbox'
  * the existing Assign flow as a stopgap (D-12).
  */
 export function SetupStep() {
+  const router = useRouter()
   const items = useBillStore((s) => s.items)
   const people = useBillStore((s) => s.people)
   const addPerson = useBillStore((s) => s.addPerson)
   const removePerson = useBillStore((s) => s.removePerson)
-  const setStep = useBillStore((s) => s.setStep)
+  const setSessionId = useBillStore((s) => s.setSessionId)
   const billImageUrl = useBillStore((s) => s.billImageUrl)
   const ocrStatus = useBillStore((s) => s.ocrStatus)
   const expandStatus = useBillStore((s) => s.expandStatus)
@@ -37,6 +40,8 @@ export function SetupStep() {
   const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [sessionCreateError, setSessionCreateError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -57,6 +62,28 @@ export function SetupStep() {
     if (!trimmed) return
     addPerson(trimmed)
     setName('')
+  }
+
+  async function handleContinue() {
+    if (isCreating) return
+    setIsCreating(true)
+    setSessionCreateError(null)
+    try {
+      const { people: p, items: it, currencyCode } = useBillStore.getState()
+      abortRef.current?.abort()
+      abortRef.current = new AbortController()
+      const { sessionId } = await createSession(
+        { people: p, items: it, currencyCode },
+        abortRef.current.signal,
+      )
+      setSessionId(sessionId)
+      router.push(`/split/${sessionId}`)
+    } catch (err) {
+      console.error(err)
+      setSessionCreateError("Couldn't create session. Try again.")
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const handleFileChange = useCallback(
@@ -326,11 +353,11 @@ export function SetupStep() {
       {/* Continue (gated — D-11) */}
       <div className="mt-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button
-          onClick={() => setStep(3)}
-          disabled={!canContinue}
+          onClick={handleContinue}
+          disabled={!canContinue || isCreating}
           className="h-12 w-full bg-amber-600 text-base hover:bg-amber-700"
         >
-          Continue to Assign
+          {isCreating ? <LoaderCircle size={16} className="animate-spin" /> : 'Start splitting'}
         </Button>
         {!canContinue && (
           <p className="mt-2 text-center text-[12px] text-zinc-400">
@@ -338,6 +365,9 @@ export function SetupStep() {
               ? 'Add at least two people to continue'
               : 'Scan a receipt and add at least two people to continue'}
           </p>
+        )}
+        {sessionCreateError && (
+          <p className="mt-2 text-center text-[12px] text-red-600">{sessionCreateError}</p>
         )}
       </div>
 

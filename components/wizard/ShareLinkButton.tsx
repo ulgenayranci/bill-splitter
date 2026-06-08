@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useBillStore } from '@/stores/useBillStore'
+import { createSession } from '@/lib/createSession'
 
 interface PendingSession {
   guestUrl: string
@@ -42,22 +43,14 @@ export function ShareLinkButton() {
       // Phase 6: tipPercent is NOT sent — per D-07 tip is per-person, set after claiming.
       // Items now carry a required `quantity` field (Plan 01).
       // D-04: currencyCode sent so the session knows what currency to render amounts in.
-      const { people, items, assignments, currencyCode } = useBillStore.getState()
+      const { people, items, currencyCode } = useBillStore.getState()
       abortRef.current?.abort()
       abortRef.current = new AbortController()
-      const res = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ people, items, assignments, currencyCode }),
-        signal: abortRef.current.signal,
-      })
-      if (!res.ok) throw new Error(`Session creation failed: ${res.status}`)
-      const { sessionId } = (await res.json()) as {
-        sessionId: string
-      }
+      const { sessionId, guestUrl } = await createSession(
+        { people, items, currencyCode },
+        abortRef.current.signal,
+      )
       setSessionId(sessionId)
-      const origin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-      const guestUrl = `${origin}/split/${sessionId}`
       setPendingSession({ guestUrl, sessionId })
     } catch (err) {
       console.error(err)
