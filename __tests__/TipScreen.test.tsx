@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { TipScreen } from '@/components/split/TipScreen'
 
+// Mock next/navigation so AppHeader's useRouter() doesn't throw in jsdom
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}))
+
 const mutateMock = vi.fn()
 
 function renderTip(over: Partial<Parameters<typeof TipScreen>[0]> = {}) {

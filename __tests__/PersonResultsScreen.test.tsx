@@ -1,7 +1,12 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import type { SessionPayload } from '@/lib/sessionSchema'
+
+// Mock next/navigation so AppHeader's useRouter() doesn't throw in jsdom
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}))
 
 function makeSession(over: Partial<SessionPayload> = {}): SessionPayload {
   return {

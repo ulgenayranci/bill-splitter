@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { formatCents } from '@/lib/billMath'
+import { AppHeader } from '@/components/wizard/AppHeader'
 
 export interface TipScreenProps {
   sessionId: string
@@ -82,6 +83,7 @@ export function TipScreen({
 
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
+      <AppHeader />
       <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-6">
         <Button
           type="button"

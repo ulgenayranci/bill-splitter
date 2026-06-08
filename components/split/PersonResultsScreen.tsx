@@ -9,6 +9,7 @@ import {
 } from '@/lib/billMath'
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
+import { AppHeader } from '@/components/wizard/AppHeader'
 
 export interface PersonResultsScreenProps {
   session: PublicSessionPayload
@@ -30,6 +31,7 @@ export function PersonResultsScreen({ session, personId, onBack }: PersonResults
 
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
+      <AppHeader />
       <div className="flex flex-col gap-4 px-6 py-8">
         {onBack && (
           <button

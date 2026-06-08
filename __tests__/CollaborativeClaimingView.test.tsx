@@ -3,6 +3,11 @@ import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-li
 import { CollaborativeClaimingView } from '@/app/split/[sessionId]/CollaborativeClaimingView'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
+// Mock next/navigation so AppHeader's useRouter() doesn't throw in jsdom
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}))
+
 const mutateMock = vi.fn()
 const useSWRMock = vi.fn()
 vi.mock('swr', () => ({
