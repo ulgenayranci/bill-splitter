@@ -140,7 +140,7 @@ export function BillViewHeader({
         </div>
       </div>
 
-      {/* Row 2: people strip */}
+      {/* Row 2: people strip — overlapping facepile (negative margins + descending z-index) */}
       <div
         role="button"
         tabIndex={0}
@@ -149,11 +149,14 @@ export function BillViewHeader({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') onStripTap()
         }}
-        className="flex items-center gap-2 cursor-pointer mt-2 pb-1"
+        className="flex items-center cursor-pointer mt-2 pb-1"
       >
-        {/* Own-identity expanded pill */}
+        {/* Own-identity expanded pill — leftmost, highest z-index, no negative margin */}
         {myPerson && (
-          <div className="flex items-center gap-2 h-8 rounded-full bg-amber-50 border border-amber-400 px-3">
+          <div
+            className="flex items-center gap-2 h-8 rounded-full bg-amber-50 border border-amber-400 px-3"
+            style={{ zIndex: otherPeople.length + 2, position: 'relative' }}
+          >
             {/* Avatar circle inside the pill */}
             <span
               className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${AVATAR_COLORS[(myPerson.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
@@ -167,8 +170,8 @@ export function BillViewHeader({
           </div>
         )}
 
-        {/* Other people — compact circles (up to MAX_STRIP_AVATARS) */}
-        {visibleOthers.map((person) => {
+        {/* Other people — compact circles overlapping with negative margin + white ring */}
+        {visibleOthers.map((person, i) => {
           const colorClass =
             AVATAR_COLORS[(person.colorIndex ?? 0) % AVATAR_COLORS.length] ??
             AVATAR_COLORS[0]
@@ -176,7 +179,8 @@ export function BillViewHeader({
             <span
               key={person.id}
               title={person.name}
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ring-2 ring-white -ml-3 ${colorClass}`}
+              style={{ zIndex: otherPeople.length + 1 - i, position: 'relative' }}
               aria-hidden="true"
             >
               {person.name.charAt(0).toUpperCase()}
@@ -184,9 +188,12 @@ export function BillViewHeader({
           )
         })}
 
-        {/* Overflow badge */}
+        {/* Overflow badge — overlapping, lowest z-index */}
         {overflowCount > 0 && (
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[14px] font-semibold text-zinc-500">
+          <span
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[14px] font-semibold text-zinc-500 ring-2 ring-white -ml-3"
+            style={{ zIndex: 0, position: 'relative' }}
+          >
             +{overflowCount}
           </span>
         )}
