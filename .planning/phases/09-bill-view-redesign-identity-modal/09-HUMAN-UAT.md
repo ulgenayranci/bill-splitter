@@ -1,14 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 09-bill-view-redesign-identity-modal
 source: [09-VERIFICATION.md]
 started: 2026-06-07T00:30:00Z
-updated: 2026-06-08T13:45:00Z
+updated: 2026-06-08T17:20:00Z
 ---
 
 ## Current Test
 
-[testing complete — all 7 tests passed; 1 new design gap raised (GAP-09-NOLOCK) routed to gap closure]
+[testing complete — all 8 tests passed; both gaps (GAP-09-FLOW, GAP-09-NOLOCK) resolved and confirmed live]
 
 ## Tests
 
@@ -54,15 +54,15 @@ expected: |
   already active on another device. Pick a name that's active on Device A from Device B: it succeeds
   (no "taken"/blocked message); both devices stay active as that person and both can claim items to
   that same person's share.
-result: pending
-note: "Code-closed by 09-08 (verified: tsc clean, tests green, locking greps clean). Needs live re-test on Vercel with two devices once 09-08 deploys."
+result: pass
+verified: 2026-06-08 — user confirmed on live Vercel app across two devices: no greyed names, a 2nd device can pick a name already active elsewhere, and both co-edit that person's share. GAP-09-NOLOCK confirmed closed in production.
 
 ## Summary
 
 total: 8
-passed: 7
+passed: 8
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 open_gaps: 0  # GAP-09-NOLOCK code-closed by 09-08; test 7 awaits live human re-test
