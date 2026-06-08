@@ -50,7 +50,7 @@ interface CollaborativeClaimingViewProps {
   sessionId: string
 }
 
-type Phase = 'claiming' | 'tip' | 'results'
+type Phase = 'claiming' | 'results'
 
 /** Count items whose total claimed qty is below their quantity (mirrors UnclaimedBanner). */
 function getUnclaimedCounts(session: SessionPayload): { unclaimed: number; total: number } {
@@ -64,12 +64,10 @@ function getUnclaimedCounts(session: SessionPayload): { unclaimed: number; total
 }
 
 /** Derive which phase a returning guest should land on based on persisted server state.
+ *  D-01: tip phase removed — done users land on results directly; tip is optional from there.
  *  D-12: no 'waiting' branch — results are reachable regardless of unclaimed items. */
 function derivePhase(personId: PersonId, session: SessionPayload): Phase {
-  if (session.tips?.[personId] !== undefined) return 'results'
-  if (session.claims?.donePeople?.[personId]) {
-    return 'tip'
-  }
+  if (session.claims?.donePeople?.[personId]) return 'results'
   return 'claiming'
 }
 
@@ -88,6 +86,10 @@ export function CollaborativeClaimingView({
   // Warn-but-allow done flow (D-09): dialog open state.
   const [showUnclaimedWarning, setShowUnclaimedWarning] = useState(false)
   const [warningLinkCopied, setWarningLinkCopied] = useState(false)
+
+  // Tip Dialog state (D-01/TIP-02): mounted at top level so it persists across renders.
+  // Pitfall 4: must NOT be inside a phase branch — Dialog state resets on re-render otherwise.
+  const [tipDialogOpen, setTipDialogOpen] = useState(false)
 
   const swrKey = `/api/session/${sessionId}`
   const { data: session, error, mutate } = useSWR<SessionPayload>(swrKey, fetcher, {
@@ -345,7 +347,7 @@ export function CollaborativeClaimingView({
       })
       if (!res.ok) throw new Error(`done route returned ${res.status}`)
       await mutate(() => fetcher(swrKey))
-      setPhase('tip')
+      setPhase('results') // D-01: Done goes straight to Results; tip is optional from there
     } catch (err) {
       console.error('Done submission failed:', err)
       setDoneError(claimErrorMessage(err, 'submit'))
@@ -411,6 +413,17 @@ export function CollaborativeClaimingView({
       console.error('handleBackToClaiming failed:', err)
     }
     setPhase('claiming')
+  }
+
+  // Currency write path (CURR-02): CollaborativeClaimingView owns the SWR session + mutate,
+  // so it owns the write. PersonResultsScreen delegates via onCurrencyChange prop.
+  async function handleCurrencyChange(newCode: string) {
+    await fetch(`/api/session/${sessionId}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'update_currency', currencyCode: newCode }),
+    })
+    await mutate()
   }
 
   async function handleInlineSubmit() {
@@ -536,37 +549,31 @@ export function CollaborativeClaimingView({
     session.tips?.[selectedPersonId] ?? 0
   )
 
-  if (phase === 'tip') {
-    return (
-      <TipScreen
-        sessionId={sessionId}
-        personId={selectedPersonId}
-        itemSubtotalCents={personalShare.itemSubtotal}
-        onTipConfirmed={() => setPhase('results')}
-        onBack={() => void handleBackToClaiming()}
-        mutate={mutate}
-      />
-    )
-  }
-
   if (phase === 'results') {
     return (
-      <PersonResultsScreen
-        session={session}
-        personId={selectedPersonId}
-        currencyCode={session.currencyCode ?? 'USD'}
-        onAddTip={() => {}}
-        onEditBill={() => void handleBackToClaiming()}
-        onCurrencyChange={async (newCode: string) => {
-          await fetch(`/api/session/${sessionId}/edit`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ op: 'update_currency', currencyCode: newCode }),
-          })
-          await mutate()
-        }}
-        sessionId={sessionId}
-      />
+      <>
+        <PersonResultsScreen
+          session={session}
+          personId={selectedPersonId}
+          currencyCode={session.currencyCode ?? 'USD'}
+          onAddTip={() => setTipDialogOpen(true)}
+          onEditBill={() => void handleBackToClaiming()}
+          onCurrencyChange={handleCurrencyChange}
+          sessionId={sessionId}
+        />
+        <Dialog open={tipDialogOpen} onOpenChange={setTipDialogOpen}>
+          <DialogContent showCloseButton={false}>
+            <TipScreen
+              sessionId={sessionId}
+              personId={selectedPersonId}
+              itemSubtotalCents={personalShare.itemSubtotal}
+              currencyCode={session.currencyCode ?? 'USD'}
+              onTipConfirmed={() => setTipDialogOpen(false)}
+              mutate={mutate}
+            />
+          </DialogContent>
+        </Dialog>
+      </>
     )
   }
 

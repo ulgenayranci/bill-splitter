@@ -132,16 +132,18 @@ describe('CollaborativeClaimingView', () => {
   })
 
   // CR-04: POSTs done:false, not undone:true
-  it('Test 7 (back from Tip): POSTs done:false and returns to claiming', async () => {
+  // D-01: tip is now optional modal from Results — "Edit bill" replaces the old TipScreen Back button
+  it('Test 7 (Edit bill from Results): POSTs done:false and returns to claiming', async () => {
     await selectAlice({ session: { claims: FULLY_CLAIMED_CLAIMS } })
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
-    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    await waitFor(() => expect(screen.getByText(/You.?re all set!/)).toBeDefined())
 
     const backFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', backFetch)
-    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }))
+    // D-01: "Edit bill" button in PersonResultsScreen calls onEditBill → handleBackToClaiming
+    fireEvent.click(screen.getByRole('button', { name: /edit bill/i }))
     await waitFor(() => {
       const calls = backFetch.mock.calls
       const lastCall = calls[calls.length - 1]
@@ -287,8 +289,8 @@ describe('CollaborativeClaimingView', () => {
   })
 
   // D-12: previously this path could land on a blocking 'waiting' screen when items were
-  // unclaimed. Now: done (through the warning) → tip → Confirm tip → results, always.
-  it('Test 18 (D-12, Confirm tip → Results): with unclaimed items, Continue anyway → tip → Confirm tip lands on results (no waiting screen)', async () => {
+  // unclaimed. Now: done (through the warning) → Results directly (D-01); tip is optional modal.
+  it('Test 18 (D-12, Results always): with unclaimed items, Continue anyway → Results (no waiting screen)', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
@@ -297,28 +299,12 @@ describe('CollaborativeClaimingView', () => {
     const warnDialog = await screen.findByRole('dialog')
     expect(within(warnDialog).getByText(/items still unclaimed/i)).toBeDefined()
     fireEvent.click(within(warnDialog).getByRole('button', { name: /continue anyway/i }))
-    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
-    useSWRMock.mockReturnValue({
-      data: {
-        ...SESSION_FIXTURE,
-        claims: {
-          items: {
-            i1: { p1: { qty: 1 } },
-          },
-          personSlots: { p1: true },
-          donePeople: { p1: true },
-        },
-        tips: { p1: 0 },
-      },
-      error: undefined,
-      mutate: mutateMock,
-    })
-    const tipFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
-    vi.stubGlobal('fetch', tipFetch)
-    fireEvent.click(screen.getByRole('button', { name: /Confirm tip/i }))
-    await waitFor(() => {
-      expect(screen.getByText(/You.?re all set/)).toBeDefined()
-    })
+    // D-01: Done goes straight to Results — "You're all set!" is visible
+    await waitFor(() => expect(screen.getByText(/You.?re all set!/)).toBeDefined())
+    // The Tip Dialog is NOT yet open — "Add a tip?" refers to the button in PersonResultsScreen
+    expect(screen.getByRole('button', { name: /add a tip/i })).toBeDefined()
+    // No waiting screen
+    expect(screen.queryByText(/waiting/i)).toBeNull()
   })
 
   // ——— Phase 9 identity modal tests (IDENT-01..04) ———
