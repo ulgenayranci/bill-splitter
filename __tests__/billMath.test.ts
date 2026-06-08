@@ -56,6 +56,25 @@ describe('formatCents', () => {
   it('formats 5 as "$0.05"', () => {
     expect(formatCents(5)).toBe('$0.05')
   })
+
+  it('formats 1250 with EUR as "€12.50"', () => {
+    expect(formatCents(1250, 'EUR')).toBe('€12.50')
+  })
+
+  it('formats 1250 with JPY as "¥1,250" (zero-decimal: NOT divided by 100)', () => {
+    const result = formatCents(1250, 'JPY')
+    expect(result).toBe('¥1,250')
+    expect(result).not.toBe('¥12')
+    expect(result).not.toBe('¥12.50')
+  })
+
+  it('formats 999 with GBP as "£9.99"', () => {
+    expect(formatCents(999, 'GBP')).toBe('£9.99')
+  })
+
+  it('falls back to legacy "$12.50" when currencyCode is empty string', () => {
+    expect(formatCents(1250, '')).toBe('$12.50')
+  })
 })
 
 describe('computeSubtotalCents', () => {
