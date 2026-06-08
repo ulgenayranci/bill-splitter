@@ -109,11 +109,12 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
   3. User can Copy a plain-text per-person summary, tap Edit to return to the Bill View, or start a New bill that resets the flow
   4. All monetary amounts render in the currency detected from the receipt (correct symbol and decimal places); amounts are correct for the session's currency
   5. When currency cannot be detected, the app falls back gracefully (sensible default displayed; user can override it without blocking the flow)
-**Plans**: 4 plans (3 waves — formatCents + update_currency op (parallel) → Results screen → Tip Dialog + phase-machine wiring)
+**Plans**: 5 plans (4 base + 1 UAT gap-closure) (3 waves — formatCents + update_currency op (parallel) → Results screen → Tip Dialog + phase-machine wiring; 10-05 closes 3 UAT gaps)
 - [x] 10-01-PLAN.md — formatCents(cents, currencyCode?) upgrade: Intl.NumberFormat zero-decimal handling, legacy fallback, + tests (CURR-02, CURR-03)
 - [x] 10-02-PLAN.md — update_currency op on /edit route (shared session-level currency write path) + tests (CURR-03)
 - [x] 10-03-PLAN.md — PersonResultsScreen rewrite: all-people accordion, items-only grand total, Copy/Edit/New Split CTA bar, inline currency override (RESULTS-03, RESULTS-04, CURR-02, CURR-03)
 - [x] 10-04-PLAN.md — TipScreen → Dialog content + CollaborativeClaimingView two-phase machine (tip optional from Results) (TIP-02, CURR-02)
+- [ ] 10-05-PLAN.md — UAT gap closure: currencyCode threaded into ClaimableItemCard/Bill View; Results Subtotal+Total rows; New Split clears persisted store sessionId (CURR-01, CURR-02)
 **UI hint**: yes
 
 ## Progress
