@@ -13,7 +13,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { AVATAR_COLORS } from '@/stores/useBillStore'
+import { AVATAR_COLORS, useBillStore } from '@/stores/useBillStore'
 import {
   computePersonShareFromClaims,
   computeSubtotalCents,
@@ -116,6 +116,9 @@ export function PersonResultsScreen({
     } catch {
       // localStorage unavailable in private browsing — silently ignore
     }
+    // Clear the persisted Zustand store (incl. sessionId) so app/page.tsx does not
+    // redirect back to /split/{sessionId} — lands on / on the first tap (UAT gap 3).
+    useBillStore.getState().reset()
     router.push('/')
   }
 
