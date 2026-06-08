@@ -13,7 +13,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { AVATAR_COLORS } from '@/stores/useBillStore'
+import { AVATAR_COLORS, useBillStore } from '@/stores/useBillStore'
 import {
   computePersonShareFromClaims,
   computeSubtotalCents,
@@ -116,6 +116,9 @@ export function PersonResultsScreen({
     } catch {
       // localStorage unavailable in private browsing — silently ignore
     }
+    // Clear the persisted Zustand store (incl. sessionId) so app/page.tsx does not
+    // redirect back to /split/{sessionId} — lands on / on the first tap (UAT gap 3).
+    useBillStore.getState().reset()
     router.push('/')
   }
 
@@ -208,9 +211,16 @@ export function PersonResultsScreen({
                         </ul>
                       )}
 
-                      {/* Current user: tip + total rows */}
+                      {/* Current user: Subtotal (items only) + tip + in-card Total rows */}
                       {isCurrentUser && (
                         <>
+                          <div
+                            className="mt-1 flex justify-between text-[14px]"
+                            data-testid="results-subtotal"
+                          >
+                            <span>Subtotal</span>
+                            <span>{formatCents(share.itemSubtotal, currencyCode)}</span>
+                          </div>
                           <Separator className="my-2" />
                           <div className="flex flex-col gap-1">
                             <div
@@ -220,6 +230,14 @@ export function PersonResultsScreen({
                               <span>Your tip</span>
                               <span>{formatCents(share.tip, currencyCode)}</span>
                             </div>
+                          </div>
+                          <Separator className="my-2" />
+                          <div
+                            className="flex justify-between text-[14px] font-semibold"
+                            data-testid="results-card-total"
+                          >
+                            <span>Total</span>
+                            <span>{formatCents(share.total, currencyCode)}</span>
                           </div>
                         </>
                       )}

@@ -16,6 +16,7 @@ interface ClaimableItemCardProps {
   onQtyChange: (newQty: number) => void
   onShareChange?: (joining: boolean) => void
   errorMessage?: string
+  currencyCode?: string
 }
 
 const MAX_VISIBLE_AVATARS = 3
@@ -28,6 +29,7 @@ export function ClaimableItemCard({
   onQtyChange,
   onShareChange,
   errorMessage,
+  currencyCode,
 }: ClaimableItemCardProps) {
   const myEntry = claimsForItem[myPersonId]
   const myQty = myEntry?.qty ?? 0
@@ -123,7 +125,7 @@ export function ClaimableItemCard({
             <span className="ml-2 text-[14px] text-zinc-500">×{item.quantity}</span>
           )}
         </span>
-        <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents)}</span>
+        <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents, currencyCode ?? 'USD')}</span>
       </div>
 
       {/* Multi-qty stepper row */}
@@ -204,7 +206,7 @@ export function ClaimableItemCard({
       {/* Your share line — shown for shared single-qty items the current user has joined (D-15) */}
       {yourShareCents !== null && (
         <p className="text-[14px] text-zinc-500 mt-1" data-testid="your-share">
-          your share: {formatCents(yourShareCents)}
+          your share: {formatCents(yourShareCents, currencyCode ?? 'USD')}
         </p>
       )}
 
