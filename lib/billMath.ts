@@ -9,9 +9,34 @@ export function parseCents(value: string): number | null {
   return cents
 }
 
-/** Format integer cents → display string ("$12.50"). */
-export function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`
+/**
+ * Format integer cents → display string.
+ *
+ * Backward-compatible: calling with no `currencyCode` (or undefined) returns the
+ * legacy `"$X.XX"` format, preserving all existing call sites unchanged.
+ *
+ * When `currencyCode` is provided, uses `Intl.NumberFormat` to render the correct
+ * symbol and decimal places for the given ISO 4217 currency code:
+ *   - Standard (2-decimal) currencies: `formatCents(1250, 'EUR')` → `"€12.50"`
+ *   - Zero-decimal currencies (JPY, KRW): `formatCents(1250, 'JPY')` → `"¥1,250"`
+ *     (NOT divided by 100 — `minimumFractionDigits=0` gives divisor=1)
+ *   - Invalid/empty `currencyCode` falls back to legacy `"$X.XX"` without throwing
+ *     (CURR-03, T-10-01)
+ */
+export function formatCents(cents: number, currencyCode?: string): string {
+  if (!currencyCode) {
+    // Legacy path: preserves exact '$X.XX' output for all existing call sites
+    return `$${(cents / 100).toFixed(2)}`
+  }
+  try {
+    const fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode })
+    const decimals = fmt.resolvedOptions().minimumFractionDigits ?? 2
+    const divisor = Math.pow(10, decimals)
+    return fmt.format(cents / divisor)
+  } catch {
+    // Fallback for invalid/empty currency codes (empty string throws in Intl)
+    return `$${(cents / 100).toFixed(2)}`
+  }
 }
 
 /**
