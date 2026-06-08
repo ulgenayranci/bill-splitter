@@ -48,8 +48,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 ### Results & Tip (RESULTS / TIP)
 
-- [ ] **RESULTS-03**: Locked Results screen shows each person's itemized breakdown — the current user expanded by default, others tap-to-expand — plus a grand total
-- [ ] **RESULTS-04**: From Results, user can Copy a plain-text summary, Edit the bill, or start a New bill
+- [x] **RESULTS-03**: Locked Results screen shows each person's itemized breakdown — the current user expanded by default, others tap-to-expand — plus a grand total
+- [x] **RESULTS-04**: From Results, user can Copy a plain-text summary, Edit the bill, or start a New bill
 - [ ] **TIP-02**: User can add a tip via a modal launched from the Results screen; totals update to include it
 
 ---
@@ -91,8 +91,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | CLAIM-04 | Phase 9 | Pending |
 | CLAIM-05 | Phase 9 | Pending |
 | CLAIM-06 | Phase 9 | Pending |
-| RESULTS-03 | Phase 10 | Pending |
-| RESULTS-04 | Phase 10 | Pending |
+| RESULTS-03 | Phase 10 | Complete |
+| RESULTS-04 | Phase 10 | Complete |
 | TIP-02 | Phase 10 | Pending |
 | CURR-02 | Phase 10 | Complete |
 | CURR-03 | Phase 10 | Complete |
