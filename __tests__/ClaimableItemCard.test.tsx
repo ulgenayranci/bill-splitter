@@ -307,6 +307,23 @@ describe('ClaimableItemCard — Phase 9 (D-06, D-07, D-08, D-13, D-14, D-15)', (
     expect(document.querySelector('.animate-bounce')).toBeNull()
   })
 
+  // Gap 1: currencyCode threads through to the price amount (EUR → €, not $)
+  it('Gap 1 (currency): price shows the passed currencyCode symbol (EUR → €, not $)', () => {
+    render(
+      <ClaimableItemCard
+        item={singleQtyItem}
+        claimsForItem={{}}
+        myPersonId="p1"
+        peopleById={peopleById}
+        onQtyChange={vi.fn()}
+        currencyCode="EUR"
+      />
+    )
+    // The line price (item.priceCents = 1500) must render with the € symbol
+    expect(screen.getByText(/€/)).toBeDefined()
+    expect(screen.queryByText('$15.00')).toBeNull()
+  })
+
   // Backward compat: when onShareChange is undefined, single-qty tap falls back to onQtyChange
   it('backward compat: when onShareChange is undefined, single-qty tap falls back to onQtyChange', () => {
     const onQtyChange = vi.fn()
