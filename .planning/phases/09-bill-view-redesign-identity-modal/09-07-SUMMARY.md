@@ -131,6 +131,16 @@ None - no external service configuration required.
 - Phase 10 (Results Screen + Tip Modal + Currency Display) is unblocked
 - The dormant AssignItemsStep/ResultsStep files and their tests are candidates for cleanup in a future phase
 
+## Self-Check: PASSED
+
+- lib/createSession.ts: FOUND
+- components/wizard/ShareLinkButton.tsx: FOUND
+- components/wizard/SetupStep.tsx: FOUND
+- app/page.tsx: FOUND
+- __tests__/SetupStep.test.tsx: FOUND
+- .planning/phases/09-bill-view-redesign-identity-modal/09-07-SUMMARY.md: FOUND
+- Commits f07eed5, dcdc8e4, 9642708, e6895b5, 41acc63: all verified in git log
+
 ---
 *Phase: 09-bill-view-redesign-identity-modal*
 *Completed: 2026-06-08*
