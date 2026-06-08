@@ -26,7 +26,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 7: App Shell + Setup Screen** — easy-billsy branding on all screens; wizard replaced by scan-first single-screen setup; OCR returns ISO 4217 currency code ✅ 2026-06-05
 - [x] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated (completed 2026-06-05)
 - [x] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning (completed 2026-06-07)
-- [ ] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays
+- [x] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays (completed 2026-06-08)
 
 ## Phase Details
 
@@ -113,7 +113,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 10-01-PLAN.md — formatCents(cents, currencyCode?) upgrade: Intl.NumberFormat zero-decimal handling, legacy fallback, + tests (CURR-02, CURR-03)
 - [x] 10-02-PLAN.md — update_currency op on /edit route (shared session-level currency write path) + tests (CURR-03)
 - [x] 10-03-PLAN.md — PersonResultsScreen rewrite: all-people accordion, items-only grand total, Copy/Edit/New Split CTA bar, inline currency override (RESULTS-03, RESULTS-04, CURR-02, CURR-03)
-- [ ] 10-04-PLAN.md — TipScreen → Dialog content + CollaborativeClaimingView two-phase machine (tip optional from Results) (TIP-02, CURR-02)
+- [x] 10-04-PLAN.md — TipScreen → Dialog content + CollaborativeClaimingView two-phase machine (tip optional from Results) (TIP-02, CURR-02)
 **UI hint**: yes
 
 ## Progress
@@ -129,4 +129,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
-| 10. Results Screen + Tip Modal + Currency Display | v2.0 | 3/4 | In Progress|  |
+| 10. Results Screen + Tip Modal + Currency Display | v2.0 | 4/4 | Complete   | 2026-06-08 |
