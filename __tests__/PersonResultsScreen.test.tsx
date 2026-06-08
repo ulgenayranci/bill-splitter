@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
+import { useBillStore } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
 // Mock next/navigation so useRouter() doesn't throw in jsdom
@@ -161,6 +162,22 @@ describe('PersonResultsScreen', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} onEditBill={onEditBill} />)
     fireEvent.click(screen.getByText('Edit bill'))
     expect(onEditBill).toHaveBeenCalledTimes(1)
+  })
+
+  it('Test 15 (New Split clears persisted store): confirming New Split sets store sessionId to null', () => {
+    // Seed a sessionId on the persisted store
+    useBillStore.getState().setSessionId('sess-x')
+    expect(useBillStore.getState().sessionId).toBe('sess-x')
+
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    // Open the New Split confirm dialog
+    fireEvent.click(screen.getByText('New Split'))
+    // Click the confirm "New Split" button inside the dialog (the dialog button is the
+    // second match; getAllByText returns [CTA-bar button, dialog button])
+    const newSplitButtons = screen.getAllByText('New Split')
+    fireEvent.click(newSplitButtons[newSplitButtons.length - 1])
+
+    expect(useBillStore.getState().sessionId).toBeNull()
   })
 
   it('Test 14 (subtotal + in-card total): current-user card shows items-only Subtotal and items+tip Total', () => {
