@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react'
 import { Toast } from '@base-ui/react/toast'
 import { SetupStep } from '@/components/wizard/SetupStep'
 import { useBillStore } from '@/stores/useBillStore'
@@ -7,6 +7,16 @@ import { useBillStore } from '@/stores/useBillStore'
 // ESM-compatible mock for browser-image-compression default export
 vi.mock('browser-image-compression', () => ({
   default: vi.fn(async (file: File) => file),
+}))
+
+const routerPushMock = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}))
+
+// Mock createSession so tests don't hit a real network
+vi.mock('@/lib/createSession', () => ({
+  createSession: vi.fn(),
 }))
 
 function renderInProvider(ui: React.ReactElement) {
@@ -107,6 +117,7 @@ describe('SetupStep — GAP 6 failed/empty re-scan clears items', () => {
 describe('SetupStep — GAPs 4/5/7 copy + chip + inline error', () => {
   beforeEach(() => {
     useBillStore.getState().reset()
+    routerPushMock.mockReset()
   })
   afterEach(() => {
     cleanup()
@@ -125,15 +136,92 @@ describe('SetupStep — GAPs 4/5/7 copy + chip + inline error', () => {
     expect(screen.getByTestId('people-count-chip').textContent).toBe('0')
   })
 
-  it('the Continue button label has no trailing arrow', () => {
+  it('the Continue button label is "Start splitting" (retired "Continue to Assign")', () => {
     renderInProvider(<SetupStep />)
-    const cta = screen.getByRole('button', { name: /continue to assign/i })
-    expect(cta.textContent).not.toContain('→')
-    expect(cta.textContent?.trim()).toBe('Continue to Assign')
+    const cta = screen.getByRole('button', { name: /start splitting/i })
+    expect(cta.textContent?.trim()).toBe('Start splitting')
   })
 
   it('does not render the removed "Add people now or after scanning." helper text', () => {
     renderInProvider(<SetupStep />)
     expect(screen.queryByText(/add people now or after scanning/i)).toBeNull()
+  })
+})
+
+describe('SetupStep — Continue creates session and navigates to /split/[sessionId]', () => {
+  let createSession: ReturnType<typeof vi.fn>
+
+  beforeEach(async () => {
+    useBillStore.getState().reset()
+    routerPushMock.mockReset()
+    // Get reference to the mocked createSession
+    const mod = await import('@/lib/createSession')
+    createSession = mod.createSession as ReturnType<typeof vi.fn>
+    createSession.mockReset()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  it('Continue is disabled when billScanned is false (D-11 gate)', () => {
+    // No items seeded → billScanned false
+    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().addPerson('Bob')
+    renderInProvider(<SetupStep />)
+    const btn = screen.getByRole('button', { name: /start splitting/i }) as HTMLButtonElement
+    expect(btn.disabled).toBe(true)
+  })
+
+  it('Continue is disabled when people.length < 2 (D-11 gate)', () => {
+    seedPriorScan()
+    useBillStore.getState().addPerson('Alice')
+    renderInProvider(<SetupStep />)
+    const btn = screen.getByRole('button', { name: /start splitting/i }) as HTMLButtonElement
+    expect(btn.disabled).toBe(true)
+  })
+
+  it('Continue calls createSession and router.push to /split/[sessionId]', async () => {
+    seedPriorScan()
+    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().addPerson('Bob')
+    createSession.mockResolvedValue({
+      sessionId: 'sess-abc',
+      guestUrl: 'http://localhost/split/sess-abc',
+    })
+
+    renderInProvider(<SetupStep />)
+    const btn = screen.getByRole('button', { name: /start splitting/i }) as HTMLButtonElement
+    expect(btn.disabled).toBe(false)
+
+    await act(async () => {
+      fireEvent.click(btn)
+    })
+
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    await waitFor(() => expect(routerPushMock).toHaveBeenCalledWith('/split/sess-abc'))
+    expect(useBillStore.getState().sessionId).toBe('sess-abc')
+  })
+
+  it('failed createSession shows inline error and does NOT navigate', async () => {
+    seedPriorScan()
+    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().addPerson('Bob')
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    createSession.mockRejectedValue(new Error('Session creation failed: 500'))
+
+    renderInProvider(<SetupStep />)
+    const btn = screen.getByRole('button', { name: /start splitting/i }) as HTMLButtonElement
+
+    await act(async () => {
+      fireEvent.click(btn)
+    })
+
+    await waitFor(() =>
+      expect(screen.getByText(/Couldn.t create session/i)).toBeDefined()
+    )
+    expect(routerPushMock).not.toHaveBeenCalled()
+    consoleSpy.mockRestore()
   })
 })
