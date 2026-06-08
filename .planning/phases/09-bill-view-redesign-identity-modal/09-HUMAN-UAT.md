@@ -48,15 +48,24 @@ expected: Tapping "I'm done" with unclaimed items opens a styled dialog (not a b
 result: pass
 verified: 2026-06-08 — user confirmed the styled warning dialog shows unclaimed count + Share bill link + Continue anyway + Go back, and behaves correctly. (CLAIM-05/06 confirmed.)
 
+### 7. No name locking (GAP-09-NOLOCK re-test)
+expected: |
+  In the "Who are you?" modal NO name is greyed-out or disabled — every name is tappable, even one
+  already active on another device. Pick a name that's active on Device A from Device B: it succeeds
+  (no "taken"/blocked message); both devices stay active as that person and both can claim items to
+  that same person's share.
+result: pending
+note: "Code-closed by 09-08 (verified: tsc clean, tests green, locking greps clean). Needs live re-test on Vercel with two devices once 09-08 deploys."
+
 ## Summary
 
-total: 7
+total: 8
 passed: 7
 issues: 0
-pending: 0
+pending: 1
 skipped: 0
 blocked: 0
-open_gaps: 1  # GAP-09-NOLOCK (new design change raised during Test 5)
+open_gaps: 0  # GAP-09-NOLOCK code-closed by 09-08; test 7 awaits live human re-test
 
 ## Gaps
 
@@ -97,7 +106,19 @@ open_gaps: 1  # GAP-09-NOLOCK (new design change raised during Test 5)
 
 - id: GAP-09-NOLOCK
   truth: "Because there is no host role in the flat collaborative model, every name in the 'Who are you?' identity modal is always re-selectable by anyone — names are NEVER locked or greyed-out, even if another device is currently active as that name. Two devices may be the same person at once; both stay active and both edit that person's share/claims."
-  status: failed
+  status: resolved
+  resolved_by: 09-08
+  resolved_at: 2026-06-08T17:05:00Z
+  resolution: |
+    Closed by gap-closure plan 09-08 (commits 4d53983/b7ec953/e7fd0d4, merged d595234). UI:
+    PersonSlotPicker renders every name selectable (no taken/greyed/disabled state);
+    CollaborativeClaimingView restores identity by session.people membership, not a slot lock.
+    Server: removed the SLOT_CLAIM slot_taken guard, the qty/share/done/tip CR-02 'forbidden'
+    ownership guards, and the edit add_person lock-set (personSlots kept only as a harmless
+    presence marker, never gated on). Claims already keyed by personId, so concurrent same-name
+    co-editing works with no math change. Code-verified: tsc clean; 323 pass / 3 pre-existing
+    baseline only; grep confirms no locking path remains. Overrides D-01/IDENT-02 (noted in
+    REQUIREMENTS.md). PENDING human re-test on live app (see test 7 below).
   severity: major
   test: 5
   reported: |
