@@ -163,6 +163,20 @@ describe('PersonResultsScreen', () => {
     expect(onEditBill).toHaveBeenCalledTimes(1)
   })
 
+  it('Test 14 (subtotal + in-card total): current-user card shows items-only Subtotal and items+tip Total', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    // itemSubtotal = Pizza $10.00 + Beer half-share $3.00 = $13.00 (items only, no tip)
+    const subtotal = screen.getByTestId('results-subtotal')
+    expect(subtotal.textContent).toMatch(/Subtotal/)
+    expect(subtotal.textContent).toMatch(/\$13\.00/)
+    // in-card Total = itemSubtotal $13.00 + tip $2.50 = $15.50
+    const cardTotal = screen.getByTestId('results-card-total')
+    expect(cardTotal.textContent).toMatch(/Total/)
+    expect(cardTotal.textContent).toMatch(/\$15\.50/)
+    // tip row preserved
+    expect(screen.getByTestId('results-tip').textContent).toMatch(/\$2\.50/)
+  })
+
   it('Test 13 (currency): amounts use the passed currencyCode (EUR shows €)', () => {
     render(
       <PersonResultsScreen
