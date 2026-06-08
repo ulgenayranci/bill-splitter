@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { TipScreen } from '@/components/split/TipScreen'
 
-// Mock next/navigation so AppHeader's useRouter() doesn't throw in jsdom
+// Mock next/navigation so any imported component's useRouter() doesn't throw in jsdom
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
 }))
@@ -14,8 +14,8 @@ function renderTip(over: Partial<Parameters<typeof TipScreen>[0]> = {}) {
     sessionId: 's1',
     personId: 'p1',
     itemSubtotalCents: 2000,
+    currencyCode: 'USD',
     onTipConfirmed: vi.fn(),
-    onBack: vi.fn(),
     mutate: mutateMock,
     ...over,
   }
@@ -74,10 +74,10 @@ describe('TipScreen', () => {
     await waitFor(() => expect(props.onTipConfirmed).toHaveBeenCalled())
   })
 
-  it('Test 6 (Back calls onBack)', () => {
-    const { props } = renderTip()
-    fireEvent.click(screen.getByRole('button', { name: /^Back$/i }))
-    expect(props.onBack).toHaveBeenCalledTimes(1)
+  it('Test 6 (TipScreen renders as Dialog content — no Back button)', () => {
+    renderTip()
+    // TipScreen is now Dialog content: it does NOT own a Back button (Dialog close is the parent's concern)
+    expect(screen.queryByRole('button', { name: /^Back$/i })).toBeNull()
   })
 
   it('Test 7 (zero tip is valid — Confirm enabled)', async () => {
@@ -100,5 +100,15 @@ describe('TipScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/Couldn.t save tip/i)).toBeDefined()
     })
+  })
+
+  it('Test 9 (EUR currencyCode formats tip-amount-display and tip-total-display with euro symbol)', () => {
+    renderTip({ currencyCode: 'EUR', itemSubtotalCents: 2000 })
+    fireEvent.click(screen.getByRole('button', { name: /Set tip to 10%/i }))
+    // 10% of €20 = €2.00 tip; total = €22.00
+    const tipDisplay = screen.getByTestId('tip-amount-display').textContent?.trim() ?? ''
+    const totalDisplay = screen.getByTestId('tip-total-display').textContent?.trim() ?? ''
+    expect(tipDisplay).toContain('€')
+    expect(totalDisplay).toContain('€')
   })
 })
