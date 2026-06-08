@@ -33,7 +33,7 @@ progress:
 Phase: 09 (bill-view-redesign-identity-modal) — EXECUTING
 Plan: 1 of 7
 Status: Executing Phase 09
-Last activity: 2026-06-08 -- Phase 09 execution started
+Last activity: 2026-06-08 -- Completed quick task 260608-qzy: Phase 9 bill view UI polish (header on /split screens + facepile chips)
 
 ```
 Progress: [██████████] 100%
@@ -114,6 +114,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260605-v0g | Right-align people count chip and bottom-anchor Continue button on Setup screen | 2026-06-05 | 109f6a6 | [260605-v0g-right-align-people-count-chip-and-bottom](./quick/260605-v0g-right-align-people-count-chip-and-bottom/) |
+| 260608-qzy | Phase 9 bill view UI polish: mount AppHeader on all /split screens + overlapping facepile people chips | 2026-06-08 | 86452f4 | [260608-qzy-phase-9-bill-view-ui-polish-mount-apphea](./quick/260608-qzy-phase-9-bill-view-ui-polish-mount-apphea/) |
 
 ---
 
