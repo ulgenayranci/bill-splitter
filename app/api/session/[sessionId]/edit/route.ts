@@ -5,7 +5,7 @@ import type { SessionPayload } from '@/lib/sessionSchema'
 
 export const maxDuration = 10
 
-const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency'] as const
+const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency', 'remove_person', 'rename_person'] as const
 type EditOp = (typeof VALID_OPS)[number]
 
 /**
@@ -68,6 +68,111 @@ return 'OK'
 `
 
 /**
+ * REMOVE_PERSON_SCRIPT: Atomically purges a person from session.people and all claim
+ * structures in a single redis.eval call. Prevents the race where a JS GET→mutate→SET
+ * could clobber concurrent claim writes.
+ *
+ * ARGV[1] = personId to remove
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'person_not_found' | 'last_person'
+ *
+ * Mirrors ADD_PERSON_SCRIPT pattern. EX 86400 matches all other scripts in this file.
+ * cjson empty-table discipline: delete empty sub-keys rather than leave {} (see claim/route.ts).
+ */
+const REMOVE_PERSON_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok then return 'invalid_session' end
+
+local personId = ARGV[1]
+
+-- Guard: block removal of the last person (prevents 0-person session)
+if not session.people then session.people = {} end
+if #session.people <= 1 then return 'last_person' end
+
+-- 1. Remove from session.people[]
+local found = false
+local newPeople = {}
+for _, p in ipairs(session.people) do
+  if p.id == personId then
+    found = true
+  else
+    table.insert(newPeople, p)
+  end
+end
+if not found then return 'person_not_found' end
+session.people = newPeople
+
+-- 2. Purge claims.items[*][personId] (free their item claims back to unclaimed)
+if session.claims and session.claims.items then
+  for itemId, claimants in pairs(session.claims.items) do
+    if type(claimants) == 'table' then
+      claimants[personId] = nil
+      -- cjson quirk: empty Lua table encodes as [] not {} — delete empty item entries
+      local hasAny = false
+      for _ in pairs(claimants) do hasAny = true; break end
+      if not hasAny then session.claims.items[itemId] = nil end
+    end
+  end
+  -- Also clean up claims.items itself if now empty
+  local hasItems = false
+  for _ in pairs(session.claims.items) do hasItems = true; break end
+  if not hasItems then session.claims.items = {} end
+end
+
+-- 3. Remove claims.personSlots[personId]
+if session.claims and session.claims.personSlots then
+  session.claims.personSlots[personId] = nil
+end
+
+-- 4. Remove claims.donePeople[personId]
+if session.claims and session.claims.donePeople then
+  session.claims.donePeople[personId] = nil
+end
+
+-- 5. Remove tips[personId]
+if session.tips then
+  session.tips[personId] = nil
+end
+
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
+ * RENAME_PERSON_SCRIPT: Atomically updates a person's name in session.people.
+ *
+ * ARGV[1] = personId to rename
+ * ARGV[2] = new name (already trimmed and validated in TypeScript before eval)
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'person_not_found'
+ *
+ * Mirrors ADD_PERSON_SCRIPT pattern. EX 86400 matches all other scripts in this file.
+ */
+const RENAME_PERSON_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok then return 'invalid_session' end
+
+local personId = ARGV[1]
+local newName = ARGV[2]
+
+if not session.people then return 'person_not_found' end
+local found = false
+for _, p in ipairs(session.people) do
+  if p.id == personId then
+    p.name = newName
+    found = true
+    break
+  end
+end
+if not found then return 'person_not_found' end
+
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
  * Validate and normalize the incoming body for each op.
  * Ported verbatim from edit-request/route.ts validatePayload (V5 input validation),
  * re-keyed to the flat /edit contract (op instead of type; fields as top-level body props).
@@ -111,7 +216,30 @@ function validateOp(
     return { ok: true }
   }
 
-  // All ops other than 'add', 'add_person', 'update_currency' require itemId that exists in session.items
+  if (op === 'remove_person') {
+    // V5 input validation (T-11-01): personId must be a non-empty string
+    if (typeof b.personId !== 'string' || b.personId.length === 0)
+      return { ok: false, error: 'Invalid remove_person: personId must be a non-empty string' }
+    return { ok: true }
+  }
+
+  if (op === 'rename_person') {
+    // V5 input validation (T-11-01): personId must be a non-empty string
+    if (typeof b.personId !== 'string' || b.personId.length === 0)
+      return { ok: false, error: 'Invalid rename_person: personId must be a non-empty string' }
+    if (typeof b.newName !== 'string')
+      return { ok: false, error: 'Invalid rename_person: newName must be a string' }
+    const trimmed = b.newName.trim()
+    if (trimmed.length === 0)
+      return { ok: false, error: 'Invalid rename_person: newName must be a non-empty string' }
+    if (trimmed.length > 50)
+      return { ok: false, error: 'Invalid rename_person: newName must be 50 characters or fewer' }
+    // WR-05: return the normalized name so the caller persists the exact value that was
+    // validated — avoids a second independent trim that could drift out of lockstep.
+    return { ok: true, normalizedName: trimmed }
+  }
+
+  // All ops other than 'add', 'add_person', 'update_currency', 'remove_person', 'rename_person' require itemId that exists in session.items
   if (typeof b.itemId !== 'string' || b.itemId.length === 0)
     return { ok: false, error: 'Invalid payload: itemId must be a non-empty string' }
   if (!session.items.some((it) => it.id === b.itemId))
@@ -191,6 +319,68 @@ export async function POST(
       )
       if (result === 'session_not_found') {
         return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
+      if (result === 'invalid_session') {
+        return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+      }
+      // result === 'OK'
+      return NextResponse.json({ ok: true })
+    } catch (err) {
+      console.error('Edit error:', err)
+      return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
+    }
+  }
+
+  // remove_person: validate personId, then run REMOVE_PERSON_SCRIPT atomically via Lua.
+  // D-05: runs BEFORE the GET→mutate→SET path to avoid races with concurrent claim writes.
+  // D-06: Lua script purges all claim footprint for the removed person atomically.
+  if (op === 'remove_person') {
+    const validation = validateOp('remove_person', b, {} as SessionPayload)
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+
+    try {
+      const result = await redis.eval(REMOVE_PERSON_SCRIPT, [`session:${sessionId}`], [b.personId as string])
+      if (result === 'session_not_found') {
+        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
+      if (result === 'person_not_found') {
+        return NextResponse.json({ error: 'person_not_found' }, { status: 404 })
+      }
+      if (result === 'last_person') {
+        return NextResponse.json({ error: 'Cannot remove the only person' }, { status: 409 })
+      }
+      if (result === 'invalid_session') {
+        return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+      }
+      // result === 'OK'
+      return NextResponse.json({ ok: true })
+    } catch (err) {
+      console.error('Edit error:', err)
+      return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
+    }
+  }
+
+  // rename_person: validate personId + newName, then run RENAME_PERSON_SCRIPT atomically via Lua.
+  // D-05: runs BEFORE the GET→mutate→SET path to avoid races with concurrent writes.
+  if (op === 'rename_person') {
+    // WR-05: validateOp is the single source of truth for both the check AND the normalized
+    // name. We persist validation.normalizedName (not a separate inline trim) so the value
+    // validated is guaranteed identical to the value sent to Lua.
+    const validation = validateOp('rename_person', b, {} as SessionPayload)
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    const trimmedName = validation.normalizedName ?? ''
+
+    try {
+      const result = await redis.eval(RENAME_PERSON_SCRIPT, [`session:${sessionId}`], [b.personId as string, trimmedName])
+      if (result === 'session_not_found') {
+        return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      }
+      if (result === 'person_not_found') {
+        return NextResponse.json({ error: 'person_not_found' }, { status: 404 })
       }
       if (result === 'invalid_session') {
         return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
