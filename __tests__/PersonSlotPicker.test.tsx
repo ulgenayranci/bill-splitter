@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
@@ -95,5 +95,114 @@ describe('PersonSlotPicker', () => {
     // Leave input empty, click Add me
     fireEvent.click(screen.getByText('Add me'))
     expect(onAddPerson).not.toHaveBeenCalled()
+  })
+
+  // ——— Phase 11 (D-05/07): remove/rename affordances ———
+
+  it('Test 10 (D-05): rename and remove affordances are present when callbacks are passed', () => {
+    const onRemovePerson = vi.fn().mockResolvedValue(undefined)
+    const onRenamePerson = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={vi.fn()}
+        onRemovePerson={onRemovePerson}
+        onRenamePerson={onRenamePerson}
+      />
+    )
+    // Each person should have rename and remove buttons
+    expect(screen.getByLabelText('Rename Alice')).toBeDefined()
+    expect(screen.getByLabelText('Remove Alice')).toBeDefined()
+    expect(screen.getByLabelText('Rename Bob')).toBeDefined()
+    expect(screen.getByLabelText('Remove Bob')).toBeDefined()
+  })
+
+  it('Test 11 (D-05): remove/rename affordances are absent when callbacks are NOT passed', () => {
+    render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
+    expect(screen.queryByLabelText('Rename Alice')).toBeNull()
+    expect(screen.queryByLabelText('Remove Alice')).toBeNull()
+  })
+
+  it('Test 12 (D-05): tapping the rename button reveals inline input pre-filled with person name', () => {
+    const onRenamePerson = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={vi.fn()}
+        onRenamePerson={onRenamePerson}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Rename Alice'))
+    // Inline rename form should appear with value pre-filled
+    const input = screen.getByPlaceholderText('Name') as HTMLInputElement
+    expect(input).toBeDefined()
+    expect(input.value).toBe('Alice')
+    // Save and Cancel buttons should appear
+    expect(screen.getByRole('button', { name: /save/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeDefined()
+  })
+
+  it('Test 13 (D-05): confirming rename calls onRenamePerson with personId and trimmed new name', async () => {
+    const onRenamePerson = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={vi.fn()}
+        onRenamePerson={onRenamePerson}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Rename Alice'))
+    const input = screen.getByPlaceholderText('Name')
+    fireEvent.change(input, { target: { value: '  Alicia  ' } })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(onRenamePerson).toHaveBeenCalledWith('p1', 'Alicia'))
+  })
+
+  it('Test 14 (D-05): confirming rename with empty name does NOT call onRenamePerson', () => {
+    const onRenamePerson = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={vi.fn()}
+        onRenamePerson={onRenamePerson}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Rename Alice'))
+    const input = screen.getByPlaceholderText('Name')
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    expect(onRenamePerson).not.toHaveBeenCalled()
+  })
+
+  it('Test 15 (D-05): tapping remove calls onRemovePerson with the personId', async () => {
+    const onRemovePerson = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={vi.fn()}
+        onRemovePerson={onRemovePerson}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Remove Alice'))
+    await waitFor(() => expect(onRemovePerson).toHaveBeenCalledWith('p1'))
+  })
+
+  it('Test 16 (D-05): clicking rename or remove does NOT trigger onSelect (stopPropagation)', () => {
+    const onSelect = vi.fn()
+    const onRemovePerson = vi.fn().mockResolvedValue(undefined)
+    const onRenamePerson = vi.fn().mockResolvedValue(undefined)
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={onSelect}
+        onRemovePerson={onRemovePerson}
+        onRenamePerson={onRenamePerson}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Rename Alice'))
+    expect(onSelect).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+    fireEvent.click(screen.getByLabelText('Remove Bob'))
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })

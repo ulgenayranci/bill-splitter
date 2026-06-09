@@ -25,6 +25,8 @@ export interface IdentityModalProps {
   session: PublicSessionPayload
   onSelect: (personId: PersonId) => Promise<void>
   onAddPerson: (name: string) => Promise<void>
+  onRemovePerson?: (personId: PersonId) => Promise<void>
+  onRenamePerson?: (personId: PersonId, newName: string) => Promise<void>
   onOpenChange: (open: boolean) => void
 }
 
@@ -34,6 +36,8 @@ export function IdentityModal({
   session,
   onSelect,
   onAddPerson,
+  onRemovePerson,
+  onRenamePerson,
   onOpenChange,
 }: IdentityModalProps) {
   // Reset key increments whenever the modal opens, so PersonSlotPicker's
@@ -68,6 +72,8 @@ export function IdentityModal({
           session={session}
           onSelect={onSelect}
           onAddPerson={onAddPerson}
+          onRemovePerson={onRemovePerson}
+          onRenamePerson={onRenamePerson}
         />
       </DialogContent>
     </Dialog>
