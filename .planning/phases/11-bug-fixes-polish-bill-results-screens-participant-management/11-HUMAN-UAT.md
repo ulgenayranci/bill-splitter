@@ -41,13 +41,15 @@ blocked: 0
 
 UAT round 1 (2026-06-09) — user tested the live app; everything not listed below is good. Round-2 polish punch-list (restaurant name deferred to a follow-up):
 
-- [ ] **G1 — Results order:** pin the current user's results to the top; keep the unclaimed section always at the very top, above the individual's results.
-- [ ] **G2 — Sticky menu:** remove the stacked Copy/Edit/New-Split buttons.
-- [ ] **G3 — Add a tip:** remove the border (clickable text, not a button), append "?", and move it inside the current user's result container.
-- [ ] **G4 — Sticky menu rebuild:** "Share summary" as a primary half-width button (renamed from Copy summary) with a secondary half-width "Edit bill" button to its left; no New Split.
-- [ ] **G5 — Unclaimed container tappable:** tapping it routes to the bill-editing (claiming) screen, with a confirmation prompt first.
-- [ ] **G6 — Unclaimed list collapse:** list all unclaimed items when ≤2; collapse to a count when >2.
-- [ ] **G7 — Progress bar:** restore the progress strip on the claiming screen and results screen (it currently only renders in the setup wizard).
-- [ ] **G8 — Share button:** nudge down to align with the avatar row and slightly reduce width.
-- [ ] **G9 — Claimed items:** dim fully-claimed items in the bill UI; show the claimant avatar + "claimed" at the bottom-right of each.
+- [x] **G1 — Results order:** current user's card pinned first; unclaimed section stays above it. _(238133d)_
+- [x] **G2 — Sticky menu:** stacked Copy/Edit/New-Split buttons removed. _(238133d)_
+- [x] **G3 — Add a tip:** now borderless clickable text "Add a tip?" inside the current user's result card. _(238133d)_
+- [x] **G4 — Sticky menu rebuild:** [Edit bill (secondary, half) | Share summary (primary, half)]; New Split removed. _(238133d)_
+- [x] **G5 — Unclaimed container tappable:** tap → confirm dialog → back to editing. _(238133d)_
+- [x] **G6 — Unclaimed list collapse:** lists names when ≤2; shows "{N} items need an owner" when >2. _(238133d)_
+- [x] **G7 — Progress bar:** reusable ProgressStrip; renders on claiming (2/3) and results (3/3). _(aa00d90, 668a464)_
+- [x] **G8 — Share button:** moved to the avatar row, slightly narrower, ≥44px tap target. _(668a464)_
+- [x] **G9 — Claimed items:** fully-claimed cards dimmed; claimant avatar + "claimed" bottom-right. _(59e393f)_
 - [ ] **G10 (DEFERRED, follow-up):** use the scanned restaurant name as the bill title when detected; needs OCR + schema work; affects new scans only.
+
+**Round-2 status:** G1–G9 implemented (tsc clean; 376 tests pass, only 3 pre-existing unrelated wizard failures). Awaiting UAT round 2 on the live app.
