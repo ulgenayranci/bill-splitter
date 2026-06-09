@@ -45,15 +45,15 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - [x] **CURR-01**: The OCR step detects the receipt's currency
 - [x] **CURR-02**: All monetary amounts render in the detected currency with correct symbol and decimal places (including zero-decimal currencies like JPY)
 - [x] **CURR-03**: If currency can't be detected, the app falls back gracefully (sensible default; user can set it)
-- [ ] **CURR-04**: The Results screen no longer exposes a currency-change `<select>` (it read as a converter and confused intent); the detected currency symbol still renders everywhere. The server-side `update_currency` op is retained for a future, clearly-framed re-introduction. _(Phase 11, D-09)_
+- [x] **CURR-04**: The Results screen no longer exposes a currency-change `<select>` (it read as a converter and confused intent); the detected currency symbol still renders everywhere. The server-side `update_currency` op is retained for a future, clearly-framed re-introduction. _(Phase 11, D-09)_
 
 ### Results & Tip (RESULTS / TIP)
 
 - [x] **RESULTS-03**: Locked Results screen shows each person's itemized breakdown — the current user expanded by default, others tap-to-expand — plus a grand total
 - [x] **RESULTS-04**: From Results, user can Copy a plain-text summary, Edit the bill, or start a New bill
-- [ ] **RESULTS-05**: When the bill is not fully claimed, the Results screen shows an "Unclaimed items" section at the top listing items still needing an owner, and the headline shows a playful "still up for grabs" message; when fully claimed it shows the positive "all set" message. _(Phase 11, D-03/D-04)_
+- [x] **RESULTS-05**: When the bill is not fully claimed, the Results screen shows an "Unclaimed items" section at the top listing items still needing an owner, and the headline shows a playful "still up for grabs" message; when fully claimed it shows the positive "all set" message. _(Phase 11, D-03/D-04)_
 - [x] **TIP-02**: User can add a tip via a modal launched from the Results screen; totals update to include it
-- [ ] **TIP-03**: The "Add a tip" affordance on the Results screen is a prominent Button (not a faint underlined text link). _(Phase 11, D-08)_
+- [x] **TIP-03**: The "Add a tip" affordance on the Results screen is a prominent Button (not a faint underlined text link). _(Phase 11, D-08)_
 
 ### Bill View Header (HEADER)
 
@@ -117,9 +117,9 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | CURR-03 | Phase 10 | Complete |
 | HEADER-01 | Phase 11 | Pending |
 | HEADER-02 | Phase 11 | Pending |
-| RESULTS-05 | Phase 11 | Pending |
-| TIP-03 | Phase 11 | Pending |
-| CURR-04 | Phase 11 | Pending |
+| RESULTS-05 | Phase 11 | Complete |
+| TIP-03 | Phase 11 | Complete |
+| CURR-04 | Phase 11 | Complete |
 | PART-01 | Phase 11 | Complete |
 | PART-02 | Phase 11 | Complete |
 | PART-03 | Phase 11 | Complete |
