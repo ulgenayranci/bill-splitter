@@ -31,10 +31,23 @@ result: [pending]
 ## Summary
 
 total: 4
-passed: 0
-issues: 0
-pending: 4
+passed: 1
+issues: 3
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+UAT round 1 (2026-06-09) — user tested the live app; everything not listed below is good. Round-2 polish punch-list (restaurant name deferred to a follow-up):
+
+- [ ] **G1 — Results order:** pin the current user's results to the top; keep the unclaimed section always at the very top, above the individual's results.
+- [ ] **G2 — Sticky menu:** remove the stacked Copy/Edit/New-Split buttons.
+- [ ] **G3 — Add a tip:** remove the border (clickable text, not a button), append "?", and move it inside the current user's result container.
+- [ ] **G4 — Sticky menu rebuild:** "Share summary" as a primary half-width button (renamed from Copy summary) with a secondary half-width "Edit bill" button to its left; no New Split.
+- [ ] **G5 — Unclaimed container tappable:** tapping it routes to the bill-editing (claiming) screen, with a confirmation prompt first.
+- [ ] **G6 — Unclaimed list collapse:** list all unclaimed items when ≤2; collapse to a count when >2.
+- [ ] **G7 — Progress bar:** restore the progress strip on the claiming screen and results screen (it currently only renders in the setup wizard).
+- [ ] **G8 — Share button:** nudge down to align with the avatar row and slightly reduce width.
+- [ ] **G9 — Claimed items:** dim fully-claimed items in the bill UI; show the claimant avatar + "claimed" at the bottom-right of each.
+- [ ] **G10 (DEFERRED, follow-up):** use the scanned restaurant name as the bill title when detected; needs OCR + schema work; affects new scans only.
