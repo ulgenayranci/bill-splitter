@@ -27,10 +27,19 @@ status: issues_found
 
 # Phase 11: Code Review Report
 
+> **RESOLUTION (2026-06-09, post-review):** The two Critical findings (CR-01, CR-02) lived
+> entirely in the `REMOVE_PERSON_SCRIPT` Lua purge. That feature — live remove-person on the
+> collaborative bill — was **descoped** by user decision (commit `107c88e`): the server op, UI
+> affordance, and self-removal effect were all removed. Remove-person is retained on the setup
+> screen (no claims to purge, no Lua). **CR-01 and CR-02 are therefore resolved by removal.**
+> WR-02 (add-person/self-removal race) is also moot. Remaining warnings/info relate to kept code
+> (item add/edit validation, rename UX) and stand as documented non-blocking follow-ups, along
+> with IN-04 (no real Redis/Lua execution test) should live remove ever be reintroduced.
+
 **Reviewed:** 2026-06-09
 **Depth:** standard
 **Files Reviewed:** 13
-**Status:** issues_found
+**Status:** issues_found (Critical findings resolved by descope — see Resolution note above)
 
 ## Summary
 

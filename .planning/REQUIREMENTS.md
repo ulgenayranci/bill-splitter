@@ -62,12 +62,12 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 ### Participant Management (PART)
 
-- [x] **PART-01**: A `remove_person` op on the `/edit` route atomically removes a participant from the session via Lua. _(Phase 11, D-05)_
-- [x] **PART-02**: Removing a participant frees their claimed items back to unclaimed and purges their personSlots/donePeople/tips; removing the only remaining person is blocked. _(Phase 11, D-06)_
+- [~] **PART-01**: ~~A `remove_person` op on the `/edit` route atomically removes a participant from the session via Lua.~~ **DEFERRED (Phase 11):** live remove-person descoped — its Lua purge carried 2 Critical code-review findings (CR-01/CR-02) and had no execution-level test. Participant removal is retained on the **setup screen** (`SetupStep`, local `useBillStore.removePerson`, no claims to purge). Revisit live remove only with a real Redis/Lua execution test. _(Phase 11, D-05 — deferred)_
+- [~] **PART-02**: ~~Removing a participant frees their claimed items back to unclaimed and purges their personSlots/donePeople/tips; removing the only remaining person is blocked.~~ **DEFERRED (Phase 11):** belonged to live remove-person (see PART-01). Not applicable to setup-screen remove (no claims exist pre-session). _(Phase 11, D-06 — deferred)_
 - [x] **PART-03**: A `rename_person` op on the `/edit` route atomically updates a participant's name with server-side validation (trim, non-empty, ≤50 chars). _(Phase 11, D-05)_
-- [x] **PART-04**: The people modal (PersonSlotPicker inside IdentityModal) exposes remove and rename affordances on each person card. _(Phase 11, D-05/D-07)_
-- [x] **PART-05**: Remove/rename are shared Redis writes that anyone can perform (flat no-lock model) and propagate to all participants via the SWR poll. _(Phase 11, D-07)_
-- [x] **PART-06**: When a viewer's own identity is removed by anyone, the identity modal re-opens (the viewer is not stranded on the SessionExpiredScreen). _(Phase 11, self-removal edge case from RESEARCH)_
+- [x] **PART-04**: The people modal (PersonSlotPicker inside IdentityModal) exposes a **rename** affordance on each person card. (Live remove affordance descoped — see PART-01; remove remains on the setup screen.) _(Phase 11, D-05/D-07)_
+- [x] **PART-05**: Rename is a shared Redis write that anyone can perform (flat no-lock model) and propagates to all participants via the SWR poll. _(Phase 11, D-07)_
+- [~] **PART-06**: ~~When a viewer's own identity is removed by anyone, the identity modal re-opens.~~ **DEFERRED (Phase 11):** the self-removal edge case only existed to support live remove-person (see PART-01); with live remove gone, no one can remove a viewer mid-session, so the effect was removed. _(Phase 11, self-removal edge case — deferred)_
 
 ---
 
@@ -120,9 +120,9 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | RESULTS-05 | Phase 11 | Complete |
 | TIP-03 | Phase 11 | Complete |
 | CURR-04 | Phase 11 | Complete |
-| PART-01 | Phase 11 | Complete |
-| PART-02 | Phase 11 | Complete |
+| PART-01 | Phase 11 | Deferred (live remove descoped; setup-screen remove retained) |
+| PART-02 | Phase 11 | Deferred (belongs to live remove) |
 | PART-03 | Phase 11 | Complete |
-| PART-04 | Phase 11 | Complete |
+| PART-04 | Phase 11 | Complete (rename only) |
 | PART-05 | Phase 11 | Complete |
-| PART-06 | Phase 11 | Complete |
+| PART-06 | Phase 11 | Deferred (self-removal only needed for live remove) |
