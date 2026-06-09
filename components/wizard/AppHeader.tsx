@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -21,6 +21,34 @@ import { useBillStore } from '@/stores/useBillStore'
 export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [isHidden, setIsHidden] = useState(false)
+  const lastScrollYRef = useRef(0)
+
+  useEffect(() => {
+    const HIDE_THRESHOLD = 40 // px scrolled down before fade kicks in
+    const DELTA = 4           // minimum scroll movement to register direction
+
+    function handleScroll() {
+      const currentY = window.scrollY
+      const prev = lastScrollYRef.current
+      const diff = currentY - prev
+
+      if (Math.abs(diff) < DELTA) return
+
+      if (diff > 0 && currentY > HIDE_THRESHOLD) {
+        // Scrolling down past threshold — hide header
+        setIsHidden(true)
+      } else {
+        // Scrolling up or near top — show header
+        setIsHidden(false)
+      }
+
+      lastScrollYRef.current = currentY
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const router = useRouter()
 
@@ -50,7 +78,9 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="relative flex h-12 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4">
+      <header
+        className={`sticky top-0 z-50 flex h-12 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 transition-opacity duration-300 ${isHidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      >
         {/* Wordmark */}
         <div
           className="select-none text-[15px] leading-none tracking-[-0.03em] text-zinc-900"
