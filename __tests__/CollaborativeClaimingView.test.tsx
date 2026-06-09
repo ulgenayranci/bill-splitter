@@ -226,12 +226,15 @@ describe('CollaborativeClaimingView', () => {
     expect(body.name).toBe('Garlic Bread')
   })
 
-  it('Test 13 (D-02 delete confirm — no claims): shows confirm dialog "Delete X?" before remove POST', async () => {
+  it('Test 13 (D-02 delete confirm — no claims): shows confirm dialog "Delete X?" before remove POST (via edit form)', async () => {
     await selectAlice()
     const confirmMock = vi.fn().mockReturnValue(true)
     vi.stubGlobal('confirm', confirmMock)
     const deleteFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', deleteFetch)
+    // Delete button is inside the edit form — open it first
+    fireEvent.click(screen.getByTestId('edit-pencil-i1'))
+    await waitFor(() => expect(screen.getByTestId('delete-item-i1')).toBeDefined())
     fireEvent.click(screen.getByTestId('delete-item-i1'))
     await waitFor(() => expect(confirmMock).toHaveBeenCalled())
     // Confirm message for unclaimed item is "Delete X?"
@@ -259,6 +262,9 @@ describe('CollaborativeClaimingView', () => {
     const confirmMock = vi.fn().mockReturnValue(false) // cancel delete
     vi.stubGlobal('confirm', confirmMock)
     vi.stubGlobal('fetch', vi.fn())
+    // Delete button is inside the edit form — open it first
+    fireEvent.click(screen.getByTestId('edit-pencil-i1'))
+    await waitFor(() => expect(screen.getByTestId('delete-item-i1')).toBeDefined())
     fireEvent.click(screen.getByTestId('delete-item-i1'))
     await waitFor(() => expect(confirmMock).toHaveBeenCalled())
     // With 2 claimants: "2 people have claimed Pizza — delete anyway?"
@@ -271,17 +277,23 @@ describe('CollaborativeClaimingView', () => {
     vi.stubGlobal('confirm', confirmMock)
     const deleteFetch = vi.fn()
     vi.stubGlobal('fetch', deleteFetch)
+    // Delete button is inside the edit form — open it first
+    fireEvent.click(screen.getByTestId('edit-pencil-i1'))
+    await waitFor(() => expect(screen.getByTestId('delete-item-i1')).toBeDefined())
     fireEvent.click(screen.getByTestId('delete-item-i1'))
     await waitFor(() => expect(confirmMock).toHaveBeenCalled())
     // No fetch should have been made
     expect(deleteFetch).not.toHaveBeenCalled()
   })
 
-  it('Test 16: delete button is present for each item', async () => {
+  it('Test 16 (R5): card row does NOT have standalone delete button; edit form exposes Delete control', async () => {
     await selectAlice()
-    // Both items should have a delete button
-    expect(screen.getByTestId('delete-item-i1')).toBeDefined()
-    expect(screen.getByTestId('delete-item-i2')).toBeDefined()
+    // Standalone delete buttons must NOT be present on the card row
+    expect(screen.queryByTestId('delete-item-i1')).toBeNull()
+    expect(screen.queryByTestId('delete-item-i2')).toBeNull()
+    // Open edit form for i1 — Delete control should appear
+    fireEvent.click(screen.getByTestId('edit-pencil-i1'))
+    await waitFor(() => expect(screen.getByTestId('delete-item-i1')).toBeDefined())
   })
 
   it('Test 17: No "Assigned by host" label anywhere in the claiming view (flat model)', async () => {
@@ -416,10 +428,9 @@ describe('CollaborativeClaimingView', () => {
     expect(body.itemId).toBe('i1')
   })
 
-  it('Test 25 (CLAIM-05): UnclaimedBanner renders above the item list when unclaimed > 0', async () => {
+  it('Test 25 (R6): UnclaimedBanner is NOT rendered on the claiming view', async () => {
     await selectAlice()
-    expect(screen.getByTestId('unclaimed-banner')).toBeDefined()
-    expect(screen.getByText(/2 of 2 items still unclaimed — tap to find them/)).toBeDefined()
+    expect(screen.queryByTestId('unclaimed-banner')).toBeNull()
   })
 
   it('Test 26 (CLAIM-06): BillViewHeader renders with a share affordance', async () => {
@@ -427,11 +438,9 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.getByRole('button', { name: /share bill link/i })).toBeDefined()
   })
 
-  it('Test 27 (D-10): tapping the banner scrolls to the first unclaimed item', async () => {
+  it('Test 27 (R6): the "tap to find them" scroll text is not present (banner removed)', async () => {
     await selectAlice()
-    const scrollSpy = window.HTMLElement.prototype.scrollIntoView as ReturnType<typeof vi.fn>
-    fireEvent.click(screen.getByTestId('unclaimed-banner'))
-    expect(scrollSpy).toHaveBeenCalled()
+    expect(screen.queryByText(/tap to find them/i)).toBeNull()
   })
 
   it("Test 28 (D-09 warn): I'm done with unclaimed items opens the warning dialog, does NOT advance", async () => {

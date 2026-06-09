@@ -11,9 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog'
-import { Check, X, Plus, Pencil, Share2 } from 'lucide-react'
+import { Check, X, Plus, Pencil, Share2, Trash2 } from 'lucide-react'
 import { parseCents } from '@/lib/billMath'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
@@ -21,7 +20,6 @@ import { AppHeader } from '@/components/wizard/AppHeader'
 import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { IdentityModal } from '@/components/split/IdentityModal'
 import { BillViewHeader } from '@/components/split/BillViewHeader'
-import { UnclaimedBanner } from '@/components/split/UnclaimedBanner'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
 import { TipScreen } from '@/components/split/TipScreen'
@@ -330,19 +328,6 @@ export function CollaborativeClaimingView({
     }
   }
 
-  // D-10: scroll the first unclaimed item into view (banner tap target).
-  function scrollToFirstUnclaimed() {
-    if (!session) return
-    const first = session.items.find((item) => {
-      const entries = session.claims?.items?.[item.id] ?? {}
-      const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
-      return totalClaimed < (item.quantity ?? 1)
-    })
-    if (first) {
-      document.getElementById(`item-${first.id}`)?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }
-
   // The original done submission — runs directly when everything is claimed,
   // or via "Continue anyway" from the unclaimed warning dialog (D-12).
   async function submitDone() {
@@ -592,9 +577,6 @@ export function CollaborativeClaimingView({
         sessionId={sessionId}
       />
 
-      {/* Live unclaimed counter — hidden when everything is claimed (CLAIM-05 / D-10) */}
-      <UnclaimedBanner session={session} onTap={scrollToFirstUnclaimed} />
-
       {/* Item list */}
       <ul className="flex flex-col gap-2 px-6 py-4 pb-[160px]">
         {session.items.map((item) => {
@@ -649,6 +631,17 @@ export function CollaborativeClaimingView({
                       </button>
                     </div>
                     {inlineForm.error && <p className="text-[13px] text-red-600">{inlineForm.error}</p>}
+                    {/* Delete control inside the edit form */}
+                    <button
+                      type="button"
+                      aria-label={`Delete ${item.name}`}
+                      onClick={() => { void handleDeleteItem(inlineForm.itemId); setInlineForm(null) }}
+                      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[13px] text-red-600 hover:bg-red-50"
+                      data-testid={`delete-item-${item.id}`}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                      Delete
+                    </button>
                   </div>
                 </Card>
               ) : (
@@ -675,15 +668,6 @@ export function CollaborativeClaimingView({
                     data-testid={`edit-pencil-${item.id}`}
                   >
                     <Pencil size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Delete ${item.name}`}
-                    onClick={() => void handleDeleteItem(item.id)}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
-                    data-testid={`delete-item-${item.id}`}
-                  >
-                    <X size={16} />
                   </button>
                 </div>
               )}
@@ -803,24 +787,24 @@ export function CollaborativeClaimingView({
             {warningLinkCopied ? <Check size={16} /> : <Share2 size={16} />}
             {warningLinkCopied ? 'Link copied!' : 'Share bill link'}
           </button>
-          <DialogFooter className="flex-col gap-2 sm:flex-col">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowUnclaimedWarning(false)}
+              className="flex-1 h-12"
+            >
+              Go back
+            </Button>
             <Button
               onClick={() => {
                 setShowUnclaimedWarning(false)
                 void submitDone()
               }}
-              className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+              className="flex-1 h-12 bg-amber-600 hover:bg-amber-700"
             >
               Continue anyway
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowUnclaimedWarning(false)}
-              className="h-12 w-full"
-            >
-              Go back
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </main>
