@@ -18,6 +18,7 @@ import { parseCents } from '@/lib/billMath'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
+import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { IdentityModal } from '@/components/split/IdentityModal'
 import { BillViewHeader } from '@/components/split/BillViewHeader'
 import { UnclaimedBanner } from '@/components/split/UnclaimedBanner'
@@ -579,6 +580,7 @@ export function CollaborativeClaimingView({
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
       <AppHeader />
+      <ProgressStrip filled={2} />
       {/* Bill View chrome: header (title/date, people strip, receipt + share icons) */}
       <BillViewHeader
         session={session}

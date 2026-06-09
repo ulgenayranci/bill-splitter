@@ -106,45 +106,27 @@ export function BillViewHeader({
 
   return (
     <div className="bg-white border-b border-zinc-100 px-4 pt-3 pb-2">
-      {/* Row 1: bill title + date + right icons */}
-      <div className="flex items-start">
-        {/* Title + date block */}
-        <div className="flex-1 min-w-0">
-          <h1 className="text-[20px] font-semibold text-zinc-900 leading-[1.2]">
-            {billTitle}
-          </h1>
-          <p className="text-[14px] text-zinc-400 mt-0.5">{dateLineFull}</p>
-        </div>
-
-        {/* Right icons */}
-        <div className="flex items-center gap-3 ml-auto pt-0.5">
-          <button
-            type="button"
-            aria-label="Share bill link"
-            onClick={handleShare}
-            className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 text-white hover:bg-amber-700 transition-colors"
-          >
-            {copied ? (
-              <Check size={20} aria-hidden="true" />
-            ) : (
-              <Share2 size={20} aria-hidden="true" />
-            )}
-            <span className="text-[14px] font-medium">{copied ? 'Copied!' : 'Share'}</span>
-          </button>
-        </div>
+      {/* Row 1: bill title + date only */}
+      <div className="flex-1 min-w-0">
+        <h1 className="text-[20px] font-semibold text-zinc-900 leading-[1.2]">
+          {billTitle}
+        </h1>
+        <p className="text-[14px] text-zinc-400 mt-0.5">{dateLineFull}</p>
       </div>
 
-      {/* Row 2: people strip — overlapping facepile (negative margins + descending z-index) */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label="People — tap to change identity"
-        onClick={onStripTap}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') onStripTap()
-        }}
-        className="flex items-center cursor-pointer mt-2 pb-1"
-      >
+      {/* Row 2: people strip (left) + Share button (right) */}
+      <div className="flex items-center justify-between gap-2 mt-2 pb-1">
+        {/* People facepile — tappable to change identity */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="People — tap to change identity"
+          onClick={onStripTap}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') onStripTap()
+          }}
+          className="flex items-center cursor-pointer"
+        >
         {/* Own-identity expanded pill — leftmost, highest z-index, no negative margin */}
         {myPerson && (
           <div
@@ -191,6 +173,22 @@ export function BillViewHeader({
             +{overflowCount}
           </span>
         )}
+        </div>
+
+        {/* Share button — right side of avatar row */}
+        <button
+          type="button"
+          aria-label="Share bill link"
+          onClick={handleShare}
+          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 text-white hover:bg-amber-700 transition-colors"
+        >
+          {copied ? (
+            <Check size={18} aria-hidden="true" />
+          ) : (
+            <Share2 size={18} aria-hidden="true" />
+          )}
+          <span className="text-[13px] font-medium">{copied ? 'Copied!' : 'Share'}</span>
+        </button>
       </div>
     </div>
   )
