@@ -125,7 +125,8 @@ describe('CollaborativeClaimingView', () => {
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
     await waitFor(() => {
-      expect(screen.getByText('Add a tip?')).toBeDefined()
+      // D-08: "Add a tip" is now a Button on PersonResultsScreen (was a faint "Add a tip?" link)
+      expect(screen.getByRole('button', { name: /add a tip/i })).toBeDefined()
     })
     // No warning dialog appeared
     expect(screen.queryByText(/still unclaimed$/)).toBeNull()
@@ -299,9 +300,10 @@ describe('CollaborativeClaimingView', () => {
     const warnDialog = await screen.findByRole('dialog')
     expect(within(warnDialog).getByText(/items still unclaimed/i)).toBeDefined()
     fireEvent.click(within(warnDialog).getByRole('button', { name: /continue anyway/i }))
-    // D-01: Done goes straight to Results — "You're all set!" is visible
-    await waitFor(() => expect(screen.getByText(/You.?re all set!/)).toBeDefined())
-    // The Tip Dialog is NOT yet open — "Add a tip?" refers to the button in PersonResultsScreen
+    // D-01: Done goes straight to Results. D-04: with unclaimed items remaining, the headline
+    // is the playful "up for grabs" variant (not the "You're all set!" fully-claimed copy).
+    await waitFor(() => expect(screen.getByText(/up for grabs/i)).toBeDefined())
+    // The Tip Dialog is NOT yet open — the "Add a tip" button lives in PersonResultsScreen
     expect(screen.getByRole('button', { name: /add a tip/i })).toBeDefined()
     // No waiting screen
     expect(screen.queryByText(/waiting/i)).toBeNull()
@@ -463,7 +465,8 @@ describe('CollaborativeClaimingView', () => {
     fireEvent.click(within(warnDialog).getByRole('button', { name: /go back/i }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined()
-    expect(screen.queryByText('Add a tip?')).toBeNull()
+    // Still on claiming screen — the Results "Add a tip" button is not present
+    expect(screen.queryByRole('button', { name: /add a tip/i })).toBeNull()
   })
 
   it('Test 31 (D-12 continue): "Continue anyway" runs the done path and advances to tip', async () => {
@@ -474,7 +477,8 @@ describe('CollaborativeClaimingView', () => {
     const warnDialog = await screen.findByRole('dialog')
     expect(within(warnDialog).getByText(/2 items still unclaimed/i)).toBeDefined()
     fireEvent.click(within(warnDialog).getByRole('button', { name: /continue anyway/i }))
-    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    // D-08: the "Add a tip" Button on PersonResultsScreen confirms we advanced to Results
+    await waitFor(() => expect(screen.getByRole('button', { name: /add a tip/i })).toBeDefined())
     expect(doneFetch).toHaveBeenCalled()
   })
 })
