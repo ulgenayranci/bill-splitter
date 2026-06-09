@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Receipt, Share2, Copy, Check } from 'lucide-react'
+import { Share2, Check } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import type { PersonId } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'
@@ -120,22 +120,16 @@ export function BillViewHeader({
         <div className="flex items-center gap-3 ml-auto pt-0.5">
           <button
             type="button"
-            aria-label="View receipt"
-            className="text-zinc-500 hover:text-zinc-700 transition-colors"
-          >
-            <Receipt size={22} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
             aria-label="Share bill link"
             onClick={handleShare}
-            className="text-zinc-500 hover:text-zinc-700 transition-colors"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 text-white hover:bg-amber-700 transition-colors"
           >
             {copied ? (
-              <Check size={22} aria-hidden="true" />
+              <Check size={20} aria-hidden="true" />
             ) : (
-              <Share2 size={22} aria-hidden="true" />
+              <Share2 size={20} aria-hidden="true" />
             )}
+            <span className="text-[14px] font-medium">{copied ? 'Copied!' : 'Share'}</span>
           </button>
         </div>
       </div>

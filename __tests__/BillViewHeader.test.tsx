@@ -114,7 +114,7 @@ describe('BillViewHeader', () => {
     expect(shareBtn).toBeDefined()
   })
 
-  it('Test 7: receipt affordance with aria-label "View receipt" is present', () => {
+  it('Test 7 (D-01): receipt button with aria-label "View receipt" is NOT present', () => {
     render(
       <BillViewHeader
         session={mockSession}
@@ -123,8 +123,7 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    const receiptBtn = screen.getByLabelText('View receipt')
-    expect(receiptBtn).toBeDefined()
+    expect(screen.queryByLabelText('View receipt')).toBeNull()
   })
 
   it('Test 8: avatar color class for a person matches AVATAR_COLORS[colorIndex % 6]', () => {
@@ -161,5 +160,18 @@ describe('BillViewHeader', () => {
     // No name pill shown — no name text visible
     const aliceElements = screen.queryAllByText('Alice')
     expect(aliceElements.length).toBe(0)
+  })
+
+  it('Test 10 (D-02): Share button has min-h-[44px] class for ≥44px touch target', () => {
+    render(
+      <BillViewHeader
+        session={mockSession}
+        myPersonId="p1"
+        onStripTap={vi.fn()}
+        sessionId="test-session-id"
+      />
+    )
+    const shareBtn = screen.getByLabelText('Share bill link')
+    expect(shareBtn.className).toContain('min-h-[44px]')
   })
 })
