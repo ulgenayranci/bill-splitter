@@ -132,6 +132,20 @@ export function CollaborativeClaimingView({
     }
   }, [session, sessionId])
 
+  // Self-removal effect (D-07): when the viewer's own personId is removed from session.people
+  // (by themselves or another participant), re-open the identity modal instead of rendering
+  // SessionExpiredScreen. Fires on every SWR poll (no restoreAttempted gate — must run each refresh).
+  useEffect(() => {
+    if (!session || selectedPersonId === null) return
+    const stillPresent = session.people.some((p) => p.id === selectedPersonId)
+    if (!stillPresent) {
+      setSelectedPersonId(null)
+      try { localStorage.removeItem(`split:${sessionId}:personId`) } catch { /* ignore */ }
+      setChangingIdentity(false)
+      setIdentityModalOpen(true)
+    }
+  }, [session, selectedPersonId, sessionId])
+
   const peopleById = useMemo<Record<PersonId, Person>>(() => {
     if (!session) return {}
     return Object.fromEntries(session.people.map((p) => [p.id, p]))
@@ -196,6 +210,54 @@ export function CollaborativeClaimingView({
       } else {
         await mutate()
       }
+    } catch {
+      await mutate()
+    }
+  }
+
+  // D-06/07: Remove a person via the /edit remove_person op. Advisory confirm when person
+  // has claims (do NOT block removal). Treat 404 person_not_found as soft success (Pitfall 5).
+  // Does NOT call setSelectedPersonId here — the self-removal useEffect handles re-identity.
+  async function handleRemovePerson(personId: PersonId) {
+    if (!session) return
+    const claimantKeys = Object.keys(session.claims?.items ?? {}).filter(
+      (itemId) => Object.prototype.hasOwnProperty.call(session.claims?.items?.[itemId] ?? {}, personId)
+    )
+    if (claimantKeys.length > 0) {
+      const personName = session.people.find((p) => p.id === personId)?.name ?? 'this person'
+      const confirmMsg = `${personName} has claimed ${claimantKeys.length} item${claimantKeys.length === 1 ? '' : 's'} — remove anyway?`
+      if (!window.confirm(confirmMsg)) return
+    }
+    try {
+      const res = await fetch(`/api/session/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'remove_person', personId }),
+      })
+      // 404 person_not_found = soft success (Pitfall 5 — desired end-state already achieved)
+      if (!res.ok && res.status !== 404) {
+        await mutate()
+        return
+      }
+      await mutate()
+    } catch {
+      await mutate()
+    }
+  }
+
+  // D-05/07: Rename a person via the /edit rename_person op.
+  async function handleRenamePerson(personId: PersonId, newName: string) {
+    try {
+      const res = await fetch(`/api/session/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'rename_person', personId, newName }),
+      })
+      if (!res.ok) {
+        await mutate()
+        return
+      }
+      await mutate()
     } catch {
       await mutate()
     }
@@ -405,17 +467,6 @@ export function CollaborativeClaimingView({
     setPhase('claiming')
   }
 
-  // Currency write path (CURR-02): CollaborativeClaimingView owns the SWR session + mutate,
-  // so it owns the write. PersonResultsScreen delegates via onCurrencyChange prop.
-  async function handleCurrencyChange(newCode: string) {
-    await fetch(`/api/session/${sessionId}/edit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ op: 'update_currency', currencyCode: newCode }),
-    })
-    await mutate()
-  }
-
   async function handleInlineSubmit() {
     if (!inlineForm || !selectedPersonId) return
     setInlineSubmitting(true)
@@ -522,6 +573,8 @@ export function CollaborativeClaimingView({
           session={session}
           onSelect={handleSelect}
           onAddPerson={handleAddPerson}
+          onRemovePerson={handleRemovePerson}
+          onRenamePerson={handleRenamePerson}
           onOpenChange={setIdentityModalOpen}
         />
       </main>
@@ -766,6 +819,8 @@ export function CollaborativeClaimingView({
         session={session}
         onSelect={handleSelect}
         onAddPerson={handleAddPerson}
+        onRemovePerson={handleRemovePerson}
+        onRenamePerson={handleRenamePerson}
         onOpenChange={(open) => {
           setIdentityModalOpen(open)
           if (!open) setChangingIdentity(false)

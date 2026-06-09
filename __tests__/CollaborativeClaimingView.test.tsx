@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor, within, act } from '@testing-library/react'
 import { CollaborativeClaimingView } from '@/app/split/[sessionId]/CollaborativeClaimingView'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
@@ -480,5 +480,40 @@ describe('CollaborativeClaimingView', () => {
     // D-08: the "Add a tip" Button on PersonResultsScreen confirms we advanced to Results
     await waitFor(() => expect(screen.getByRole('button', { name: /add a tip/i })).toBeDefined())
     expect(doneFetch).toHaveBeenCalled()
+  })
+
+  // ——— Phase 11 (D-07): self-removal re-opens identity modal ———
+
+  it('Test 32 (D-07 self-removal): when viewer personId removed from session, identity modal re-opens (not SessionExpiredScreen)', async () => {
+    const slotFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', slotFetch)
+
+    const { rerender } = render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /claim slot alice/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined())
+
+    // Simulate SWR poll returning a session where p1 (Alice) is gone
+    const sessionWithoutAlice = {
+      ...SESSION_FIXTURE,
+      people: [{ id: 'p2', name: 'Bob', colorIndex: 1 }],
+      claims: { items: {}, personSlots: {}, donePeople: {} },
+    }
+    useSWRMock.mockReturnValue({
+      data: sessionWithoutAlice,
+      error: undefined,
+      mutate: mutateMock,
+    })
+
+    // Force re-render so the component picks up the new SWR data (simulates poll tick)
+    await act(async () => {
+      rerender(<CollaborativeClaimingView sessionId="s1" />)
+    })
+
+    // Identity modal should re-open with "Who are you?"
+    await waitFor(() => {
+      expect(screen.getByText('Who are you?')).toBeDefined()
+    })
+    // Must NOT show SessionExpiredScreen
+    expect(screen.queryByText(/session.*expired/i)).toBeNull()
   })
 })
