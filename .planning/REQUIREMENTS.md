@@ -57,8 +57,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 
 ### Bill View Header (HEADER)
 
-- [ ] **HEADER-01**: The non-functional Receipt button is removed from the bill view header (the scanned image is not persisted to the shared session; a real "view receipt for all" feature is deferred to its own phase). _(Phase 11, D-01)_
-- [ ] **HEADER-02**: The Share button is a ≥44px tap target with visible presence (icon + label), easy to identify and tap on mobile. _(Phase 11, D-02)_
+- [x] **HEADER-01**: The non-functional Receipt button is removed from the bill view header (the scanned image is not persisted to the shared session; a real "view receipt for all" feature is deferred to its own phase). _(Phase 11, D-01)_
+- [x] **HEADER-02**: The Share button is a ≥44px tap target with visible presence (icon + label), easy to identify and tap on mobile. _(Phase 11, D-02)_
 
 ### Participant Management (PART)
 
@@ -115,8 +115,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | TIP-02 | Phase 10 | Complete |
 | CURR-02 | Phase 10 | Complete |
 | CURR-03 | Phase 10 | Complete |
-| HEADER-01 | Phase 11 | Pending |
-| HEADER-02 | Phase 11 | Pending |
+| HEADER-01 | Phase 11 | Complete |
+| HEADER-02 | Phase 11 | Complete |
 | RESULTS-05 | Phase 11 | Complete |
 | TIP-03 | Phase 11 | Complete |
 | CURR-04 | Phase 11 | Complete |
