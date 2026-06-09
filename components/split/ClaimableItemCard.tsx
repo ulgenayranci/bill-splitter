@@ -93,8 +93,9 @@ export function ClaimableItemCard({
   const cardClasses = [
     'flex min-h-[44px] flex-col gap-2 px-4 py-3 transition-colors',
     mine ? 'bg-amber-50 border border-amber-400' : '',
+    !mine && fullyClaimed ? 'bg-zinc-50' : '',
     !isMultiQty ? 'cursor-pointer' : '',
-    fullyClaimed ? 'opacity-70' : '',
+    fullyClaimed ? 'opacity-55' : '',
   ].filter(Boolean).join(' ')
 
   const cardRole = isMultiQty ? undefined : 'button'
@@ -123,7 +124,7 @@ export function ClaimableItemCard({
             )}
           </div>
         )}
-        <span className={['flex-1 text-[16px]', mine ? 'font-semibold' : ''].join(' ')}>
+        <span className={['flex-1 text-[16px]', mine ? 'font-semibold' : '', fullyClaimed ? 'line-through' : ''].filter(Boolean).join(' ')}>
           {item.name}
           {isMultiQty && (
             <span className="ml-2 text-[14px] text-zinc-500">×{item.quantity}</span>
@@ -214,23 +215,10 @@ export function ClaimableItemCard({
         </p>
       )}
 
-      {/* G9: bottom-right "claimed" indicator — compact avatar + label when ≥1 claimant */}
+      {/* G9: bottom-right "claimed" indicator — icon + label when ≥1 claimant */}
       {allClaimantEntries.length > 0 && (
         <div className="flex justify-end items-center gap-1" data-testid="claimed-indicator">
-          {(() => {
-            const [firstPid] = allClaimantEntries[0]
-            const isMe = firstPid === myPersonId
-            const firstPerson = peopleById[firstPid]
-            const colorClass = AVATAR_COLORS[(firstPerson?.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]
-            return (
-              <span
-                className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${colorClass}`}
-                aria-hidden="true"
-              >
-                {isMe ? 'Y' : (firstPerson?.name ?? '?').charAt(0).toUpperCase()}
-              </span>
-            )
-          })()}
+          <Check size={12} className="text-zinc-400" aria-hidden="true" />
           <span className="text-[12px] text-zinc-400">claimed</span>
         </div>
       )}

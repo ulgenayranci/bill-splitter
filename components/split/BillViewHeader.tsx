@@ -106,16 +106,32 @@ export function BillViewHeader({
 
   return (
     <div className="bg-white border-b border-zinc-100 px-4 pt-3 pb-2">
-      {/* Row 1: bill title + date only */}
-      <div className="flex-1 min-w-0">
-        <h1 className="text-[20px] font-semibold text-zinc-900 leading-[1.2]">
-          {billTitle}
-        </h1>
-        <p className="text-[14px] text-zinc-400 mt-0.5">{dateLineFull}</p>
+      {/* Row 1: bill title + date (left) + Share button (right) */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-[20px] font-semibold text-zinc-900 leading-[1.2]">
+            {billTitle}
+          </h1>
+          <p className="text-[14px] text-zinc-400 mt-0.5">{dateLineFull}</p>
+        </div>
+        {/* Share button — top-right */}
+        <button
+          type="button"
+          aria-label="Share bill link"
+          onClick={handleShare}
+          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 text-white hover:bg-amber-700 transition-colors"
+        >
+          {copied ? (
+            <Check size={18} aria-hidden="true" />
+          ) : (
+            <Share2 size={18} aria-hidden="true" />
+          )}
+          <span className="text-[13px] font-medium">{copied ? 'Copied!' : 'Share'}</span>
+        </button>
       </div>
 
-      {/* Row 2: people strip (left) + Share button (right) */}
-      <div className="flex items-center justify-between gap-2 mt-2 pb-1">
+      {/* Row 2: people strip alone */}
+      <div className="mt-2 pb-1">
         {/* People facepile — tappable to change identity */}
         <div
           role="button"
@@ -174,21 +190,6 @@ export function BillViewHeader({
           </span>
         )}
         </div>
-
-        {/* Share button — right side of avatar row */}
-        <button
-          type="button"
-          aria-label="Share bill link"
-          onClick={handleShare}
-          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 text-white hover:bg-amber-700 transition-colors"
-        >
-          {copied ? (
-            <Check size={18} aria-hidden="true" />
-          ) : (
-            <Share2 size={18} aria-hidden="true" />
-          )}
-          <span className="text-[13px] font-medium">{copied ? 'Copied!' : 'Share'}</span>
-        </button>
       </div>
     </div>
   )

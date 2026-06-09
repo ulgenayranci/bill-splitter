@@ -345,8 +345,8 @@ describe('ClaimableItemCard — Phase 9 (D-06, D-07, D-08, D-13, D-14, D-15)', (
 describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
   afterEach(() => cleanup())
 
-  // G9: fully-claimed single-qty item has opacity-70 class
-  it('G9: fully-claimed single-qty item card has opacity-70 class', () => {
+  // G9: fully-claimed single-qty item has stronger dim class (opacity-55)
+  it('G9: fully-claimed single-qty item card has opacity-55 class (stronger dim)', () => {
     const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -358,11 +358,28 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
       />
     )
     const card = screen.getByRole('button')
-    expect(card.className).toContain('opacity-70')
+    expect(card.className).toContain('opacity-55')
   })
 
-  // G9: partially-claimed multi-qty item does NOT have opacity-70
-  it('G9: partially-claimed multi-qty item does NOT have opacity-70', () => {
+  // G9: fully-claimed single-qty item has line-through on item name
+  it('G9: fully-claimed single-qty item has line-through on the item name', () => {
+    const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1 } }
+    render(
+      <ClaimableItemCard
+        item={singleQtyItem}
+        claimsForItem={claims}
+        myPersonId="p1"
+        peopleById={peopleById}
+        onQtyChange={vi.fn()}
+      />
+    )
+    // The item name element should have line-through class
+    const nameEl = screen.getByText('Pizza')
+    expect(nameEl.className).toContain('line-through')
+  })
+
+  // G9: partially-claimed multi-qty item does NOT have opacity-55
+  it('G9: partially-claimed multi-qty item does NOT have opacity-55', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -373,16 +390,12 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
         onQtyChange={vi.fn()}
       />
     )
-    // No role="button" on multi-qty card; get the card via the stepper container's parent
-    const card = screen.getByTestId('qty-stepper').closest('[class]')
-    // The card wrapper itself — check that opacity-70 is absent at the Card level
-    // We check the outermost rendered element
     const container = document.querySelector('.flex.flex-col.gap-2.px-4.py-3')
-    expect(container?.className).not.toContain('opacity-70')
+    expect(container?.className).not.toContain('opacity-55')
   })
 
-  // G9: fully-claimed multi-qty item has opacity-70 (all units taken)
-  it('G9: fully-claimed multi-qty item (all units taken) has opacity-70', () => {
+  // G9: fully-claimed multi-qty item has opacity-55 (all units taken)
+  it('G9: fully-claimed multi-qty item (all units taken) has opacity-55', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 4 } }
     render(
       <ClaimableItemCard
@@ -394,11 +407,11 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
       />
     )
     const container = document.querySelector('.flex.flex-col.gap-2.px-4.py-3')
-    expect(container?.className).toContain('opacity-70')
+    expect(container?.className).toContain('opacity-55')
   })
 
-  // G9: item with ≥1 claimant shows bottom-right "claimed" label
-  it('G9: item with ≥1 claimant shows the bottom-right "claimed" label', () => {
+  // G9: item with ≥1 claimant shows bottom-right "claimed" label (no avatar circle)
+  it('G9: item with ≥1 claimant shows the bottom-right "claimed" label (no avatar circle)', () => {
     const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -412,6 +425,9 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
     const indicator = screen.getByTestId('claimed-indicator')
     expect(indicator).toBeDefined()
     expect(indicator.textContent).toContain('claimed')
+    // No avatar circle — no rounded-full element with a person initial inside the indicator
+    const circles = indicator.querySelectorAll('.rounded-full')
+    expect(circles.length).toBe(0)
   })
 
   // G9: unclaimed item does NOT show the claimed indicator
@@ -429,7 +445,7 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
   })
 
   // G9: mine card preserves bg-amber-50/border-amber-400 even when fully claimed (dim doesn't erase "mine")
-  it('G9: fully-claimed mine card keeps bg-amber-50 and border-amber-400 alongside opacity-70', () => {
+  it('G9: fully-claimed mine card keeps bg-amber-50 and border-amber-400 alongside opacity-55', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -443,6 +459,6 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
     const card = screen.getByRole('button')
     expect(card.className).toContain('bg-amber-50')
     expect(card.className).toContain('border-amber-400')
-    expect(card.className).toContain('opacity-70')
+    expect(card.className).toContain('opacity-55')
   })
 })
