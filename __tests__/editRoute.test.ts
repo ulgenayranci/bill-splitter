@@ -350,57 +350,6 @@ describe('POST /api/session/[sessionId]/edit', () => {
     })
   })
 
-  // --- op: remove_person ---
-  it('Test 21 (remove_person ok): removes person atomically via Lua, returns 200 { ok:true }; redis.eval called exactly once, redis.get NOT called', async () => {
-    // D-06: claim-freeing is handled entirely inside REMOVE_PERSON_SCRIPT (Lua body).
-    // The route must NOT perform a separate JS GET/SET path for remove_person.
-    // Assert: eval is called once (Lua does the read+purge+write), get is never called.
-    mockEval.mockResolvedValue('OK')
-    const { status, json } = await callPOST('test-session', {
-      op: 'remove_person',
-      personId: 'p1',
-    })
-    expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    expect(mockEval).toHaveBeenCalledTimes(1)
-    // GET (redis.get) must NOT be called — Lua does the read internally (atomic purge, D-06)
-    expect(mockGet).not.toHaveBeenCalled()
-    // Verify ARGV[0] is the personId sent to the Lua script
-    const evalArgs = mockEval.mock.calls[0]
-    const argv = evalArgs[2] as string[]
-    expect(argv[0]).toBe('p1')
-  })
-
-  it('Test 22 (remove_person person_not_found): eval returns "person_not_found" → 404', async () => {
-    mockEval.mockResolvedValue('person_not_found')
-    const { status, json } = await callPOST('test-session', {
-      op: 'remove_person',
-      personId: 'nonexistent-person',
-    })
-    expect(status).toBe(404)
-    expect(typeof (json as { error: string }).error).toBe('string')
-  })
-
-  it('Test 23 (remove_person last_person): eval returns "last_person" → 409 (D-04: 0-person sessions blocked)', async () => {
-    mockEval.mockResolvedValue('last_person')
-    const { status, json } = await callPOST('test-session', {
-      op: 'remove_person',
-      personId: 'p1',
-    })
-    expect(status).toBe(409)
-    expect(typeof (json as { error: string }).error).toBe('string')
-  })
-
-  it('Test 24 (remove_person missing personId): returns 400; eval NOT called', async () => {
-    const { status, json } = await callPOST('test-session', {
-      op: 'remove_person',
-      // personId intentionally omitted
-    })
-    expect(status).toBe(400)
-    expect(typeof (json as { error: string }).error).toBe('string')
-    expect(mockEval).not.toHaveBeenCalled()
-  })
-
   // --- op: rename_person ---
   it('Test 25 (rename_person ok): renames person atomically via Lua, returns 200 { ok:true }; eval called once with correct ARGV', async () => {
     mockEval.mockResolvedValue('OK')

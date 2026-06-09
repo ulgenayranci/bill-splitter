@@ -6,11 +6,10 @@
 // Phase 9 (IDENT-03): Added "I'm not listed" inline add form + opacity-50 fix.
 // GAP-09-NOLOCK: All names are always selectable — no taken/greyed/disabled state.
 // The flat model has no host role, so exclusive slot ownership is removed entirely.
-// Phase 11 (D-05/07): Added onRemovePerson + onRenamePerson optional props with
-// per-card inline rename form and remove affordances.
+// Phase 11 (D-05): Added onRenamePerson optional prop with per-card inline rename form.
 
 import { useState, useEffect } from 'react'
-import { Pencil, X } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -22,11 +21,10 @@ interface PersonSlotPickerProps {
   session: PublicSessionPayload
   onSelect: (personId: PersonId) => void | Promise<void>
   onAddPerson?: (name: string) => Promise<void>
-  onRemovePerson?: (personId: PersonId) => Promise<void>
   onRenamePerson?: (personId: PersonId, newName: string) => Promise<void>
 }
 
-export function PersonSlotPicker({ session, onSelect, onAddPerson, onRemovePerson, onRenamePerson }: PersonSlotPickerProps) {
+export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerson }: PersonSlotPickerProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null)
@@ -100,36 +98,21 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRemovePerso
                   onClick={() => onSelect(person.id as PersonId)}
                   className="flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 cursor-pointer relative"
                 >
-                  {/* Rename / Remove controls — only render when callbacks are provided */}
-                  {(onRenamePerson || onRemovePerson) && (
+                  {/* Rename control — only render when callback is provided */}
+                  {onRenamePerson && (
                     <div className="absolute top-1 right-1 flex gap-0.5">
-                      {onRenamePerson && (
-                        <button
-                          type="button"
-                          aria-label={`Rename ${person.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setRenameValue(person.name)
-                            setEditingPersonId(person.id)
-                          }}
-                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
-                        >
-                          <Pencil size={14} aria-hidden="true" />
-                        </button>
-                      )}
-                      {onRemovePerson && (
-                        <button
-                          type="button"
-                          aria-label={`Remove ${person.name}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            void onRemovePerson(person.id as PersonId)
-                          }}
-                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-zinc-400 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <X size={14} aria-hidden="true" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        aria-label={`Rename ${person.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRenameValue(person.name)
+                          setEditingPersonId(person.id)
+                        }}
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+                      >
+                        <Pencil size={14} aria-hidden="true" />
+                      </button>
                     </div>
                   )}
                   <div
