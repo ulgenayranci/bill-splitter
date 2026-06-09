@@ -45,12 +45,29 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - [x] **CURR-01**: The OCR step detects the receipt's currency
 - [x] **CURR-02**: All monetary amounts render in the detected currency with correct symbol and decimal places (including zero-decimal currencies like JPY)
 - [x] **CURR-03**: If currency can't be detected, the app falls back gracefully (sensible default; user can set it)
+- [ ] **CURR-04**: The Results screen no longer exposes a currency-change `<select>` (it read as a converter and confused intent); the detected currency symbol still renders everywhere. The server-side `update_currency` op is retained for a future, clearly-framed re-introduction. _(Phase 11, D-09)_
 
 ### Results & Tip (RESULTS / TIP)
 
 - [x] **RESULTS-03**: Locked Results screen shows each person's itemized breakdown — the current user expanded by default, others tap-to-expand — plus a grand total
 - [x] **RESULTS-04**: From Results, user can Copy a plain-text summary, Edit the bill, or start a New bill
+- [ ] **RESULTS-05**: When the bill is not fully claimed, the Results screen shows an "Unclaimed items" section at the top listing items still needing an owner, and the headline shows a playful "still up for grabs" message; when fully claimed it shows the positive "all set" message. _(Phase 11, D-03/D-04)_
 - [x] **TIP-02**: User can add a tip via a modal launched from the Results screen; totals update to include it
+- [ ] **TIP-03**: The "Add a tip" affordance on the Results screen is a prominent Button (not a faint underlined text link). _(Phase 11, D-08)_
+
+### Bill View Header (HEADER)
+
+- [ ] **HEADER-01**: The non-functional Receipt button is removed from the bill view header (the scanned image is not persisted to the shared session; a real "view receipt for all" feature is deferred to its own phase). _(Phase 11, D-01)_
+- [ ] **HEADER-02**: The Share button is a ≥44px tap target with visible presence (icon + label), easy to identify and tap on mobile. _(Phase 11, D-02)_
+
+### Participant Management (PART)
+
+- [ ] **PART-01**: A `remove_person` op on the `/edit` route atomically removes a participant from the session via Lua. _(Phase 11, D-05)_
+- [ ] **PART-02**: Removing a participant frees their claimed items back to unclaimed and purges their personSlots/donePeople/tips; removing the only remaining person is blocked. _(Phase 11, D-06)_
+- [ ] **PART-03**: A `rename_person` op on the `/edit` route atomically updates a participant's name with server-side validation (trim, non-empty, ≤50 chars). _(Phase 11, D-05)_
+- [ ] **PART-04**: The people modal (PersonSlotPicker inside IdentityModal) exposes remove and rename affordances on each person card. _(Phase 11, D-05/D-07)_
+- [ ] **PART-05**: Remove/rename are shared Redis writes that anyone can perform (flat no-lock model) and propagate to all participants via the SWR poll. _(Phase 11, D-07)_
+- [ ] **PART-06**: When a viewer's own identity is removed by anyone, the identity modal re-opens (the viewer is not stranded on the SessionExpiredScreen). _(Phase 11, self-removal edge case from RESEARCH)_
 
 ---
 
@@ -65,6 +82,8 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - Native iOS/Android app — web app covers the use case
 - User accounts / login — anonymous, link-based use keeps friction low
 - Host/moderator role, edit-request approval, disputes — **removed** in v2 (the flat model is the point)
+- Receipt viewing for all participants — requires server-side image storage; deferred to its own phase (Phase 11 D-01)
+- Currency correction control re-introduction — removed for now; revisit framed as "fix the scanned currency" (Phase 11 D-09)
 
 ---
 
@@ -96,3 +115,14 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | TIP-02 | Phase 10 | Complete |
 | CURR-02 | Phase 10 | Complete |
 | CURR-03 | Phase 10 | Complete |
+| HEADER-01 | Phase 11 | Pending |
+| HEADER-02 | Phase 11 | Pending |
+| RESULTS-05 | Phase 11 | Pending |
+| TIP-03 | Phase 11 | Pending |
+| CURR-04 | Phase 11 | Pending |
+| PART-01 | Phase 11 | Pending |
+| PART-02 | Phase 11 | Pending |
+| PART-03 | Phase 11 | Pending |
+| PART-04 | Phase 11 | Pending |
+| PART-05 | Phase 11 | Pending |
+| PART-06 | Phase 11 | Pending |

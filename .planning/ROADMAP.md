@@ -121,15 +121,18 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 ### Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management
 **Goal**: Fix post-v2 UAT bugs and usability issues on the bill and results screens, and add participant management, so the collaborative split flow is clear and correctable end-to-end
 **Depends on**: Phase 10
-**Requirements**: TBD (assigned during planning)
-**Success Criteria** (what must be TRUE) — *decisions marked ⚑ to be locked in discussion*:
-  1. The Receipt button on the bill screen works as intended (⚑ confirm intent — likely shows the scanned receipt image), or is removed if it has no purpose
-  2. The Share and Receipt buttons are large enough to be easily identified and tapped on mobile
-  3. The Results screen shows an "Unclaimed items" section at the top whenever items remain unallocated, and the "You're all set!" message is replaced with appropriate wording when the bill is not fully claimed (⚑ brainstorm phrasing + what counts as "unclaimed")
-  4. Participants can be removed and their names edited for corrections / group management, with defined handling of items they had claimed (⚑ decide: re-open to unclaimed vs. delete; per-device vs. shared-session effect)
-  5. The "Add a tip" affordance is more prominent on the bill/results screen, and the currency-change menu is relocated (smaller, beneath the total amount, left-aligned)
-**Plans**: Not planned yet
-- [ ] TBD (run /gsd-plan-phase 11 to break down)
+**Requirements**: PART-01, PART-02, PART-03, PART-04, PART-05, PART-06, RESULTS-05, TIP-03, CURR-04, HEADER-01, HEADER-02
+**Success Criteria** (what must be TRUE):
+  1. The non-functional Receipt button is removed from the bill view header (scanned image is not persisted to the shared session; real "receipt for all" deferred) — D-01
+  2. The Share button is a ≥44px tap target with visible presence (icon + label), easy to identify and tap on mobile — D-02
+  3. The Results screen shows an "Unclaimed items" section at the top whenever items remain unallocated, with a playful "still up for grabs" headline; fully-claimed shows the positive "all set" message — D-03/D-04
+  4. Participants can be removed (freeing their claimed items back to unclaimed) and renamed via the people modal; anyone can do it; changes propagate live via SWR poll; a removed viewer re-opens the identity modal rather than seeing SessionExpiredScreen — D-05/D-06/D-07 + self-removal edge case
+  5. "Add a tip" is a prominent Button; the currency-change `<select>` is removed from Results (the detected symbol still displays; server update_currency op retained for future) — D-08/D-09
+**Plans**: 4 plans (2 waves — Wave 1: server ops + Results polish + header polish in parallel; Wave 2: participant-management UI + self-removal fix)
+- [ ] 11-01-PLAN.md — remove_person + rename_person Lua ops on /edit (atomic purge of people/claims/personSlots/donePeople/tips, last_person guard, validation) + editRoute tests (PART-01, PART-02, PART-03)
+- [ ] 11-02-PLAN.md — Results polish: extract getUnclaimedCounts/getUnclaimedItems to lib/sessionUtils; unclaimed section + conditional headline; prominent tip Button; remove currency select + tests (RESULTS-05, TIP-03, CURR-04)
+- [ ] 11-03-PLAN.md — BillViewHeader: remove Receipt button + import; enlarge Share to ≥44px labeled tap target + tests (HEADER-01, HEADER-02)
+- [ ] 11-04-PLAN.md — Participant-management UI: PersonSlotPicker remove/rename affordances, IdentityModal prop threading, CollaborativeClaimingView handlers + self-removal useEffect, onCurrencyChange cleanup + tests (PART-04, PART-05, PART-06)
 **UI hint**: yes
 **Source**: Post-v2.0 UAT bug list reported 2026-06-08 (see 10-UAT.md re-verification; new issues beyond it)
 
@@ -147,4 +150,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 5/5 | Complete   | 2026-06-08 |
-| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 0/0 | Not planned | — |
+| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 0/4 | Planned | — |
