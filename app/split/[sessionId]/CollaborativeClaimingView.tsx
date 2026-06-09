@@ -26,6 +26,7 @@ import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import { computePersonShareFromClaims } from '@/lib/billMath'
+import { getUnclaimedCounts } from '@/lib/sessionUtils'
 
 type InlineForm =
   | { kind: 'add'; name: string; price: string; qty: string; error: string | null }
@@ -51,17 +52,6 @@ interface CollaborativeClaimingViewProps {
 }
 
 type Phase = 'claiming' | 'results'
-
-/** Count items whose total claimed qty is below their quantity (mirrors UnclaimedBanner). */
-function getUnclaimedCounts(session: SessionPayload): { unclaimed: number; total: number } {
-  let unclaimed = 0
-  for (const item of session.items) {
-    const entries = session.claims?.items?.[item.id] ?? {}
-    const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
-    if (totalClaimed < (item.quantity ?? 1)) unclaimed++
-  }
-  return { unclaimed, total: session.items.length }
-}
 
 /** Derive which phase a returning guest should land on based on persisted server state.
  *  D-01: tip phase removed — done users land on results directly; tip is optional from there.
