@@ -65,9 +65,9 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 - [x] **PART-01**: A `remove_person` op on the `/edit` route atomically removes a participant from the session via Lua. _(Phase 11, D-05)_
 - [x] **PART-02**: Removing a participant frees their claimed items back to unclaimed and purges their personSlots/donePeople/tips; removing the only remaining person is blocked. _(Phase 11, D-06)_
 - [x] **PART-03**: A `rename_person` op on the `/edit` route atomically updates a participant's name with server-side validation (trim, non-empty, ≤50 chars). _(Phase 11, D-05)_
-- [ ] **PART-04**: The people modal (PersonSlotPicker inside IdentityModal) exposes remove and rename affordances on each person card. _(Phase 11, D-05/D-07)_
-- [ ] **PART-05**: Remove/rename are shared Redis writes that anyone can perform (flat no-lock model) and propagate to all participants via the SWR poll. _(Phase 11, D-07)_
-- [ ] **PART-06**: When a viewer's own identity is removed by anyone, the identity modal re-opens (the viewer is not stranded on the SessionExpiredScreen). _(Phase 11, self-removal edge case from RESEARCH)_
+- [x] **PART-04**: The people modal (PersonSlotPicker inside IdentityModal) exposes remove and rename affordances on each person card. _(Phase 11, D-05/D-07)_
+- [x] **PART-05**: Remove/rename are shared Redis writes that anyone can perform (flat no-lock model) and propagate to all participants via the SWR poll. _(Phase 11, D-07)_
+- [x] **PART-06**: When a viewer's own identity is removed by anyone, the identity modal re-opens (the viewer is not stranded on the SessionExpiredScreen). _(Phase 11, self-removal edge case from RESEARCH)_
 
 ---
 
@@ -123,6 +123,6 @@ A clarity-driven rebuild: scan-first single Setup screen, flat collaborative mod
 | PART-01 | Phase 11 | Complete |
 | PART-02 | Phase 11 | Complete |
 | PART-03 | Phase 11 | Complete |
-| PART-04 | Phase 11 | Pending |
-| PART-05 | Phase 11 | Pending |
-| PART-06 | Phase 11 | Pending |
+| PART-04 | Phase 11 | Complete |
+| PART-05 | Phase 11 | Complete |
+| PART-06 | Phase 11 | Complete |

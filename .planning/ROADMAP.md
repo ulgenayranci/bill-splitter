@@ -27,7 +27,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated (completed 2026-06-05)
 - [x] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning (completed 2026-06-07)
 - [x] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays (completed 2026-06-08)
-- [ ] **Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management** — post-v2 UAT bug fixes + participant management (added 2026-06-09; milestone reopened)
+- [x] **Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management** — post-v2 UAT bug fixes + participant management (added 2026-06-09; milestone reopened) (completed 2026-06-09)
 
 ## Phase Details
 
@@ -132,7 +132,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 - [x] 11-01-PLAN.md — remove_person + rename_person Lua ops on /edit (atomic purge of people/claims/personSlots/donePeople/tips, last_person guard, validation) + editRoute tests (PART-01, PART-02, PART-03)
 - [x] 11-02-PLAN.md — Results polish: extract getUnclaimedCounts/getUnclaimedItems to lib/sessionUtils; unclaimed section + conditional headline; prominent tip Button; remove currency select + tests (RESULTS-05, TIP-03, CURR-04)
 - [x] 11-03-PLAN.md — BillViewHeader: remove Receipt button + import; enlarge Share to ≥44px labeled tap target + tests (HEADER-01, HEADER-02)
-- [ ] 11-04-PLAN.md — Participant-management UI: PersonSlotPicker remove/rename affordances, IdentityModal prop threading, CollaborativeClaimingView handlers + self-removal useEffect, onCurrencyChange cleanup + tests (PART-04, PART-05, PART-06)
+- [x] 11-04-PLAN.md — Participant-management UI: PersonSlotPicker remove/rename affordances, IdentityModal prop threading, CollaborativeClaimingView handlers + self-removal useEffect, onCurrencyChange cleanup + tests (PART-04, PART-05, PART-06)
 **UI hint**: yes
 **Source**: Post-v2.0 UAT bug list reported 2026-06-08 (see 10-UAT.md re-verification; new issues beyond it)
 
@@ -150,4 +150,4 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
 | 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
 | 10. Results Screen + Tip Modal + Currency Display | v2.0 | 5/5 | Complete   | 2026-06-08 |
-| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 3/4 | In Progress|  |
+| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 4/4 | Complete   | 2026-06-09 |
