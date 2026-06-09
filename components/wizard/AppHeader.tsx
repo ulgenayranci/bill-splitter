@@ -83,7 +83,7 @@ export function AppHeader() {
       >
         {/* Wordmark */}
         <div
-          className="select-none text-[15px] leading-none tracking-[-0.03em] text-zinc-900"
+          className="select-none text-[17px] leading-none tracking-[-0.03em] text-zinc-900"
           aria-label="easy-billsy"
         >
           <span className="font-normal">easy</span>

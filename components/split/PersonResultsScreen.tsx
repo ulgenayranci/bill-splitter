@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,7 @@ import { getUnclaimedCounts, getUnclaimedItems } from '@/lib/sessionUtils'
 
 export interface PersonResultsScreenProps {
   session: PublicSessionPayload
-  personId: PersonId            // current user — pinned first, all cards expanded by default
+  personId: PersonId            // current user — pinned first; their card expanded, others collapsed
   currencyCode: string          // from session.currencyCode ?? 'USD'
   onAddTip: () => void          // opens Tip Dialog in parent (Plan 04 wires this)
   onEditBill: () => void        // parent calls handleBackToClaiming (done:false)
@@ -40,8 +40,12 @@ export function PersonResultsScreen({
   onAddTip,
   onEditBill,
 }: PersonResultsScreenProps) {
-  // Accordion state: all cards expanded by default; collapsedIds tracks which are collapsed
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  // Accordion state (R3-2): the current user's card is expanded by default; everyone
+  // else's card starts collapsed. collapsedIds tracks which cards are collapsed, so it
+  // is seeded with every OTHER person's id on first render.
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
+    () => new Set(session.people.filter((p) => p.id !== personId).map((p) => p.id))
+  )
 
   // Share summary state
   const [copied, setCopied] = useState(false)
@@ -49,6 +53,49 @@ export function PersonResultsScreen({
 
   // G5: Unclaimed confirm dialog
   const [showUnclaimedConfirm, setShowUnclaimedConfirm] = useState(false)
+
+  // R3-4: "I paid" swipe affordance. Swipe right marks a card paid, swipe left reverses.
+  const [paidIds, setPaidIds] = useState<Set<string>>(new Set())
+  const [paidToast, setPaidToast] = useState<string | null>(null)
+  // Single in-flight gesture (touches are sequential), so module-scoped refs are safe:
+  // remember where the touch began and whether it became a horizontal swipe so the
+  // subsequent click (collapse toggle) can be suppressed.
+  const touchStartXRef = useRef(0)
+  const touchStartYRef = useRef(0)
+  const swipedRef = useRef(false)
+
+  function showPaidToast(message: string) {
+    setPaidToast(message)
+    setTimeout(() => setPaidToast(null), 2000)
+  }
+
+  function setPaid(id: string, name: string, paid: boolean) {
+    setPaidIds((prev) => {
+      const next = new Set(prev)
+      if (paid) next.add(id)
+      else next.delete(id)
+      return next
+    })
+    showPaidToast(paid ? `${name} — I have paid ✓` : `${name} — marked unpaid`)
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartXRef.current = e.touches[0]?.clientX ?? 0
+    touchStartYRef.current = e.touches[0]?.clientY ?? 0
+    swipedRef.current = false
+  }
+
+  function handleTouchEnd(e: React.TouchEvent, id: string, name: string) {
+    const endX = e.changedTouches[0]?.clientX ?? 0
+    const endY = e.changedTouches[0]?.clientY ?? 0
+    const dx = endX - touchStartXRef.current
+    const dy = endY - touchStartYRef.current
+    // Horizontal swipe of >60px that is more horizontal than vertical.
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+      swipedRef.current = true
+      setPaid(id, name, dx > 0) // right → paid, left → unpaid
+    }
+  }
 
   const grandTotal = computeSubtotalCents(session.items)
 
@@ -63,6 +110,12 @@ export function PersonResultsScreen({
   ]
 
   function handleCardTap(id: string) {
+    // R3-4: if the gesture was a horizontal swipe, swallow the synthesized click so a
+    // swipe doesn't also toggle the accordion.
+    if (swipedRef.current) {
+      swipedRef.current = false
+      return
+    }
     setCollapsedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -156,20 +209,16 @@ export function PersonResultsScreen({
               className="cursor-pointer rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 hover:bg-amber-100 transition-colors"
             >
               <p className="text-[14px] font-medium text-amber-800 mb-2">Unclaimed items</p>
-              {/* G6: list names when ≤2; collapse to count when >2 */}
-              {unclaimedItems.length <= 2 ? (
-                <ul className="flex flex-col gap-1">
-                  {unclaimedItems.map((item) => (
-                    <li key={item.id} className="text-[14px] text-amber-700">{item.name}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-[14px] text-amber-700">{unclaimedItems.length} items need an owner</p>
-              )}
+              {/* R3-5: always list every unclaimed item (no count-collapse). */}
+              <ul className="flex flex-col gap-1">
+                {unclaimedItems.map((item) => (
+                  <li key={item.id} className="text-[14px] text-amber-700">{item.name}</li>
+                ))}
+              </ul>
             </div>
           )}
 
-          {/* G1: All-people accordion — current user pinned to top; all expanded by default */}
+          {/* G1: All-people accordion — current user pinned to top, expanded; others collapsed */}
           <div className="flex flex-col gap-6">
             {sortedPeople.map((person) => {
               const tipCents = person.id === personId ? (session.tips?.[personId] ?? 0) : 0
@@ -180,11 +229,26 @@ export function PersonResultsScreen({
                 tipCents
               )
               const isCurrentUser = person.id === personId
-              // All cards expanded by default; collapsed when id is in collapsedIds
+              // Current user expanded by default; everyone else collapsed (R3-2).
               const isExpanded = !collapsedIds.has(person.id)
+              const isPaid = paidIds.has(person.id)
 
               return (
-                <div key={person.id} className="rounded-xl border border-border bg-card">
+                <div
+                  key={person.id}
+                  className="relative rounded-xl border border-border bg-card"
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={(e) => handleTouchEnd(e, person.id, person.name)}
+                >
+                  {/* R3-4: "Paid" chip — top-right, shown after a swipe-right */}
+                  {isPaid && (
+                    <span
+                      data-testid={`paid-chip-${person.id}`}
+                      className="absolute right-3 top-3 z-10 rounded-full bg-green-100 px-2.5 py-0.5 text-[12px] font-semibold text-green-700"
+                    >
+                      Paid
+                    </span>
+                  )}
                   {/* Card header — always visible */}
                   <div
                     role="button"
@@ -308,6 +372,17 @@ export function PersonResultsScreen({
           </div>
         </div>
       </main>
+
+      {/* R3-4: transient "I have paid" toast triggered by swiping a card */}
+      {paidToast && (
+        <div
+          role="status"
+          data-testid="paid-toast"
+          className="fixed bottom-[96px] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-[14px] font-medium text-white shadow-lg"
+        >
+          {paidToast}
+        </div>
+      )}
 
       {/* Fixed bottom CTA bar — G2+G4: two half-width buttons */}
       <div

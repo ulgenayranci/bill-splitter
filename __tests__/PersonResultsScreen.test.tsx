@@ -100,14 +100,15 @@ describe('PersonResultsScreen', () => {
     expect(screen.getByText('Bob')).toBeDefined()
   })
 
-  it("Test 7 (accordion expand/collapse): all cards expanded by default; tapping Bob's card collapses it", () => {
+  it("Test 7 (accordion expand/collapse): current user expanded, others collapsed by default; tapping Bob's card expands it", () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
-    // All cards expanded by default — Bob's items should be visible immediately
-    expect(screen.getByTestId('results-row-p2-i2')).toBeDefined()
-    // Tap Bob's card to collapse it
-    fireEvent.click(screen.getByLabelText("Bob's breakdown"))
-    // After tap, Bob's items should be hidden
+    // R3-2: current user (Alice/p1) expanded by default — her items are visible…
+    expect(screen.getByTestId('results-row-i1')).toBeDefined()
+    // …but Bob's card starts collapsed
     expect(screen.queryByTestId('results-row-p2-i2')).toBeNull()
+    // Tap Bob's card to expand it
+    fireEvent.click(screen.getByLabelText("Bob's breakdown"))
+    expect(screen.getByTestId('results-row-p2-i2')).toBeDefined()
   })
 
   it("Test 8 (no tip on other person): Bob's card has no 'Your tip' row", () => {
@@ -281,8 +282,8 @@ describe('PersonResultsScreen', () => {
     expect(breakdowns[1].getAttribute('aria-label')).toBe("Bob's breakdown")
   })
 
-  // G6: unclaimed collapse — ≤2 shows names, >2 shows count
-  it('G6 (unclaimed collapse): lists item names when ≤2 unclaimed', () => {
+  // R3-5: unclaimed box always lists every unclaimed item (no count-collapse)
+  it('R3-5 (unclaimed list): lists item names when ≤2 unclaimed', () => {
     // 1 unclaimed item (Beer is partially claimed: qty:2, only 1 claimed)
     const session = makeSession({
       claims: {
@@ -301,7 +302,7 @@ describe('PersonResultsScreen', () => {
     expect(liInUnclaimed).toBeDefined()
   })
 
-  it('G6 (unclaimed collapse): shows count summary when >2 unclaimed', () => {
+  it('R3-5 (unclaimed list): lists every unclaimed item when >2 (no count-collapse)', () => {
     // Session with 3 unclaimed items
     const session: SessionPayload = {
       people: [
@@ -318,13 +319,15 @@ describe('PersonResultsScreen', () => {
       createdAt: Date.now(),
     }
     render(<PersonResultsScreen session={session} {...defaultProps} />)
-    // Should show count summary, not individual item names in unclaimed section
-    expect(screen.getByText('3 items need an owner')).toBeDefined()
-    // Item names should NOT be listed in unclaimed section as <li> elements
-    // (they may appear in other parts but not as amber-700 list items)
-    const pizzaElements = screen.queryAllByText('Pizza')
-    const liInUnclaimed = pizzaElements.find((el) => el.tagName.toLowerCase() === 'li' && el.className.includes('amber-700'))
-    expect(liInUnclaimed).toBeUndefined()
+    // No count-collapse copy
+    expect(screen.queryByText('3 items need an owner')).toBeNull()
+    // All three names listed as amber-700 <li> elements in the unclaimed section
+    for (const name of ['Pizza', 'Beer', 'Wings']) {
+      const li = screen.getAllByText(name).find(
+        (el) => el.tagName.toLowerCase() === 'li' && el.className.includes('amber-700')
+      )
+      expect(li).toBeDefined()
+    }
   })
 
   // G5: unclaimed section tappable → dialog → onEditBill
@@ -369,5 +372,45 @@ describe('PersonResultsScreen', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(screen.queryByLabelText('currency-select')).toBeNull()
+  })
+
+  // ── R3-4: swipe-to-mark-paid ──────────────────────────────────────────────
+
+  it('R3-4 (swipe paid): no paid chip by default', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.queryByTestId('paid-chip-p2')).toBeNull()
+  })
+
+  it('R3-4 (swipe paid): swiping a card right marks it paid (chip + toast)', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    const card = screen.getByLabelText("Bob's breakdown").closest('div.relative') as HTMLElement
+    fireEvent.touchStart(card, { touches: [{ clientX: 20, clientY: 100 }] })
+    fireEvent.touchEnd(card, { changedTouches: [{ clientX: 140, clientY: 105 }] })
+    expect(screen.getByTestId('paid-chip-p2')).toBeDefined()
+    expect(screen.getByTestId('paid-toast').textContent).toMatch(/I have paid/)
+  })
+
+  it('R3-4 (swipe paid): swiping left reverses a paid card', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    const card = screen.getByLabelText("Bob's breakdown").closest('div.relative') as HTMLElement
+    // Right → paid
+    fireEvent.touchStart(card, { touches: [{ clientX: 20, clientY: 100 }] })
+    fireEvent.touchEnd(card, { changedTouches: [{ clientX: 140, clientY: 100 }] })
+    expect(screen.getByTestId('paid-chip-p2')).toBeDefined()
+    // Left → unpaid
+    fireEvent.touchStart(card, { touches: [{ clientX: 140, clientY: 100 }] })
+    fireEvent.touchEnd(card, { changedTouches: [{ clientX: 20, clientY: 100 }] })
+    expect(screen.queryByTestId('paid-chip-p2')).toBeNull()
+  })
+
+  it('R3-4 (swipe paid): a horizontal swipe does not toggle the accordion', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    // Bob starts collapsed; a swipe should NOT expand him (only mark paid)
+    const card = screen.getByLabelText("Bob's breakdown").closest('div.relative') as HTMLElement
+    fireEvent.touchStart(card, { touches: [{ clientX: 20, clientY: 100 }] })
+    fireEvent.touchEnd(card, { changedTouches: [{ clientX: 140, clientY: 100 }] })
+    fireEvent.click(screen.getByLabelText("Bob's breakdown"))
+    // Still collapsed (swipe-suppressed the click)
+    expect(screen.queryByTestId('results-row-p2-i2')).toBeNull()
   })
 })

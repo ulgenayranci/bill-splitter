@@ -68,3 +68,12 @@ UAT round 1 (2026-06-09) — user tested the live app; everything not listed bel
 
 **Status:** R1–R10 implemented (tsc clean; 380 tests pass, only the 3 pre-existing unrelated wizard failures). Awaiting UAT round 3.
 **Still deferred:** G10 restaurant-name title (separate OCR/schema follow-up).
+
+### UAT round 3 (2026-06-09) — follow-up actions
+- [x] **R3-1** Bring back an items indicator (the old "tap to find" banner is gone): a non-interactive **x/N "Items claimed" chip** on the bill/claiming screen. Counts by **units, not rows** — a qty-5 line counts as 5. _(getClaimedUnitCounts helper)_
+- [x] **R3-2** Results cards default: **current user's card expanded, everyone else's collapsed** (was: all expanded).
+- [x] **R3-3** App header wordmark typeface slightly bigger (15px → 17px).
+- [x] **R3-4** **Swipe-to-mark-paid:** swipe a result card right → "I have paid" toast + green **Paid** chip top-right; swipe left reverses. Horizontal swipe is suppressed from toggling the accordion.
+- [x] **R3-5** Results "Unclaimed items" box now **lists every unclaimed item** (removed the >2 count-collapse "{N} items need an owner").
+
+**Status:** R3-1–R3-5 implemented (tsc clean; PersonResultsScreen/sessionUtils/CollaborativeClaimingView/AppHeader suites green — 72 tests; full suite 388 pass with only the 3 pre-existing wizard failures). Awaiting UAT round 4.
