@@ -20,6 +20,25 @@ export function getUnclaimedCounts(session: SessionPayload): { unclaimed: number
 }
 
 /**
+ * Count claimed vs total *units* (R3-1). Unlike getUnclaimedCounts (which counts rows),
+ * this respects item quantity: a single row with quantity 5 contributes 5 to the total,
+ * not 1. claimedUnits is capped at the item's quantity so over-claims can't push the
+ * chip above N. Used by the claiming-screen "items claimed" x/N chip.
+ */
+export function getClaimedUnitCounts(session: SessionPayload): { claimedUnits: number; totalUnits: number } {
+  let claimedUnits = 0
+  let totalUnits = 0
+  for (const item of session.items) {
+    const qty = item.quantity ?? 1
+    totalUnits += qty
+    const entries = session.claims?.items?.[item.id] ?? {}
+    const totalClaimed = Object.values(entries).reduce((sum, e) => sum + (e?.qty ?? 0), 0)
+    claimedUnits += Math.min(totalClaimed, qty)
+  }
+  return { claimedUnits, totalUnits }
+}
+
+/**
  * Return items where totalClaimed < quantity (same traversal as getUnclaimedCounts,
  * filtered to the Item objects instead of a count).
  * Used by PersonResultsScreen to render the "Unclaimed items" section (D-03).

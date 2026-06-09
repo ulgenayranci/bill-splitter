@@ -25,7 +25,7 @@ import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import { computePersonShareFromClaims } from '@/lib/billMath'
-import { getUnclaimedCounts } from '@/lib/sessionUtils'
+import { getUnclaimedCounts, getClaimedUnitCounts } from '@/lib/sessionUtils'
 
 type InlineForm =
   | { kind: 'add'; name: string; price: string; qty: string; error: string | null }
@@ -561,6 +561,7 @@ export function CollaborativeClaimingView({
   }
 
   const { unclaimed: unclaimedCount } = getUnclaimedCounts(session)
+  const { claimedUnits, totalUnits } = getClaimedUnitCounts(session)
 
   return (
     <main className="mx-auto min-h-screen max-w-[480px] bg-background">
@@ -576,6 +577,17 @@ export function CollaborativeClaimingView({
         }}
         sessionId={sessionId}
       />
+
+      {/* R3-1: items-claimed progress bar — non-interactive x/N chip (units, not rows). */}
+      <div className="flex items-center justify-between border-b border-zinc-100 bg-white px-6 py-2">
+        <span className="text-[14px] text-zinc-500">Items claimed</span>
+        <span
+          data-testid="items-claimed-chip"
+          className="rounded-full bg-amber-100 px-3 py-1 text-[13px] font-semibold text-amber-800"
+        >
+          {claimedUnits}/{totalUnits}
+        </span>
+      </div>
 
       {/* Item list */}
       <ul className="flex flex-col gap-2 px-6 py-4 pb-[160px]">
