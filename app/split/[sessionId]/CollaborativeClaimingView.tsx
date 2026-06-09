@@ -548,7 +548,6 @@ export function CollaborativeClaimingView({
           currencyCode={session.currencyCode ?? 'USD'}
           onAddTip={() => setTipDialogOpen(true)}
           onEditBill={() => void handleBackToClaiming()}
-          onCurrencyChange={handleCurrencyChange}
           sessionId={sessionId}
         />
         <Dialog open={tipDialogOpen} onOpenChange={setTipDialogOpen}>

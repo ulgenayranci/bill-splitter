@@ -22,8 +22,7 @@ import {
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
-
-const COMMON_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR']
+import { getUnclaimedCounts, getUnclaimedItems } from '@/lib/sessionUtils'
 
 export interface PersonResultsScreenProps {
   session: PublicSessionPayload
@@ -31,8 +30,7 @@ export interface PersonResultsScreenProps {
   currencyCode: string          // from session.currencyCode ?? 'USD'
   onAddTip: () => void          // opens Tip Dialog in parent (Plan 04 wires this)
   onEditBill: () => void        // parent calls handleBackToClaiming (done:false)
-  onCurrencyChange: (code: string) => Promise<void>  // REQUIRED — parent owns the /edit write + mutate(); this screen only calls it
-  sessionId: string             // for localStorage clear on New Split + currency POST
+  sessionId: string             // for localStorage clear on New Split
 }
 
 export function PersonResultsScreen({
@@ -41,7 +39,6 @@ export function PersonResultsScreen({
   currencyCode,
   onAddTip,
   onEditBill,
-  onCurrencyChange,
   sessionId,
 }: PersonResultsScreenProps) {
   const router = useRouter()
@@ -58,10 +55,8 @@ export function PersonResultsScreen({
 
   const grandTotal = computeSubtotalCents(session.items)
 
-  // Build currency options list
-  const currencyOptions = COMMON_CURRENCIES.includes(currencyCode)
-    ? COMMON_CURRENCIES
-    : [currencyCode, ...COMMON_CURRENCIES]
+  // Unclaimed detection (D-03, D-04)
+  const { unclaimed: unclaimedCount } = getUnclaimedCounts(session)
 
   function handleCardTap(id: string) {
     if (id === personId) return // current user stays expanded
@@ -122,16 +117,29 @@ export function PersonResultsScreen({
     router.push('/')
   }
 
-  async function handleCurrencyChange(newCode: string) {
-    await onCurrencyChange(newCode)
-  }
-
   return (
     <>
       <main className="mx-auto min-h-screen max-w-[480px] bg-background pb-[200px]">
         <AppHeader />
         <div className="flex flex-col gap-6 px-6 py-8">
-          <h1 className="text-[20px] font-semibold leading-[1.2]">You&rsquo;re all set!</h1>
+          {/* D-04: conditional headline — playful when unclaimed, positive when fully claimed */}
+          <h1 className="text-[20px] font-semibold leading-[1.2]">
+            {unclaimedCount > 0
+              ? `Hold up — ${unclaimedCount} item${unclaimedCount === 1 ? '' : 's'} still up for grabs!`
+              : "You're all set!"}
+          </h1>
+
+          {/* D-03: unclaimed items section — only when items remain unclaimed */}
+          {unclaimedCount > 0 && (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+              <p className="text-[14px] font-medium text-amber-800 mb-2">Unclaimed items</p>
+              <ul className="flex flex-col gap-1">
+                {getUnclaimedItems(session).map((item) => (
+                  <li key={item.id} className="text-[14px] text-amber-700">{item.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* All-people accordion */}
           <div className="flex flex-col gap-6">
@@ -256,31 +264,15 @@ export function PersonResultsScreen({
             </span>
           </div>
 
-          {/* Inline currency override (D-06) */}
-          <div className="flex items-center gap-2 text-[14px] text-zinc-500">
-            <label htmlFor="currency-select" className="shrink-0">Currency:</label>
-            <select
-              id="currency-select"
-              value={currencyCode}
-              onChange={(e) => void handleCurrencyChange(e.target.value)}
-              className="rounded border border-border bg-background px-2 py-1 text-[14px] text-foreground"
-            >
-              {currencyOptions.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Add a tip button */}
-          <button
+          {/* D-08: Prominent tip Button (replaces faint underlined link) */}
+          <Button
             type="button"
+            variant="outline"
+            className="border-amber-600 text-amber-600 hover:bg-amber-50"
             onClick={onAddTip}
-            className="text-[14px] text-amber-600 underline self-start"
           >
-            Add a tip?
-          </button>
+            Add a tip
+          </Button>
         </div>
       </main>
 

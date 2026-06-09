@@ -40,7 +40,6 @@ const defaultProps = {
   currencyCode: 'USD',
   onAddTip: vi.fn(),
   onEditBill: vi.fn(),
-  onCurrencyChange: vi.fn().mockResolvedValue(undefined),
   sessionId: 'sess-123',
 }
 
@@ -57,7 +56,7 @@ describe('PersonResultsScreen', () => {
 
   // ── Legacy tests (Test 1-5) – updated to new props interface ──────────────
 
-  it("Test 1 (heading + total): renders You're all set! and total in amber-600", () => {
+  it("Test 1 (heading + total): renders You're all set! when fully claimed and total in amber-600", () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
     expect(screen.getByText(/You.?re all set/)).toBeDefined()
     // Pizza $10.00 sole claim + Beer half-share $3.00 + tip $2.50 = $15.50
@@ -118,9 +117,6 @@ describe('PersonResultsScreen', () => {
     fireEvent.click(screen.getByLabelText("Bob's breakdown"))
     // Bob's expanded content should not show a "Your tip" row
     // The tip row (results-tip) is only on Alice's card
-    const tipElements = screen.queryAllByText(/Your tip/)
-    // Current user's card shows "Your tip" label; Bob's expanded card should not
-    // We check the count: only one "Your tip" label (on Alice's card)
     const aliceTipRow = screen.getByTestId('results-tip')
     expect(aliceTipRow).toBeDefined()
     // No "Bob's tip" element
@@ -205,5 +201,74 @@ describe('PersonResultsScreen', () => {
     // The grand total should show EUR symbol
     const grandTotal = screen.getByTestId('results-grand-total')
     expect(grandTotal.textContent).toMatch(/€/)
+  })
+
+  // ── New tests for D-03, D-04, D-08, D-09 ─────────────────────────────────
+
+  it('D-03 (unclaimed section): shows "Unclaimed items" and item name when partially claimed', () => {
+    // i2 Beer has quantity 2 but only 1 claimed by p1 — still 1 unclaimed
+    const unclaimedSession = makeSession({
+      claims: {
+        items: {
+          i1: { p1: { qty: 1 } },         // i1 Pizza fully claimed (qty: 1)
+          i2: { p1: { qty: 1 } },           // i2 Beer partially claimed (qty:1 of 2)
+        },
+        personSlots: {},
+        donePeople: {},
+      },
+    })
+    render(<PersonResultsScreen session={unclaimedSession} {...defaultProps} />)
+    expect(screen.getByText('Unclaimed items')).toBeDefined()
+    // Beer appears in the unclaimed section (may also appear in claimed items list — getAllByText is fine)
+    const beerElements = screen.getAllByText('Beer')
+    // At least one element should be in the unclaimed section (amber-700 li)
+    const unclaimedBeerLi = beerElements.find((el) => el.className.includes('amber-700'))
+    expect(unclaimedBeerLi).toBeDefined()
+  })
+
+  it('D-03 (unclaimed section): does NOT render when all items fully claimed', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.queryByText('Unclaimed items')).toBeNull()
+  })
+
+  it('D-04 (headline): shows playful "up for grabs" message when items are unclaimed', () => {
+    const unclaimedSession = makeSession({
+      claims: {
+        items: {
+          i1: { p1: { qty: 1 } },
+          i2: { p1: { qty: 1 } },  // Beer qty:2, only 1 claimed
+        },
+        personSlots: {},
+        donePeople: {},
+      },
+    })
+    render(<PersonResultsScreen session={unclaimedSession} {...defaultProps} />)
+    expect(screen.getByText(/up for grabs/i)).toBeDefined()
+    expect(screen.queryByText(/You.?re all set/i)).toBeNull()
+  })
+
+  it("D-04 (headline): shows \"You're all set!\" when bill is fully claimed", () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.getByText(/You.?re all set/i)).toBeDefined()
+    expect(screen.queryByText(/up for grabs/i)).toBeNull()
+  })
+
+  it('D-08 (tip Button): Add a tip is a Button element (role=button), not an anchor or underlined span', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    const tipBtn = screen.getByRole('button', { name: /Add a tip/i })
+    expect(tipBtn).toBeDefined()
+  })
+
+  it('D-08 (tip Button): clicking Add a tip calls onAddTip', () => {
+    const onAddTip = vi.fn()
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} onAddTip={onAddTip} />)
+    fireEvent.click(screen.getByRole('button', { name: /Add a tip/i }))
+    expect(onAddTip).toHaveBeenCalledTimes(1)
+  })
+
+  it('D-09 (no currency select): currency combobox/select is absent from the Results screen', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByLabelText('currency-select')).toBeNull()
   })
 })
