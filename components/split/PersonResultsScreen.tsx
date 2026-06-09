@@ -26,7 +26,7 @@ import { getUnclaimedCounts, getUnclaimedItems } from '@/lib/sessionUtils'
 
 export interface PersonResultsScreenProps {
   session: PublicSessionPayload
-  personId: PersonId            // current user — always expanded
+  personId: PersonId            // current user — pinned first, all cards expanded by default
   currencyCode: string          // from session.currencyCode ?? 'USD'
   onAddTip: () => void          // opens Tip Dialog in parent (Plan 04 wires this)
   onEditBill: () => void        // parent calls handleBackToClaiming (done:false)
@@ -40,8 +40,8 @@ export function PersonResultsScreen({
   onAddTip,
   onEditBill,
 }: PersonResultsScreenProps) {
-  // Accordion state: current user always expanded
-  const [expandedId, setExpandedId] = useState<string | null>(personId)
+  // Accordion state: all cards expanded by default; collapsedIds tracks which are collapsed
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
 
   // Share summary state
   const [copied, setCopied] = useState(false)
@@ -63,8 +63,15 @@ export function PersonResultsScreen({
   ]
 
   function handleCardTap(id: string) {
-    if (id === personId) return // current user stays expanded
-    setExpandedId((prev) => (prev === id ? null : id))
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
   }
 
   async function handleShareSummary() {
@@ -162,7 +169,7 @@ export function PersonResultsScreen({
             </div>
           )}
 
-          {/* G1: All-people accordion — current user pinned to top */}
+          {/* G1: All-people accordion — current user pinned to top; all expanded by default */}
           <div className="flex flex-col gap-6">
             {sortedPeople.map((person) => {
               const tipCents = person.id === personId ? (session.tips?.[personId] ?? 0) : 0
@@ -173,8 +180,8 @@ export function PersonResultsScreen({
                 tipCents
               )
               const isCurrentUser = person.id === personId
-              // Current user is always expanded; others toggle via expandedId
-              const isExpanded = isCurrentUser || expandedId === person.id
+              // All cards expanded by default; collapsed when id is in collapsedIds
+              const isExpanded = !collapsedIds.has(person.id)
 
               return (
                 <div key={person.id} className="rounded-xl border border-border bg-card">

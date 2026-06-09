@@ -100,14 +100,14 @@ describe('PersonResultsScreen', () => {
     expect(screen.getByText('Bob')).toBeDefined()
   })
 
-  it("Test 7 (accordion expand/collapse): tapping Bob's card expands it to show line items", () => {
+  it("Test 7 (accordion expand/collapse): all cards expanded by default; tapping Bob's card collapses it", () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
-    // Bob's card should be collapsed by default — his items not visible
-    expect(screen.queryByTestId('results-row-p2-i2')).toBeNull()
-    // Tap Bob's card
-    fireEvent.click(screen.getByLabelText("Bob's breakdown"))
-    // After tap, Bob's items should be visible
+    // All cards expanded by default — Bob's items should be visible immediately
     expect(screen.getByTestId('results-row-p2-i2')).toBeDefined()
+    // Tap Bob's card to collapse it
+    fireEvent.click(screen.getByLabelText("Bob's breakdown"))
+    // After tap, Bob's items should be hidden
+    expect(screen.queryByTestId('results-row-p2-i2')).toBeNull()
   })
 
   it("Test 8 (no tip on other person): Bob's card has no 'Your tip' row", () => {
