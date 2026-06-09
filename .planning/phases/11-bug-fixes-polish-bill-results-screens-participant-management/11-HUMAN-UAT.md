@@ -52,4 +52,19 @@ UAT round 1 (2026-06-09) — user tested the live app; everything not listed bel
 - [x] **G9 — Claimed items:** fully-claimed cards dimmed; claimant avatar + "claimed" bottom-right. _(59e393f)_
 - [ ] **G10 (DEFERRED, follow-up):** use the scanned restaurant name as the bill title when detected; needs OCR + schema work; affects new scans only.
 
-**Round-2 status:** G1–G9 implemented (tsc clean; 376 tests pass, only 3 pre-existing unrelated wizard failures). Awaiting UAT round 2 on the live app.
+**Round-2 status:** G1–G9 implemented and tested by user on the live app (round 2). Round-2 feedback below.
+
+### UAT round 2 (2026-06-09) — follow-up actions
+- [x] **R1** Revert Share button to top-right (keep size). _(e94dbb8)_
+- [x] **R2** Progress bar — confirmed OK (no change).
+- [x] **R3** Fully-claimed items: stronger dim + strikethrough on the name. _(e94dbb8)_
+- [x] **R4** Remove avatar from the "claimed" tag (text + check only). _(e94dbb8)_
+- [x] **R5** Move item delete into the edit lightbox; remove the card-row X. _(57eaa2b)_
+- [x] **R6** Remove the broken "N items unclaimed — tap to find" banner (revisit V3). _(57eaa2b)_
+- [x] **R7** Unclaimed "I'm done" dialog: remove divider line; half-width Go back (left) + Continue anyway (primary, right). _(57eaa2b)_
+- [x] **R8** Result cards collapsible — all expanded by default, tap to collapse. _(17d53cf)_
+- [x] **R9** "Add a tip" — confirmed perfect (no change).
+- [x] **R10** Sticky header that fades on scroll (menu → New Split stays reachable). _(503385d)_
+
+**Status:** R1–R10 implemented (tsc clean; 380 tests pass, only the 3 pre-existing unrelated wizard failures). Awaiting UAT round 3.
+**Still deferred:** G10 restaurant-name title (separate OCR/schema follow-up).
