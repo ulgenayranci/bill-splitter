@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useBillStore } from '@/stores/useBillStore'
 import { AppHeader } from './AppHeader'
+import { ProgressStrip } from './ProgressStrip'
 
 interface WizardShellProps {
   children: React.ReactNode
@@ -11,7 +12,6 @@ interface WizardShellProps {
 // D-07: 3-segment progress strip (Setup / Bill View / Results), replacing the v1
 // 4-segment strip. Internal store steps map onto these segments:
 //   step 1 (Setup) → 1 filled · step 3 (Assign/Bill View) → 2 · step 4 (Results) → 3
-const PROGRESS_SEGMENTS = 3
 function filledSegments(step: number): number {
   if (step >= 4) return 3
   if (step >= 3) return 2
@@ -56,14 +56,7 @@ export function WizardShell({ children }: WizardShellProps) {
       <AppHeader />
 
       {/* Progress strip — 3px tall bars, 3 segments (Setup / Bill View / Results) */}
-      <div className="flex w-full gap-1 px-5 pt-2.5">
-        {Array.from({ length: PROGRESS_SEGMENTS }, (_, idx) => (
-          <div
-            key={idx}
-            className={`h-[3px] flex-1 rounded-sm ${idx + 1 <= filled ? 'bg-amber-600' : 'bg-zinc-200'}`}
-          />
-        ))}
-      </div>
+      <ProgressStrip filled={filled} />
       <main className="flex flex-1 flex-col px-6 py-8 pb-24">{children}</main>
     </div>
   )
