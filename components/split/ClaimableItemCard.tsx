@@ -52,6 +52,9 @@ export function ClaimableItemCard({
     0
   )
 
+  // G9: fully-claimed when all quantity units are accounted for
+  const fullyClaimed = totalClaimedQty >= (item.quantity ?? 1)
+
   // Single-qty toggle handler — routes through onShareChange if provided (D-13)
   const handleToggle = () => {
     if (onShareChange) {
@@ -91,6 +94,7 @@ export function ClaimableItemCard({
     'flex min-h-[44px] flex-col gap-2 px-4 py-3 transition-colors',
     mine ? 'bg-amber-50 border border-amber-400' : '',
     !isMultiQty ? 'cursor-pointer' : '',
+    fullyClaimed ? 'opacity-70' : '',
   ].filter(Boolean).join(' ')
 
   const cardRole = isMultiQty ? undefined : 'button'
@@ -208,6 +212,27 @@ export function ClaimableItemCard({
         <p className="text-[14px] text-zinc-500 mt-1" data-testid="your-share">
           your share: {formatCents(yourShareCents, currencyCode ?? 'USD')}
         </p>
+      )}
+
+      {/* G9: bottom-right "claimed" indicator — compact avatar + label when ≥1 claimant */}
+      {allClaimantEntries.length > 0 && (
+        <div className="flex justify-end items-center gap-1" data-testid="claimed-indicator">
+          {(() => {
+            const [firstPid] = allClaimantEntries[0]
+            const isMe = firstPid === myPersonId
+            const firstPerson = peopleById[firstPid]
+            const colorClass = AVATAR_COLORS[(firstPerson?.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]
+            return (
+              <span
+                className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${colorClass}`}
+                aria-hidden="true"
+              >
+                {isMe ? 'Y' : (firstPerson?.name ?? '?').charAt(0).toUpperCase()}
+              </span>
+            )
+          })()}
+          <span className="text-[12px] text-zinc-400">claimed</span>
+        </div>
       )}
 
       {errorMessage && (
