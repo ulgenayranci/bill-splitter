@@ -586,7 +586,9 @@ await mutate()
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three resolved during planning (see 11-01 Task 1, 11-02 Task 1): (1) extract `getUnclaimedCounts` to `lib/sessionUtils.ts` — YES; (2) block last-person removal — YES, `last_person` → 409; (3) recompute `colorIndex` after removal — NO.
 
 1. **Should `getUnclaimedCounts` be extracted to `lib/`?**
    - What we know: It exists in two files today with identical implementations.
