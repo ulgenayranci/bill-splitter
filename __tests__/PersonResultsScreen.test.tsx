@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
-import { useBillStore } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
 // Mock next/navigation so useRouter() doesn't throw in jsdom
@@ -131,7 +130,7 @@ describe('PersonResultsScreen', () => {
     expect(grandTotal.textContent).toMatch(/\$16\.00/)
   })
 
-  it('Test 10 (copy summary): clicking Copy summary calls clipboard.writeText with correct content', async () => {
+  it('Test 10 (share summary): clicking Share summary calls clipboard.writeText with correct content', async () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
     const copyBtn = screen.getByLabelText('Copy summary to clipboard')
     fireEvent.click(copyBtn)
@@ -158,22 +157,6 @@ describe('PersonResultsScreen', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} onEditBill={onEditBill} />)
     fireEvent.click(screen.getByText('Edit bill'))
     expect(onEditBill).toHaveBeenCalledTimes(1)
-  })
-
-  it('Test 15 (New Split clears persisted store): confirming New Split sets store sessionId to null', () => {
-    // Seed a sessionId on the persisted store
-    useBillStore.getState().setSessionId('sess-x')
-    expect(useBillStore.getState().sessionId).toBe('sess-x')
-
-    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
-    // Open the New Split confirm dialog
-    fireEvent.click(screen.getByText('New Split'))
-    // Click the confirm "New Split" button inside the dialog (the dialog button is the
-    // second match; getAllByText returns [CTA-bar button, dialog button])
-    const newSplitButtons = screen.getAllByText('New Split')
-    fireEvent.click(newSplitButtons[newSplitButtons.length - 1])
-
-    expect(useBillStore.getState().sessionId).toBeNull()
   })
 
   it('Test 14 (subtotal + in-card total): current-user card shows items-only Subtotal and items+tip Total', () => {
@@ -253,17 +236,133 @@ describe('PersonResultsScreen', () => {
     expect(screen.queryByText(/up for grabs/i)).toBeNull()
   })
 
-  it('D-08 (tip Button): Add a tip is a Button element (role=button), not an anchor or underlined span', () => {
+  // G3: "Add a tip?" is now inline clickable text (not a bordered Button)
+  it('G3 (tip text link): "Add a tip?" is clickable text inside the current user\'s card, not a button element', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
-    const tipBtn = screen.getByRole('button', { name: /Add a tip/i })
-    expect(tipBtn).toBeDefined()
+    // The text exists
+    const tipText = screen.getByText('Add a tip?')
+    expect(tipText).toBeDefined()
+    // It renders as a span with role="button", NOT a <button> element with button chrome
+    expect(tipText.tagName.toLowerCase()).toBe('span')
   })
 
-  it('D-08 (tip Button): clicking Add a tip calls onAddTip', () => {
+  it('G3 (tip text link): clicking "Add a tip?" calls onAddTip', () => {
     const onAddTip = vi.fn()
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} onAddTip={onAddTip} />)
-    fireEvent.click(screen.getByRole('button', { name: /Add a tip/i }))
+    fireEvent.click(screen.getByText('Add a tip?'))
     expect(onAddTip).toHaveBeenCalledTimes(1)
+  })
+
+  // G2+G4: New sticky bar — Share summary + Edit bill; no New Split / Copy summary
+  it('G2+G4 (sticky bar): shows "Share summary" button', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.getByLabelText('Copy summary to clipboard')).toBeDefined()
+    // "Share summary" label in the button text
+    expect(screen.getByText('Share summary')).toBeDefined()
+  })
+
+  it('G2+G4 (sticky bar): "Edit bill" button exists', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.getByText('Edit bill')).toBeDefined()
+  })
+
+  it('G2+G4 (sticky bar): "New Split" and "Copy summary" are removed', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(screen.queryByText('New Split')).toBeNull()
+    expect(screen.queryByText('Copy summary')).toBeNull()
+  })
+
+  // G1: current user card is rendered first
+  it('G1 (order): current user card is first in the accordion', () => {
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    // Alice (p1) is the current user — her card should appear before Bob's
+    const breakdowns = screen.getAllByRole('button', { name: /breakdown/ })
+    expect(breakdowns[0].getAttribute('aria-label')).toBe("Alice's breakdown")
+    expect(breakdowns[1].getAttribute('aria-label')).toBe("Bob's breakdown")
+  })
+
+  // G6: unclaimed collapse — ≤2 shows names, >2 shows count
+  it('G6 (unclaimed collapse): lists item names when ≤2 unclaimed', () => {
+    // 1 unclaimed item (Beer is partially claimed: qty:2, only 1 claimed)
+    const session = makeSession({
+      claims: {
+        items: {
+          i1: { p1: { qty: 1 } },
+          i2: { p1: { qty: 1 } },
+        },
+        personSlots: {},
+        donePeople: {},
+      },
+    })
+    render(<PersonResultsScreen session={session} {...defaultProps} />)
+    // Beer should appear as a list item in the unclaimed section
+    const allBeer = screen.getAllByText('Beer')
+    const liInUnclaimed = allBeer.find((el) => el.tagName.toLowerCase() === 'li')
+    expect(liInUnclaimed).toBeDefined()
+  })
+
+  it('G6 (unclaimed collapse): shows count summary when >2 unclaimed', () => {
+    // Session with 3 unclaimed items
+    const session: SessionPayload = {
+      people: [
+        { id: 'p1', name: 'Alice', colorIndex: 0 },
+      ],
+      items: [
+        { id: 'i1', name: 'Pizza', priceCents: 1000, quantity: 1 },
+        { id: 'i2', name: 'Beer', priceCents: 600, quantity: 1 },
+        { id: 'i3', name: 'Wings', priceCents: 800, quantity: 1 },
+      ],
+      claims: { items: {}, personSlots: {}, donePeople: {} },
+      tips: {},
+      currencyCode: 'USD',
+      createdAt: Date.now(),
+    }
+    render(<PersonResultsScreen session={session} {...defaultProps} />)
+    // Should show count summary, not individual item names in unclaimed section
+    expect(screen.getByText('3 items need an owner')).toBeDefined()
+    // Item names should NOT be listed in unclaimed section as <li> elements
+    // (they may appear in other parts but not as amber-700 list items)
+    const pizzaElements = screen.queryAllByText('Pizza')
+    const liInUnclaimed = pizzaElements.find((el) => el.tagName.toLowerCase() === 'li' && el.className.includes('amber-700'))
+    expect(liInUnclaimed).toBeUndefined()
+  })
+
+  // G5: unclaimed section tappable → dialog → onEditBill
+  it('G5 (unclaimed tappable): tapping unclaimed section opens confirmation dialog', () => {
+    const unclaimedSession = makeSession({
+      claims: {
+        items: {
+          i1: { p1: { qty: 1 } },
+          i2: { p1: { qty: 1 } },
+        },
+        personSlots: {},
+        donePeople: {},
+      },
+    })
+    render(<PersonResultsScreen session={unclaimedSession} {...defaultProps} />)
+    fireEvent.click(screen.getByRole('button', { name: /view unclaimed items/i }))
+    expect(screen.getByText('Add owners for unclaimed items?')).toBeDefined()
+  })
+
+  it('G5 (unclaimed confirm): confirming calls onEditBill', () => {
+    const onEditBill = vi.fn()
+    const unclaimedSession = makeSession({
+      claims: {
+        items: {
+          i1: { p1: { qty: 1 } },
+          i2: { p1: { qty: 1 } },
+        },
+        personSlots: {},
+        donePeople: {},
+      },
+    })
+    render(<PersonResultsScreen session={unclaimedSession} {...defaultProps} onEditBill={onEditBill} />)
+    fireEvent.click(screen.getByRole('button', { name: /view unclaimed items/i }))
+    // The dialog should show; click the "Edit bill" confirm button inside the dialog
+    const editBillButtons = screen.getAllByText('Edit bill')
+    // The one inside the dialog footer
+    fireEvent.click(editBillButtons[editBillButtons.length - 1])
+    expect(onEditBill).toHaveBeenCalled()
   })
 
   it('D-09 (no currency select): currency combobox/select is absent from the Results screen', () => {

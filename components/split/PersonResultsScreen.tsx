@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { AVATAR_COLORS, useBillStore } from '@/stores/useBillStore'
+import { AVATAR_COLORS } from '@/stores/useBillStore'
 import {
   computePersonShareFromClaims,
   computeSubtotalCents,
@@ -22,6 +21,7 @@ import {
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
+import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { getUnclaimedCounts, getUnclaimedItems } from '@/lib/sessionUtils'
 
 export interface PersonResultsScreenProps {
@@ -39,31 +39,35 @@ export function PersonResultsScreen({
   currencyCode,
   onAddTip,
   onEditBill,
-  sessionId,
 }: PersonResultsScreenProps) {
-  const router = useRouter()
-
   // Accordion state: current user always expanded
   const [expandedId, setExpandedId] = useState<string | null>(personId)
 
-  // Copy summary state
+  // Share summary state
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState<string | null>(null)
 
-  // New Split confirm dialog
-  const [showNewSplitConfirm, setShowNewSplitConfirm] = useState(false)
+  // G5: Unclaimed confirm dialog
+  const [showUnclaimedConfirm, setShowUnclaimedConfirm] = useState(false)
 
   const grandTotal = computeSubtotalCents(session.items)
 
   // Unclaimed detection (D-03, D-04)
   const { unclaimed: unclaimedCount } = getUnclaimedCounts(session)
+  const unclaimedItems = getUnclaimedItems(session)
+
+  // G1: Pin current user's card to top; others after in existing order
+  const sortedPeople = [
+    ...session.people.filter((p) => p.id === personId),
+    ...session.people.filter((p) => p.id !== personId),
+  ]
 
   function handleCardTap(id: string) {
     if (id === personId) return // current user stays expanded
     setExpandedId((prev) => (prev === id ? null : id))
   }
 
-  async function handleCopySummary() {
+  async function handleShareSummary() {
     setCopyError(null)
     const lines = session.people.map((p) => {
       const share = computePersonShareFromClaims(
@@ -76,6 +80,18 @@ export function PersonResultsScreen({
     })
     lines.push(`Total: ${formatCents(grandTotal, currencyCode)}`)
     const text = lines.join('\n')
+
+    // Try navigator.share first (mobile-friendly), fall back to clipboard
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ text })
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+        return
+      } catch {
+        // fall through to clipboard
+      }
+    }
 
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
@@ -105,22 +121,13 @@ export function PersonResultsScreen({
     }
   }
 
-  function handleNewSplit() {
-    try {
-      localStorage.removeItem(`split:${sessionId}:personId`)
-    } catch {
-      // localStorage unavailable in private browsing — silently ignore
-    }
-    // Clear the persisted Zustand store (incl. sessionId) so app/page.tsx does not
-    // redirect back to /split/{sessionId} — lands on / on the first tap (UAT gap 3).
-    useBillStore.getState().reset()
-    router.push('/')
-  }
-
   return (
     <>
       <main className="mx-auto min-h-screen max-w-[480px] bg-background pb-[200px]">
+        {/* G7: AppHeader + progress strip (results = segment 3) */}
         <AppHeader />
+        <ProgressStrip filled={3} />
+
         <div className="flex flex-col gap-6 px-6 py-8">
           {/* D-04: conditional headline — playful when unclaimed, positive when fully claimed */}
           <h1 className="text-[20px] font-semibold leading-[1.2]">
@@ -129,21 +136,35 @@ export function PersonResultsScreen({
               : "You're all set!"}
           </h1>
 
-          {/* D-03: unclaimed items section — only when items remain unclaimed */}
+          {/* D-03 + G5 + G6: unclaimed items section — only when items remain unclaimed */}
           {unclaimedCount > 0 && (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="View unclaimed items — tap to edit"
+              onClick={() => setShowUnclaimedConfirm(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)
+              }}
+              className="cursor-pointer rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 hover:bg-amber-100 transition-colors"
+            >
               <p className="text-[14px] font-medium text-amber-800 mb-2">Unclaimed items</p>
-              <ul className="flex flex-col gap-1">
-                {getUnclaimedItems(session).map((item) => (
-                  <li key={item.id} className="text-[14px] text-amber-700">{item.name}</li>
-                ))}
-              </ul>
+              {/* G6: list names when ≤2; collapse to count when >2 */}
+              {unclaimedItems.length <= 2 ? (
+                <ul className="flex flex-col gap-1">
+                  {unclaimedItems.map((item) => (
+                    <li key={item.id} className="text-[14px] text-amber-700">{item.name}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[14px] text-amber-700">{unclaimedItems.length} items need an owner</p>
+              )}
             </div>
           )}
 
-          {/* All-people accordion */}
+          {/* G1: All-people accordion — current user pinned to top */}
           <div className="flex flex-col gap-6">
-            {session.people.map((person) => {
+            {sortedPeople.map((person) => {
               const tipCents = person.id === personId ? (session.tips?.[personId] ?? 0) : 0
               const share = computePersonShareFromClaims(
                 person.id,
@@ -247,6 +268,21 @@ export function PersonResultsScreen({
                             <span>Total</span>
                             <span>{formatCents(share.total, currencyCode)}</span>
                           </div>
+
+                          {/* G3: "Add a tip?" as inline clickable text (no button chrome) */}
+                          <div className="mt-3">
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={onAddTip}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') onAddTip()
+                              }}
+                              className="cursor-pointer text-[14px] text-amber-600"
+                            >
+                              Add a tip?
+                            </span>
+                          </div>
                         </>
                       )}
                     </div>
@@ -263,20 +299,10 @@ export function PersonResultsScreen({
               {formatCents(grandTotal, currencyCode)}
             </span>
           </div>
-
-          {/* D-08: Prominent tip Button (replaces faint underlined link) */}
-          <Button
-            type="button"
-            variant="outline"
-            className="border-amber-600 text-amber-600 hover:bg-amber-50"
-            onClick={onAddTip}
-          >
-            Add a tip
-          </Button>
         </div>
       </main>
 
-      {/* Fixed bottom CTA bar */}
+      {/* Fixed bottom CTA bar — G2+G4: two half-width buttons */}
       <div
         className="fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] border-t border-border bg-background px-6 py-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
@@ -287,62 +313,55 @@ export function PersonResultsScreen({
             <p role="alert" className="text-[14px] text-red-600">{copyError}</p>
           )}
 
-          {/* Copy summary */}
-          <Button
-            type="button"
-            className="h-12 w-full bg-amber-600 hover:bg-amber-700"
-            onClick={handleCopySummary}
-            aria-label={copied ? 'Summary copied' : 'Copy summary to clipboard'}
-          >
-            {copied ? <Check size={16} aria-hidden="true" className="mr-2" /> : <Copy size={16} aria-hidden="true" className="mr-2" />}
-            {copied ? 'Copied!' : 'Copy summary'}
-          </Button>
+          {/* G2+G4: Two half-width buttons in a row */}
+          <div className="flex gap-3">
+            {/* Edit bill (outline, left) */}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 flex-1"
+              onClick={onEditBill}
+            >
+              Edit bill
+            </Button>
 
-          {/* Edit bill */}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 w-full"
-            onClick={onEditBill}
-          >
-            Edit bill
-          </Button>
-
-          {/* New Split */}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 w-full"
-            onClick={() => setShowNewSplitConfirm(true)}
-          >
-            New Split
-          </Button>
+            {/* Share summary (amber, right) */}
+            <Button
+              type="button"
+              className="h-12 flex-1 bg-amber-600 hover:bg-amber-700"
+              onClick={handleShareSummary}
+              aria-label={copied ? 'Summary copied' : 'Copy summary to clipboard'}
+            >
+              {copied ? <Check size={16} aria-hidden="true" className="mr-2" /> : <Copy size={16} aria-hidden="true" className="mr-2" />}
+              {copied ? 'Copied!' : 'Share summary'}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* New Split confirm dialog */}
-      <Dialog open={showNewSplitConfirm} onOpenChange={setShowNewSplitConfirm}>
+      {/* G5: Unclaimed confirm dialog */}
+      <Dialog open={showUnclaimedConfirm} onOpenChange={setShowUnclaimedConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start a new split?</DialogTitle>
+            <DialogTitle>Add owners for unclaimed items?</DialogTitle>
             <DialogDescription>
-              This clears your local progress. Other people on this bill are not affected.
+              This takes you back to editing the bill.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
               className="h-12 w-full bg-amber-600 hover:bg-amber-700"
               onClick={() => {
-                setShowNewSplitConfirm(false)
-                handleNewSplit()
+                setShowUnclaimedConfirm(false)
+                onEditBill()
               }}
             >
-              New Split
+              Edit bill
             </Button>
             <Button
               variant="outline"
               className="h-12 w-full"
-              onClick={() => setShowNewSplitConfirm(false)}
+              onClick={() => setShowUnclaimedConfirm(false)}
             >
               Cancel
             </Button>
