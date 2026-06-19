@@ -4,7 +4,7 @@ import { Check, Minus, Plus } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
-import { formatCents, computeEqualShareCents } from '@/lib/billMath'
+import { formatCents, computeQtyWeightedShares } from '@/lib/billMath'
 import type { ClaimEntry } from '@/lib/sessionSchema'
 import type { Item, Person, PersonId } from '@/stores/useBillStore'
 
@@ -80,14 +80,20 @@ export function ClaimableItemCard({
     if (myQty < remainingForMe) onQtyChange(myQty + 1)
   }
 
-  // Compute "your share" for shared single-qty items (D-15)
+  // Compute "your share" for any shared item the current user has joined (D-15, CR-02).
+  // CR-02: use the SAME quantity-weighted largest-remainder helper the Results screen bills
+  // with (computeQtyWeightedShares over the qty>0 claimants sorted ascending), so the card's
+  // displayed share equals the billed share exactly — for both single- and multi-qty items.
   const claimantCount = allClaimantEntries.length
   let yourShareCents: number | null = null
-  if (!isMultiQty && mine && claimantCount > 1) {
-    // Sort claimant personIds lexicographically ascending (determinism rule from computeEqualShareCents JSDoc)
-    const sortedIds = allClaimantEntries.map(([pid]) => pid).sort()
-    const myIndex = sortedIds.indexOf(myPersonId)
-    yourShareCents = computeEqualShareCents(item.priceCents, claimantCount, myIndex)
+  if (mine && claimantCount > 1) {
+    const sortedIds = allClaimantEntries
+      .map(([pid]) => pid)
+      .sort()
+    const qtyById: Record<PersonId, number> = {}
+    for (const pid of sortedIds) qtyById[pid] = claimsForItem[pid]?.qty ?? 0
+    const shares = computeQtyWeightedShares(item.priceCents, sortedIds, qtyById)
+    yourShareCents = shares[myPersonId] ?? null
   }
 
   const cardClasses = [

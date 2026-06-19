@@ -7,6 +7,7 @@ import {
   computePersonTotals,
   computePersonShareFromClaims,
   computeEqualShareCents,
+  computeQtyWeightedShares,
 } from '@/lib/billMath'
 import type { Item, Person } from '@/stores/useBillStore'
 
@@ -252,12 +253,50 @@ describe('computePersonShareFromClaims', () => {
     expect(billedForP1).toBe(cardValueForP1)
   })
 
-  it('CR-01: multi-qty items still use proportional rounding (largest-remainder only for single-unit-each)', () => {
-    // i1 has quantity 3 → NOT a single-unit-each shared item, proportional rounding applies.
+  // CR-02: multi-qty items now ALSO use quantity-weighted largest-remainder so shares
+  // conserve cents exactly (the old proportional Math.round path billed 333 each → 999,
+  // a lost cent). Index-0 (sorted) claimant absorbs the leftover cent.
+  it('CR-02: multi-qty 3-unit $10 with one unit each — index-0 billed 334, conserves cents', () => {
     const items = [makeItem('i1', 1000, 3)]
     const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } }
-    const r = computePersonShareFromClaims('p1', items, claims, 0)
-    expect(r.itemSubtotal).toBe(333) // round(1000 * 1 / 3)
+    expect(computePersonShareFromClaims('p1', items, claims, 0).itemSubtotal).toBe(334)
+    expect(computePersonShareFromClaims('p2', items, claims, 0).itemSubtotal).toBe(333)
+    expect(computePersonShareFromClaims('p3', items, claims, 0).itemSubtotal).toBe(333)
+  })
+
+  // CR-02 (a): per-person shares of a multi-qty shared item sum EXACTLY to the line price.
+  it('CR-02: multi-qty shared shares sum to the line price exactly (cent conservation)', () => {
+    const cases: Array<{ price: number; qty: number; claims: Record<string, { qty: number }> }> = [
+      { price: 1000, qty: 3, claims: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } },
+      { price: 1000, qty: 6, claims: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 }, p4: { qty: 1 }, p5: { qty: 1 }, p6: { qty: 1 } } },
+      { price: 1349, qty: 7, claims: { p1: { qty: 2 }, p2: { qty: 2 }, p3: { qty: 3 } } },
+      { price: 505, qty: 4, claims: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 }, p4: { qty: 1 } } },
+      { price: 1000, qty: 3, claims: { p1: { qty: 2 }, p2: { qty: 1 } } },
+    ]
+    for (const c of cases) {
+      const items = [makeItem('i1', c.price, c.qty)]
+      const claimsItems = { i1: c.claims }
+      const sum = Object.keys(c.claims).reduce(
+        (acc, pid) => acc + computePersonShareFromClaims(pid, items, claimsItems, 0).itemSubtotal,
+        0
+      )
+      expect(sum).toBe(c.price)
+    }
+  })
+
+  // CR-02 (b): the card-displayed share equals the billed share for the SAME multi-qty item.
+  // The card renders computeQtyWeightedShares(price, sortedIds, qtyById)[me]; billing uses the
+  // same helper, so they must be identical for every claimant.
+  it('CR-02: card-displayed share === billed share for a multi-qty item', () => {
+    const items = [makeItem('i1', 1349, 7)]
+    const claims = { i1: { p1: { qty: 2 }, p2: { qty: 2 }, p3: { qty: 3 } } }
+    const sortedIds = ['p1', 'p2', 'p3']
+    const qtyById = { p1: 2, p2: 2, p3: 3 }
+    const cardShares = computeQtyWeightedShares(1349, sortedIds, qtyById)
+    for (const pid of sortedIds) {
+      const billed = computePersonShareFromClaims(pid, items, claims, 0).itemSubtotal
+      expect(billed).toBe(cardShares[pid])
+    }
   })
 
   it('no tax: total === itemSubtotal + tip only', () => {
@@ -304,5 +343,44 @@ describe('computeEqualShareCents', () => {
   it('numSharers <= 0 returns 0 (guard)', () => {
     expect(computeEqualShareCents(1000, 0, 0)).toBe(0)
     expect(computeEqualShareCents(1000, -1, 0)).toBe(0)
+  })
+})
+
+describe('computeQtyWeightedShares', () => {
+  it('conserves cents for every claimant distribution (sum === priceCents)', () => {
+    const cases: Array<{ price: number; ids: string[]; qty: Record<string, number> }> = [
+      { price: 1000, ids: ['a', 'b', 'c'], qty: { a: 1, b: 1, c: 1 } },
+      { price: 1000, ids: ['a', 'b', 'c', 'd', 'e', 'f'], qty: { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1 } },
+      { price: 1349, ids: ['a', 'b', 'c'], qty: { a: 2, b: 2, c: 3 } },
+      { price: 505, ids: ['a', 'b', 'c', 'd'], qty: { a: 1, b: 1, c: 1, d: 1 } },
+      { price: 1, ids: ['a', 'b', 'c'], qty: { a: 1, b: 1, c: 1 } },
+      { price: 9999, ids: ['a', 'b'], qty: { a: 3, b: 4 } },
+    ]
+    for (const c of cases) {
+      const shares = computeQtyWeightedShares(c.price, c.ids, c.qty)
+      const sum = c.ids.reduce((acc, id) => acc + shares[id], 0)
+      expect(sum).toBe(c.price)
+    }
+  })
+
+  it('leftover cents go to largest fractional parts, tie-broken by sorted index', () => {
+    // 1000 / 3 equal units → base 333 each, 1 leftover cent to index 0 (sorted ascending).
+    const shares = computeQtyWeightedShares(1000, ['p1', 'p2', 'p3'], { p1: 1, p2: 1, p3: 1 })
+    expect(shares).toEqual({ p1: 334, p2: 333, p3: 333 })
+  })
+
+  it('weights by qty: 2-of-3 claim gets ~2/3 of price', () => {
+    const shares = computeQtyWeightedShares(1000, ['p1', 'p2'], { p1: 2, p2: 1 })
+    expect(shares.p1 + shares.p2).toBe(1000)
+    expect(shares.p1).toBe(667)
+    expect(shares.p2).toBe(333)
+  })
+
+  it('empty sharer list returns empty map', () => {
+    expect(computeQtyWeightedShares(1000, [], {})).toEqual({})
+  })
+
+  it('all-zero qty: every listed sharer gets 0 (no divide by zero)', () => {
+    expect(computeQtyWeightedShares(1000, ['p1', 'p2'], { p1: 0, p2: 0 })).toEqual({ p1: 0, p2: 0 })
   })
 })

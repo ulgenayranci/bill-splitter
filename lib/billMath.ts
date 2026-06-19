@@ -98,15 +98,83 @@ export function computePersonTotals(
 }
 
 /**
- * Phase 6 proportional share for a single person, derived from the multi-claimant
- * claims model. Formula (D-03):
- *   share = round(item.priceCents * myQty / totalClaimedQty)
+ * Quantity-weighted largest-remainder split of a line price across claimants.
+ *
+ * CR-02 (multi-qty cent-conservation): given the full line `priceCents` and the qty
+ * each claimant holds, this returns EVERY claimant's exact integer-cents share such that
+ * the shares sum to `priceCents` exactly — no cent lost or gained, regardless of how the
+ * quantities or price divide. This replaces the previous per-claimant
+ * `Math.round(priceCents * myQty / totalQty)` which rounded each claimant independently
+ * and therefore drifted ±1..±2 cents off the line total (e.g. a 3-qty $10 item with one
+ * unit each → 333+333+333 = 999, a lost cent; six units of $10 → 167×6 = 1002, a gained 2¢).
+ *
+ * Algorithm (integer-cents only, no floats in the calculation path):
+ *   1. base[i]      = floor(priceCents * qty[i] / totalQty)
+ *   2. remainder    = priceCents - Σ base[i]   (always 0..claimants-1)
+ *   3. distribute the `remainder` leftover cents one each to the claimants with the
+ *      largest fractional parts ( (priceCents * qty[i]) mod totalQty ), tie-broken by the
+ *      claimant's position in `sortedSharerIds` (ascending personId) so the result is
+ *      deterministic across all devices/renders.
+ *
+ * Determinism rule: `sortedSharerIds` MUST be the qty>0 claimant personIds sorted
+ * lexicographically ascending. The card and the billed Results screen both call this with
+ * the same sorted list, so display === billed for every claimant.
+ *
+ * @param priceCents      Full line price in integer cents.
+ * @param sortedSharerIds Claimant personIds (qty > 0) sorted ascending.
+ * @param qtyById         Map personId → claimed qty (only ids in sortedSharerIds are read).
+ * @returns               Map personId → exact integer-cents share (sums to priceCents).
+ */
+export function computeQtyWeightedShares(
+  priceCents: number,
+  sortedSharerIds: PersonId[],
+  qtyById: Record<PersonId, number>
+): Record<PersonId, number> {
+  const shares: Record<PersonId, number> = {}
+  const n = sortedSharerIds.length
+  if (n === 0) return shares
+
+  const totalQty = sortedSharerIds.reduce((s, id) => s + (qtyById[id] ?? 0), 0)
+  if (totalQty === 0) {
+    // No claimed units — every listed sharer gets 0 (caller skips these items anyway).
+    for (const id of sortedSharerIds) shares[id] = 0
+    return shares
+  }
+
+  // Step 1 & 2: integer base + fractional remainder, all in integer cents.
+  let distributed = 0
+  const fracs: Array<{ id: PersonId; idx: number; frac: number }> = []
+  sortedSharerIds.forEach((id, idx) => {
+    const weighted = priceCents * (qtyById[id] ?? 0)
+    const base = Math.floor(weighted / totalQty)
+    shares[id] = base
+    distributed += base
+    fracs.push({ id, idx, frac: weighted % totalQty })
+  })
+
+  // Step 3: hand the leftover cents to the largest fractional parts (stable by idx).
+  let remainder = priceCents - distributed
+  fracs.sort((a, b) => b.frac - a.frac || a.idx - b.idx)
+  for (let k = 0; k < remainder && k < fracs.length; k++) {
+    shares[fracs[k].id] += 1
+  }
+
+  return shares
+}
+
+/**
+ * Per-person share derived from the multi-claimant claims model.
+ *
+ * CR-02: for EVERY shared item (single- or multi-qty) the billed share uses the
+ * quantity-weighted largest-remainder method (`computeQtyWeightedShares`). This guarantees:
+ *   (a) per-person shares sum to the line price exactly (cent conservation), and
+ *   (b) the billed share equals the value the card displays (the card calls the same helper
+ *       with the same sorted claimant list).
+ * The old single-vs-multi branch is gone — proportional independent rounding was the bug.
  *
  * WR-03: `item.priceCents` is the **full line price** (not per-unit). For a 3-qty item
- * worth $15 total, priceCents=1500. If 2 of 3 units are claimed by this person:
- *   share = round(1500 * 2 / 3) = 1000 ✓
- * This is correct because priceCents already represents the total, not a unit price.
- * Do NOT multiply by item.quantity here — that would over-charge proportionally.
+ * worth $15 total, priceCents=1500. The weighting is by claimed qty over total claimed qty,
+ * so do NOT multiply by `item.quantity` here.
  *
  * If totalClaimedQty is 0, the item contributes nothing (no division by zero).
  * Per-person tip is added by the caller via the tipCents arg (D-07).
@@ -131,32 +199,19 @@ export function computePersonShareFromClaims(
     const myQty = myEntry?.qty ?? 0
     if (myQty === 0) continue
 
-    const totalQty = Object.values(claimsForItem).reduce(
-      (sum, entry) => sum + (entry?.qty ?? 0),
-      0
-    )
-    if (totalQty === 0) continue // defense-in-depth (Pitfall 2)
-
-    // CR-01: For a single-unit-each shared item (item.quantity <= 1 and every claimant
-    // holds qty 1) the billed share MUST use the same largest-remainder method the card
-    // displays via computeEqualShareCents — otherwise proportional rounding
-    // (Math.round(price * myQty / totalQty)) makes each claimant 333 for a $10/3-way split,
-    // which (a) sums to 999 not 1000 (a lost cent) and (b) disagrees with the "$3.34" shown
-    // on the card for the index-0 claimant. Largest-remainder keyed on personIds sorted
-    // ascending guarantees display === billed AND exact cent conservation.
     const sharerIds = Object.keys(claimsForItem)
       .filter((p) => (claimsForItem[p]?.qty ?? 0) > 0)
       .sort()
-    const allSingle =
-      (item.quantity ?? 1) <= 1 && sharerIds.every((p) => claimsForItem[p]?.qty === 1)
 
-    let shareCents: number
-    if (allSingle) {
-      const myIndex = sharerIds.indexOf(personId)
-      shareCents = computeEqualShareCents(item.priceCents, sharerIds.length, myIndex)
-    } else {
-      shareCents = Math.round((item.priceCents * myQty) / totalQty)
-    }
+    const qtyById: Record<PersonId, number> = {}
+    for (const id of sharerIds) qtyById[id] = claimsForItem[id]?.qty ?? 0
+
+    const totalQty = sharerIds.reduce((s, id) => s + qtyById[id], 0)
+    if (totalQty === 0) continue // defense-in-depth (Pitfall 2)
+
+    const shares = computeQtyWeightedShares(item.priceCents, sharerIds, qtyById)
+    const shareCents = shares[personId] ?? 0
+
     itemSubtotal += shareCents
     lineItems.push({ item, shareCents, claimedQty: myQty })
   }
@@ -181,8 +236,8 @@ export function computePersonShareFromClaims(
  * cent when the price doesn't divide evenly — this is stable across all devices and
  * renders because personId order is consistent (Phase 9, Critical Decision C).
  *
- * Only for single-qty tap-to-join items (D-13). Multi-qty proportional splits use
- * computePersonShareFromClaims instead.
+ * Equivalent to `computeQtyWeightedShares` when every sharer holds qty 1; retained as a
+ * thin convenience for single-unit equal splits where only one index is needed.
  *
  * @param priceCents  Full line price in integer cents.
  * @param numSharers  Total number of people sharing this item (>= 1).
