@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { Check, X, Plus, Pencil, Share2, Trash2 } from 'lucide-react'
 import { parseCents } from '@/lib/billMath'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
+import { useBillStore } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
 import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { IdentityModal } from '@/components/split/IdentityModal'
@@ -63,6 +65,7 @@ function derivePhase(personId: PersonId, session: SessionPayload): Phase {
 export function CollaborativeClaimingView({
   sessionId,
 }: CollaborativeClaimingViewProps) {
+  const router = useRouter()
   const [selectedPersonId, setSelectedPersonId] = useState<PersonId | null>(null)
   const [itemErrors, setItemErrors] = useState<Record<ItemId, string>>({})
   const [doneError, setDoneError] = useState<string | null>(null)
@@ -139,7 +142,28 @@ export function CollaborativeClaimingView({
   const [inlineForm, setInlineForm] = useState<InlineForm | null>(null)
   const [inlineSubmitting, setInlineSubmitting] = useState(false)
 
-  if (error instanceof SessionNotFoundError) return <SessionExpiredScreen />
+  // Host recovery from the expired-session dead-end: when this expired sessionId is the
+  // host's OWN persisted bill (driving the homepage resume-redirect), clear the stale
+  // store + identity key and return them to a fresh homepage. Guests (no matching
+  // persisted sessionId) keep the unchanged expired message with no redirect.
+  const isOwnExpiredBill = useBillStore.getState().sessionId === sessionId
+
+  function handleStartOver() {
+    useBillStore.getState().reset() // sets sessionId → null so '/' renders SetupStep, no loop
+    try {
+      localStorage.removeItem(`split:${sessionId}:personId`)
+    } catch {
+      // localStorage unavailable in private browsing — ignore
+    }
+    router.replace('/')
+  }
+
+  if (error instanceof SessionNotFoundError) {
+    // Host: explicit "Start over" button (no render-phase redirect — that warns in React).
+    if (isOwnExpiredBill) return <SessionExpiredScreen onStartOver={handleStartOver} />
+    // Guest: unchanged expired message, no button, no redirect.
+    return <SessionExpiredScreen />
+  }
   if (!session) return <div role="status" className="p-6">Loading…</div>
 
   async function handleSelect(personId: PersonId) {
