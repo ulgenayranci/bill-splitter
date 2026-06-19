@@ -29,10 +29,31 @@ export interface Person {
 export interface Item {
   id: ItemId
   name: string
+  /**
+   * Canonical LINE TOTAL in integer cents (price for ALL units of this line).
+   * All billMath consumes this directly; never per-unit. For a 2-qty line at
+   * 450 each, priceCents is 900.
+   */
   priceCents: number
   quantity: number
+  /**
+   * Per-single-unit price in integer cents (= round(priceCents / quantity)).
+   * Optional for backward-compat: older persisted sessions predate this field
+   * and remain valid; display code derives a unit price when it is absent.
+   */
+  unitPriceCents?: number
   rawName?: string
   confidence?: 'high' | 'low' | 'ambiguous'
+}
+
+/**
+ * Derive the per-unit price (integer cents) from a canonical LINE TOTAL and
+ * quantity. Integer-cents only — Math.round keeps the result an integer with no
+ * float leaking into stored state. Quantity is coerced to a positive integer.
+ */
+export const deriveUnitPriceCents = (priceCents: number, quantity: number): number => {
+  const qty = Number.isInteger(quantity) && quantity > 0 ? quantity : 1
+  return Math.round(priceCents / qty)
 }
 
 // App-default currency used until OCR detects one (CURR-01 / D-02).
@@ -113,7 +134,17 @@ export const useBillStore = create<BillState>()(
     })),
   addItem: (name, priceCents, quantity = 1) =>
     set((s) => ({
-      items: [...s.items, { id: randomId(), name, priceCents, quantity }],
+      // priceCents is the canonical LINE TOTAL; derive + store the per-unit price.
+      items: [
+        ...s.items,
+        {
+          id: randomId(),
+          name,
+          priceCents,
+          quantity,
+          unitPriceCents: deriveUnitPriceCents(priceCents, quantity),
+        },
+      ],
     })),
   removeItem: (id) =>
     set((s) => {
@@ -123,11 +154,20 @@ export const useBillStore = create<BillState>()(
   setItems: (items) => set({ items }),
   updateItem: (id, name, priceCents, quantity) =>
     set((s) => ({
-      items: s.items.map((i) =>
-        i.id === id
-          ? { ...i, name, priceCents, quantity: quantity ?? i.quantity, confidence: 'high' as const }
-          : i
-      ),
+      items: s.items.map((i) => {
+        if (i.id !== id) return i
+        // priceCents arg is the LINE TOTAL; recompute the per-unit price from the
+        // (possibly updated) quantity so unitPriceCents stays consistent.
+        const nextQty = quantity ?? i.quantity
+        return {
+          ...i,
+          name,
+          priceCents,
+          quantity: nextQty,
+          unitPriceCents: deriveUnitPriceCents(priceCents, nextQty),
+          confidence: 'high' as const,
+        }
+      }),
     })),
   setAssignment: (itemId, personIds) =>
     set((s) => ({
