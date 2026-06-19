@@ -384,3 +384,46 @@ describe('computeQtyWeightedShares', () => {
     expect(computeQtyWeightedShares(1000, ['p1', 'p2'], { p1: 0, p2: 0 })).toEqual({ p1: 0, p2: 0 })
   })
 })
+
+// Scan-guardrail end-to-end: once reconcileScannedBill stores the canonical LINE
+// TOTAL into priceCents, billMath splits the full line — nobody is undercharged by
+// the quantity factor. These lock the real-world cases that motivated the fix.
+describe('scan-guardrail line totals', () => {
+  const makeItem = (id: string, priceCents: number, quantity = 1): Item => ({
+    id, name: id, priceCents, quantity,
+  })
+
+  it('Tuborg ×2 @ 450 → line total 900 splits correctly among 2 claimants', () => {
+    const items = [makeItem('tuborg', 900, 2)]
+    const claims = { tuborg: { a: { qty: 1 }, b: { qty: 1 } } }
+    const shareA = computePersonShareFromClaims('a', items, claims, 0).itemSubtotal
+    const shareB = computePersonShareFromClaims('b', items, claims, 0).itemSubtotal
+    expect(shareA + shareB).toBe(900)
+    expect(shareA).toBe(450)
+    expect(shareB).toBe(450)
+  })
+
+  it('Carlsberg ×5 @ 150 → line total 750 (NOT 150) summed across claimants', () => {
+    const items = [makeItem('carlsberg', 750, 5)]
+    // One person takes all 5 units → full line total.
+    const claims = { carlsberg: { a: { qty: 5 } } }
+    expect(computePersonShareFromClaims('a', items, claims, 0).itemSubtotal).toBe(750)
+  })
+
+  it('Carlsberg 750 with A=2,B=2,C=1 → 300/300/150 summing to 750 exactly', () => {
+    const sortedIds = ['a', 'b', 'c']
+    const qtyById = { a: 2, b: 2, c: 1 }
+    const shares = computeQtyWeightedShares(750, sortedIds, qtyById)
+    expect(shares.a).toBe(300)
+    expect(shares.b).toBe(300)
+    expect(shares.c).toBe(150)
+    expect(shares.a + shares.b + shares.c).toBe(750)
+
+    // Billed path agrees with the card-displayed shares for every claimant.
+    const items = [makeItem('carlsberg', 750, 5)]
+    const claims = { carlsberg: { a: { qty: 2 }, b: { qty: 2 }, c: { qty: 1 } } }
+    for (const pid of sortedIds) {
+      expect(computePersonShareFromClaims(pid, items, claims, 0).itemSubtotal).toBe(shares[pid])
+    }
+  })
+})
