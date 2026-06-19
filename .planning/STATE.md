@@ -33,7 +33,7 @@ progress:
 Phase: 11 (bug-fixes-polish-bill-results-screens-participant-management) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-06-09
+Last activity: 2026-06-19 - Completed quick task 260619-i48: fix expired-session dead-end
 
 ```
 Progress: [██████████] 100%
@@ -123,6 +123,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260605-v0g | Right-align people count chip and bottom-anchor Continue button on Setup screen | 2026-06-05 | 109f6a6 | [260605-v0g-right-align-people-count-chip-and-bottom](./quick/260605-v0g-right-align-people-count-chip-and-bottom/) |
 | 260608-qzy | Phase 9 bill view UI polish: mount AppHeader on all /split screens + overlapping facepile people chips | 2026-06-08 | 86452f4 | [260608-qzy-phase-9-bill-view-ui-polish-mount-apphea](./quick/260608-qzy-phase-9-bill-view-ui-polish-mount-apphea/) |
+| 260619-i48 | Fix expired-session dead-end: host gets a "Start over" button that clears the stale saved bill and returns to a fresh homepage; guest message unchanged | 2026-06-19 | b45ea0f | [260619-i48-fix-expired-session-dead-end-when-the-ho](./quick/260619-i48-fix-expired-session-dead-end-when-the-ho/) |
 
 ---
 
