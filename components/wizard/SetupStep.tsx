@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
+import { reconcileScannedBill, type ReconcileCompleteness } from '@/lib/reconcileScannedBill'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
 
@@ -40,6 +41,12 @@ export function SetupStep() {
   const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
+  // Non-blocking scan guardrail: how many lines were auto-corrected to match the
+  // receipt + the bill-level completeness result. Cleared on retake/error.
+  const [guardrail, setGuardrail] = useState<{
+    correctedCount: number
+    completeness: ReconcileCompleteness
+  } | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [sessionCreateError, setSessionCreateError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -92,6 +99,7 @@ export function SetupStep() {
       if (!file) return
       e.target.value = ''
       setScanError(null)
+      setGuardrail(null)
 
       const prevUrl = useBillStore.getState().billImageUrl
       if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
@@ -99,7 +107,11 @@ export function SetupStep() {
       setBillImage(blobUrl)
       setOcrStatus('loading')
 
-      let ocrItems: { name: string; priceCents: number; quantity: number }[] | null = null
+      // Raw OCR lines (per-unit and/or line-total may each be null) + printed subtotal.
+      let ocrItems:
+        | { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null }[]
+        | null = null
+      let ocrSubtotalCents: number | null = null
 
       try {
         const compressed = await imageCompression(file, {
@@ -128,10 +140,12 @@ export function SetupStep() {
         })
         if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
         const data = (await res.json()) as {
-          items: { name: string; priceCents: number; quantity: number }[]
+          items: { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null }[]
           currencyCode?: string
+          subtotalCents?: number | null
         }
         ocrItems = data.items
+        ocrSubtotalCents = data.subtotalCents ?? null
         // CURR-01: store the detected ISO 4217 currency (route already defaults to USD).
         if (data.currencyCode) setCurrencyCode(data.currencyCode)
         if (ocrItems.length === 0) {
@@ -141,6 +155,7 @@ export function SetupStep() {
           setItems([])
           setBillImage(null)
           setOcrStatus('error')
+          setGuardrail(null)
           setScanError('No items found — tap Scan to try a clearer photo')
           return
         }
@@ -150,9 +165,18 @@ export function SetupStep() {
         setItems([])
         setBillImage(null)
         setOcrStatus('error')
+        setGuardrail(null)
         setScanError("Couldn't read the bill — tap Scan to try again")
         return
       }
+
+      // Scan-time guardrail: reconcile raw OCR figures into canonical LINE TOTALS
+      // BEFORE anyone claims. priceCents on each reconciled item is the line total,
+      // so /api/expand (which copies priceCents and passes quantity through) and all
+      // downstream billMath work unchanged. unitPriceCents is re-attached by index
+      // after expand, since the expand route drops it.
+      const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: ocrSubtotalCents })
+      const correctedCount = reconciled.items.filter((i) => i.corrected).length
 
       // OCR succeeded. Chain into name expansion.
       setScanError(null)
@@ -164,7 +188,15 @@ export function SetupStep() {
         const expandRes = await fetch('/api/expand', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: ocrItems }),
+          // Send the reconciled LINE-TOTAL priceCents + quantity; expand copies
+          // priceCents exactly and passes quantity through by index.
+          body: JSON.stringify({
+            items: reconciled.items.map((i) => ({
+              name: i.name,
+              priceCents: i.priceCents,
+              quantity: i.quantity,
+            })),
+          }),
           signal: abortRef.current.signal,
         })
         if (!expandRes.ok) throw new Error(`Expand route returned ${expandRes.status}`)
@@ -172,31 +204,38 @@ export function SetupStep() {
           items: { rawName: string; displayName: string; priceCents: number; confidence: 'high' | 'low' | 'ambiguous'; quantity: number }[]
         }
         setItems(
-          expandData.items.map((ei) => ({
+          expandData.items.map((ei, idx) => ({
             id: randomId(),
             name: ei.displayName,
             rawName: ei.rawName,
+            // priceCents is the canonical LINE TOTAL (copied through expand).
             priceCents: ei.priceCents,
-            quantity: ei.quantity ?? 1,
+            quantity: ei.quantity ?? reconciled.items[idx]?.quantity ?? 1,
+            // Re-attach unitPriceCents by index — expand drops it.
+            unitPriceCents: reconciled.items[idx]?.unitPriceCents,
             confidence: ei.confidence,
           })),
         )
+        setGuardrail({ correctedCount, completeness: reconciled.completeness })
         setExpandStatus('done')
       } catch (err) {
         console.error(err)
         setExpandStatus('error')
-        // Fallback: keep raw OCR names so the scan still counts (editable in Bill View later).
+        // Fallback: build items directly from the reconciled OCR lines so the scan
+        // still counts (names editable in Bill View later).
         setItems(
-          ocrItems.map((i) => ({
+          reconciled.items.map((i) => ({
             id: randomId(),
             name: i.name,
             priceCents: i.priceCents,
-            quantity: i.quantity ?? 1,
+            quantity: i.quantity,
+            unitPriceCents: i.unitPriceCents,
           })),
         )
+        setGuardrail({ correctedCount, completeness: reconciled.completeness })
       }
     },
-    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setGuardrail],
   )
 
   return (
@@ -221,6 +260,28 @@ export function SetupStep() {
       {scanError && (
         <p role="alert" data-testid="scan-error" className="text-[13px] text-red-600">
           {scanError}
+        </p>
+      )}
+
+      {/* Scan guardrail — non-blocking. Continue is NEVER gated on these. */}
+      {guardrail && guardrail.completeness.mismatch && (
+        <div
+          role="alert"
+          data-testid="guardrail-completeness"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13px] font-medium text-amber-800"
+        >
+          Some items may be missing or misread — Retake or add manually.
+        </div>
+      )}
+      {guardrail && guardrail.correctedCount > 0 && (
+        <p
+          role="status"
+          data-testid="guardrail-corrected"
+          className="text-[12px] text-zinc-500"
+        >
+          {guardrail.correctedCount === 1
+            ? '1 price was adjusted to match the receipt total.'
+            : `${guardrail.correctedCount} prices were adjusted to match the receipt totals.`}
         </p>
       )}
 
@@ -250,7 +311,10 @@ export function SetupStep() {
           </button>
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              setGuardrail(null)
+              fileInputRef.current?.click()
+            }}
             className="ml-auto mt-1 flex items-center gap-1 text-[13px] font-semibold text-amber-600 hover:text-amber-700"
           >
             <RotateCcw size={13} aria-hidden="true" />

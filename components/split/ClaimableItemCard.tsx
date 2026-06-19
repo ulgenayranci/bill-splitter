@@ -139,6 +139,19 @@ export function ClaimableItemCard({
         <span className="text-[14px] text-zinc-500">{formatCents(item.priceCents, currencyCode ?? 'USD')}</span>
       </div>
 
+      {/* Multi-qty unit/line-total breakdown — shows "<unit> each" + "<lineTotal> total".
+          item.priceCents is the canonical LINE TOTAL; unitPriceCents is per-single-unit.
+          Backward-compat: legacy sessions without unitPriceCents derive the unit for display. */}
+      {isMultiQty && (
+        <p className="text-[13px] text-zinc-400" data-testid="unit-line-total">
+          {formatCents(
+            item.unitPriceCents ?? Math.round(item.priceCents / (item.quantity ?? 1)),
+            currencyCode ?? 'USD',
+          )}{' '}
+          each · {formatCents(item.priceCents, currencyCode ?? 'USD')} total
+        </p>
+      )}
+
       {/* Multi-qty stepper row */}
       {isMultiQty && (
         <div className="flex items-center justify-between gap-3">

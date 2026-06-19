@@ -37,16 +37,20 @@ async function callPOST(body: unknown): Promise<{ status: number; json: unknown 
 
 describe('app/api/ocr/route.ts (POST handler)', () => {
   it('returns 200 with parsed items + detected currency on a successful gpt-4o-mini call', async () => {
+    // Expanded contract: per-line unitPriceCents + lineTotalCents (either nullable)
+    // and a top-level subtotalCents (nullable). The route returns them unchanged
+    // after coercing non-positive-integers to null; reconciliation is client-side.
     createMock.mockResolvedValue({
       choices: [
         {
           message: {
             content: JSON.stringify({
               items: [
-                { name: 'Burger', priceCents: 1299, quantity: 1 },
-                { name: 'Fries', priceCents: 499, quantity: 2 },
+                { name: 'Burger', quantity: 1, unitPriceCents: 1299, lineTotalCents: null },
+                { name: 'Fries', quantity: 2, unitPriceCents: 499, lineTotalCents: 998 },
               ],
               currencyCode: 'EUR',
+              subtotalCents: 2297,
             }),
           },
         },
@@ -58,10 +62,11 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(status).toBe(200)
     expect(json).toEqual({
       items: [
-        { name: 'Burger', priceCents: 1299, quantity: 1 },
-        { name: 'Fries', priceCents: 499, quantity: 2 },
+        { name: 'Burger', quantity: 1, unitPriceCents: 1299, lineTotalCents: null },
+        { name: 'Fries', quantity: 2, unitPriceCents: 499, lineTotalCents: 998 },
       ],
       currencyCode: 'EUR',
+      subtotalCents: 2297,
     })
     expect(createMock).toHaveBeenCalledTimes(1)
     const callArgs = createMock.mock.calls[0][0]
@@ -70,6 +75,37 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(callArgs.response_format.json_schema.strict).toBe(true)
     // CURR-01: currencyCode is part of the strict schema contract.
     expect(callArgs.response_format.json_schema.schema.required).toContain('currencyCode')
+    // Scan-guardrail contract: new fields are part of the strict schema.
+    expect(callArgs.response_format.json_schema.schema.required).toContain('subtotalCents')
+    const itemRequired = callArgs.response_format.json_schema.schema.properties.items.items.required
+    expect(itemRequired).toContain('unitPriceCents')
+    expect(itemRequired).toContain('lineTotalCents')
+  })
+
+  it('drops a line only when BOTH unitPriceCents and lineTotalCents are null', async () => {
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              items: [
+                { name: 'Keeper', quantity: 1, unitPriceCents: 500, lineTotalCents: null },
+                { name: 'NoPrice', quantity: 1, unitPriceCents: null, lineTotalCents: null },
+                { name: 'AlsoKeeper', quantity: 3, unitPriceCents: null, lineTotalCents: 900 },
+              ],
+              currencyCode: 'USD',
+              subtotalCents: null,
+            }),
+          },
+        },
+      ],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    const items = (json as { items: { name: string }[] }).items
+    expect(items.map((i) => i.name)).toEqual(['Keeper', 'AlsoKeeper'])
+    expect((json as { subtotalCents: number | null }).subtotalCents).toBeNull()
   })
 
   it('normalizes the currency code to uppercase ISO 4217 (CURR-01 / D-01)', async () => {
