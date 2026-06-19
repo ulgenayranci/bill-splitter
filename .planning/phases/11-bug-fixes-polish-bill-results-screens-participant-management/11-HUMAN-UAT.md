@@ -1,39 +1,55 @@
 ---
-status: partial
+status: testing
 phase: 11-bug-fixes-polish-bill-results-screens-participant-management
 source: [11-VERIFICATION.md]
 started: 2026-06-09T00:00:00Z
-updated: 2026-06-09T00:00:00Z
+updated: 2026-06-19T15:38:29Z
 ---
 
 ## Current Test
 
-[awaiting human testing]
+[testing complete — round 4]
 
 ## Tests
 
-### 1. Rename propagates live across two devices
+### 1. Items-claimed chip on the bill screen (R3-1)
+expected: On the bill/claiming screen, a non-tappable "x/N items claimed" chip shows progress. It counts by units, not rows — a qty-5 line counts as 5.
+result: pass
+
+### 2. Results cards default expand/collapse (R3-2)
+expected: On the Results screen, YOUR own card is expanded by default and everyone else's cards are collapsed. Tapping a collapsed card expands it.
+result: pass
+
+### 3. Swipe-to-mark-paid on result cards (R3-4)
+expected: Swiping a result card to the right shows an "I have paid" toast and a green "Paid" chip in the top-right of that card. Swiping left reverses it. The horizontal swipe does NOT accidentally open/close the card.
+result: pass
+
+### 4. Unclaimed-items section appears/disappears (orig #2 + R3-5)
+expected: With items unclaimed, the Results screen shows an "Unclaimed items" section listing every unclaimed item by name. Once everything is claimed, the section disappears and the headline reads "You're all set!".
+result: pass
+
+### 5. "Add a tip" control opens the tip dialog (orig #3)
+expected: On a phone, the "Add a tip?" control on the Results screen is clearly tappable and opens the tip dialog.
+result: pass
+
+### 6. Share button in the bill header (orig #4)
+expected: On a phone, the Share button (top-right of the bill header) is easy to spot and tap (≥44px), copies/shares the `/split/{id}` link, and the header looks clean with the old Receipt button gone.
+result: issue
+reported: "Share functionality is currently difficult to locate. Wants a dedicated sharing step, potentially via a modal, to increase visibility."
+severity: major
+type: enhancement
+
+### 7. Rename propagates live across two devices (orig #1)
 expected: On device A, open the people modal and rename a participant. On device B (same `/split/{id}` link), the new name appears within ~3 seconds without a manual refresh.
-result: [pending]
-
-### 2. Unclaimed-items section appears/disappears correctly on a real device
-expected: With items unclaimed, the Results screen shows an "Unclaimed items" section at the top and a playful "still up for grabs" headline. Once everything is claimed, the section disappears and the headline reads "You're all set!".
-result: [pending]
-
-### 3. "Add a tip" button is prominent on mobile
-expected: On a phone, the "Add a tip" control on the Results screen reads as a clear, tappable button (not a faint link) and opens the tip dialog.
-result: [pending]
-
-### 4. Share button tap ergonomics in the bill header
-expected: On a phone, the Share button in the bill header is easy to spot and tap (≥44px), copies/shares the link, and the header looks clean now that the Receipt button is gone.
-result: [pending]
+result: pass
+note: "User confirmed live sync works. Raised a separate enhancement on the same modal (see Gap R4-2: Save/Cancel button order)."
 
 ## Summary
 
-total: 4
-passed: 1
-issues: 3
-pending: 0
+total: 7
+passed: 5
+issues: 1
+pending: 1
 skipped: 0
 blocked: 0
 
@@ -77,3 +93,31 @@ UAT round 1 (2026-06-09) — user tested the live app; everything not listed bel
 - [x] **R3-5** Results "Unclaimed items" box now **lists every unclaimed item** (removed the >2 count-collapse "{N} items need an owner").
 
 **Status:** R3-1–R3-5 implemented (tsc clean; PersonResultsScreen/sessionUtils/CollaborativeClaimingView/AppHeader suites green — 72 tests; full suite 388 pass with only the 3 pre-existing wizard failures). Awaiting UAT round 4.
+
+### UAT round 4 (2026-06-19) — results
+Tests 1–5 PASS (items-claimed chip, results default expand/collapse, swipe-to-mark-paid, unclaimed-items appears/disappears, "Add a tip" opens dialog). Test 6 raised an enhancement; Test 7 pending (needs two devices).
+
+```yaml
+- truth: "Share is easy to find — the user can locate and use sharing without hunting for it"
+  status: failed
+  reason: "User reported: Share functionality is currently difficult to locate. Wants a dedicated sharing step, potentially via a modal, to increase visibility."
+  severity: major
+  type: enhancement
+  test: 6
+  id: R4-1
+  artifacts: []  # Filled by diagnosis/design
+  missing: []    # Filled by diagnosis/design
+
+- truth: "The identity-edit row uses conventional button order (Cancel left, primary Save right)"
+  status: failed
+  reason: "User reported: on the 'Who are you?' edit row, Save (orange/primary) is on the LEFT and Cancel on the RIGHT. Should swap — Cancel left, Save right — per standard convention."
+  severity: minor
+  type: enhancement
+  test: 7
+  id: R4-2
+  artifacts:
+    - "app/split/[sessionId]/CollaborativeClaimingView.tsx or the PersonSlotPicker/IdentityModal edit-row markup"
+  missing: []
+```
+
+**Round-4 status:** Tests 1–5, 7 PASS. Two enhancements raised (R4-1 share prominence, R4-2 Save/Cancel order). Awaiting fix planning + execution.
