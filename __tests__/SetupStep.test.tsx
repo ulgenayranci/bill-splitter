@@ -256,7 +256,7 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
   })
 })
 
-describe('SetupStep — G5 name entry (no Add button, Enter submits)', () => {
+describe('SetupStep — G5 name entry (inline + button + Enter)', () => {
   beforeEach(() => {
     useBillStore.getState().reset()
   })
@@ -265,13 +265,20 @@ describe('SetupStep — G5 name entry (no Add button, Enter submits)', () => {
     vi.restoreAllMocks()
   })
 
-  it('has no "Add" button next to the name input', () => {
+  it('shows an always-visible "Add person" button next to the name input', () => {
     renderInProvider(<SetupStep />)
     expect(screen.getByPlaceholderText('Add a name…')).toBeDefined()
-    expect(screen.queryByRole('button', { name: /^add$/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /add person/i })).toBeDefined()
   })
 
-  it('pressing Enter in the name input adds the person', () => {
+  it('tapping the + button adds the person', () => {
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByPlaceholderText('Add a name…'), { target: { value: 'Dave' } })
+    fireEvent.click(screen.getByRole('button', { name: /add person/i }))
+    expect(useBillStore.getState().people.some((p) => p.name === 'Dave')).toBe(true)
+  })
+
+  it('pressing Enter in the name input also adds the person', () => {
     renderInProvider(<SetupStep />)
     const input = screen.getByPlaceholderText('Add a name…')
     fireEvent.change(input, { target: { value: 'Carol' } })

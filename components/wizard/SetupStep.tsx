@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Camera, Check, RotateCcw, Receipt, Trash2, LoaderCircle, X } from 'lucide-react'
+import { Camera, Check, RotateCcw, Receipt, Trash2, LoaderCircle, X, Plus } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -54,6 +54,7 @@ export function SetupStep() {
   // G3: shown when we arrive here after an expired/dead bill link (?expired=1).
   const [expiredNotice, setExpiredNotice] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -401,21 +402,40 @@ export function SetupStep() {
           </span>
         </div>
 
-        {/* G5: no Add button — Enter/Done submits the name (handleAddPerson). */}
-        <Input
-          placeholder="Add a name…"
-          value={name}
-          enterKeyHint="done"
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
+        {/* G5 (redesign): always-visible inline "+" add button so the action is
+            obvious on every device (the keyboard's return/Done key varies). Tap
+            the + or press Enter to add; the box clears and keeps focus for the
+            next name. The + sits inside the box, staying visible above the
+            on-screen keyboard on phones. */}
+        <div className="relative">
+          <Input
+            ref={nameInputRef}
+            placeholder="Add a name…"
+            value={name}
+            enterKeyHint="done"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleAddPerson()
+              }
+            }}
+            maxLength={100}
+            className="h-11 w-full pr-12 text-base"
+          />
+          <button
+            type="button"
+            aria-label="Add person"
+            disabled={!name.trim()}
+            onClick={() => {
               handleAddPerson()
-            }
-          }}
-          maxLength={100}
-          className="h-11 w-full text-base"
-        />
+              nameInputRef.current?.focus()
+            }}
+            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-amber-600 text-white transition-opacity hover:bg-amber-700 disabled:opacity-40"
+          >
+            <Plus size={18} aria-hidden="true" />
+          </button>
+        </div>
 
         {people.length > 0 && (
           <ul className="flex flex-col gap-2">
