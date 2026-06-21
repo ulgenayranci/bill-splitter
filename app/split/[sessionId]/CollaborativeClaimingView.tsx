@@ -142,27 +142,26 @@ export function CollaborativeClaimingView({
   const [inlineForm, setInlineForm] = useState<InlineForm | null>(null)
   const [inlineSubmitting, setInlineSubmitting] = useState(false)
 
-  // Host recovery from the expired-session dead-end: when this expired sessionId is the
-  // host's OWN persisted bill (driving the homepage resume-redirect), clear the stale
-  // store + identity key and return them to a fresh homepage. Guests (no matching
-  // persisted sessionId) keep the unchanged expired message with no redirect.
-  const isOwnExpiredBill = useBillStore.getState().sessionId === sessionId
-
-  function handleStartOver() {
+  // G3: an expired/dead bill link auto-transitions EVERYONE to a fresh start —
+  // host (their own stale persisted bill) and guest alike — instead of a dead-end.
+  // Clear any stale local bill (no-op for guests) + the scoped identity key, then
+  // land on the scan screen with ?expired=1 so it shows a one-shot notice. The
+  // navigation runs in an effect, never during render (which React warns about).
+  const isExpired = error instanceof SessionNotFoundError
+  useEffect(() => {
+    if (!isExpired) return
     useBillStore.getState().reset() // sets sessionId → null so '/' renders SetupStep, no loop
     try {
       localStorage.removeItem(`split:${sessionId}:personId`)
     } catch {
       // localStorage unavailable in private browsing — ignore
     }
-    router.replace('/')
-  }
+    router.replace('/?expired=1')
+  }, [isExpired, sessionId, router])
 
-  if (error instanceof SessionNotFoundError) {
-    // Host: explicit "Start over" button (no render-phase redirect — that warns in React).
-    if (isOwnExpiredBill) return <SessionExpiredScreen onStartOver={handleStartOver} />
-    // Guest: unchanged expired message, no button, no redirect.
-    return <SessionExpiredScreen />
+  if (isExpired) {
+    // Redirect is in-flight (effect above) — brief placeholder, never a dead-end.
+    return <div role="status" className="p-6">Starting a fresh bill…</div>
   }
   if (!session) return <div role="status" className="p-6">Loading…</div>
 

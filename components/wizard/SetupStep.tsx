@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Camera, Check, RotateCcw, Receipt, Trash2, LoaderCircle } from 'lucide-react'
+import { Camera, Check, RotateCcw, Receipt, Trash2, LoaderCircle, X } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -49,12 +49,25 @@ export function SetupStep() {
   } | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [sessionCreateError, setSessionCreateError] = useState<string | null>(null)
+  // G3: shown when we arrive here after an expired/dead bill link (?expired=1).
+  const [expiredNotice, setExpiredNotice] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     return () => {
       abortRef.current?.abort()
+    }
+  }, [])
+
+  // G3: detect the ?expired=1 flag set by an auto-redirect off a dead bill link,
+  // show a one-shot notice, then strip the param so a refresh won't re-show it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('expired') === '1') {
+      setExpiredNotice(true)
+      window.history.replaceState(null, '', window.location.pathname)
     }
   }, [])
 
@@ -255,6 +268,25 @@ export function SetupStep() {
       <p className="text-[16px] font-medium leading-[1.5] text-zinc-500">
         Split any bill in seconds.
       </p>
+
+      {/* G3: one-shot notice after auto-redirect from an expired/dead bill link. */}
+      {expiredNotice && (
+        <div
+          role="status"
+          data-testid="expired-notice"
+          className="flex items-start justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13px] font-medium text-amber-800"
+        >
+          <span>That link expired — here&rsquo;s a fresh start.</span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setExpiredNotice(false)}
+            className="shrink-0 text-amber-700 hover:text-amber-900"
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* GAP 7: inline scan error near the scan tile (not a bottom toast) */}
       {scanError && (

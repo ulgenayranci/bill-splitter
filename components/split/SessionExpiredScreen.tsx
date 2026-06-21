@@ -1,13 +1,8 @@
 'use client'
 
 import { Link2Off } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
-interface SessionExpiredScreenProps {
-  onStartOver?: () => void
-}
-
-export function SessionExpiredScreen({ onStartOver }: SessionExpiredScreenProps = {}) {
+export function SessionExpiredScreen() {
   return (
     <main
       role="alert"
@@ -18,11 +13,6 @@ export function SessionExpiredScreen({ onStartOver }: SessionExpiredScreenProps 
       <p className="text-[16px] text-zinc-500">
         The link you opened is no longer active. Ask the person who shared it to create a new one.
       </p>
-      {onStartOver && (
-        <Button onClick={onStartOver} className="mt-2">
-          Start over
-        </Button>
-      )}
     </main>
   )
 }

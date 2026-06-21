@@ -249,3 +249,35 @@ describe('SetupStep — G5 name entry (no Add button, Enter submits)', () => {
     expect(useBillStore.getState().people.some((p) => p.name === 'Carol')).toBe(true)
   })
 })
+
+describe('SetupStep — G3 expired-link landing notice', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+    window.history.replaceState(null, '', '/')
+  })
+  afterEach(() => {
+    cleanup()
+    window.history.replaceState(null, '', '/')
+    vi.restoreAllMocks()
+  })
+
+  it('shows the expired notice when arriving with ?expired=1 and strips the param', () => {
+    window.history.replaceState(null, '', '/?expired=1')
+    renderInProvider(<SetupStep />)
+    expect(screen.getByTestId('expired-notice')).toBeDefined()
+    // param stripped so a refresh won't re-show the notice
+    expect(window.location.search).toBe('')
+  })
+
+  it('does NOT show the expired notice on a normal visit', () => {
+    renderInProvider(<SetupStep />)
+    expect(screen.queryByTestId('expired-notice')).toBeNull()
+  })
+
+  it('the expired notice is dismissible', () => {
+    window.history.replaceState(null, '', '/?expired=1')
+    renderInProvider(<SetupStep />)
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }))
+    expect(screen.queryByTestId('expired-notice')).toBeNull()
+  })
+})
