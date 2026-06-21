@@ -27,7 +27,7 @@ Rules:
 - If you cannot read an item clearly, include your best guess.
 - currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
 
-// Vercel Hobby tier allows up to 60s; 30s is generous for gpt-4o-mini vision
+// Vercel Hobby tier allows up to 60s; 30s is generous for gpt-4.1-mini vision
 // on a ~500KB receipt image while keeping client-side overlay UX bounded.
 export const maxDuration = 30
 
@@ -52,7 +52,10 @@ export async function POST(request: Request) {
   try {
     const openai = getOpenAI()
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      // gpt-4.1-mini: bake-off across 3 real receipts beat gpt-4o-mini decisively
+      // (correct quantities + unit-vs-line-total), and beat gpt-4o/gpt-4.1 too
+      // (which catastrophically misread Turkish number formats). Same API key.
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'user',
@@ -100,7 +103,7 @@ export async function POST(request: Request) {
 
     const content = completion.choices[0]?.message?.content
     if (!content) {
-      console.error('OCR error: empty response from gpt-4o-mini')
+      console.error('OCR error: empty response from gpt-4.1-mini')
       return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
     }
 

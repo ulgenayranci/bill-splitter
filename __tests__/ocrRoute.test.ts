@@ -36,7 +36,7 @@ async function callPOST(body: unknown): Promise<{ status: number; json: unknown 
 }
 
 describe('app/api/ocr/route.ts (POST handler)', () => {
-  it('returns 200 with parsed items + detected currency on a successful gpt-4o-mini call', async () => {
+  it('returns 200 with parsed items + detected currency on a successful gpt-4.1-mini call', async () => {
     // Expanded contract: per-line unitPriceCents + lineTotalCents (either nullable)
     // and a top-level subtotalCents (nullable). The route returns them unchanged
     // after coercing non-positive-integers to null; reconciliation is client-side.
@@ -70,7 +70,7 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     })
     expect(createMock).toHaveBeenCalledTimes(1)
     const callArgs = createMock.mock.calls[0][0]
-    expect(callArgs.model).toBe('gpt-4o-mini')
+    expect(callArgs.model).toBe('gpt-4.1-mini')
     expect(callArgs.response_format.type).toBe('json_schema')
     expect(callArgs.response_format.json_schema.strict).toBe(true)
     // CURR-01: currencyCode is part of the strict schema contract.
