@@ -121,3 +121,18 @@ Tests 1–5 PASS (items-claimed chip, results default expand/collapse, swipe-to-
 ```
 
 **Round-4 status:** Tests 1–5, 7 PASS. Two enhancements raised (R4-1 share prominence, R4-2 Save/Cancel order). Awaiting fix planning + execution.
+
+### UAT round 5 (2026-06-20/21) — polish bundle G3–G10
+
+User re-tested the live app and dictated a 10-item punch list. G1 (money math) shipped earlier; G2 (OCR engine swap) is decided but **budget-blocked** and parked (Claude vision bake-off needs a funded Anthropic API balance; gpt-4o-mini proven weak on real receipts — 12/14 items, scrambled prices). The remaining eight no-cost UI/UX items were executed this session as atomic commits, each pushed to main:
+
+- [x] **G3 — Session expiry:** expired/dead `/split` link now auto-redirects host + guest to a fresh scan screen (`?expired=1` → one-shot "That link expired" notice); replaces the manual "Start over" button. _(298ad81)_
+- [x] **G4 — Share prominence:** new `InvitePeopleStep` — host sees "Invite your group" once after creating the bill (Copy link + native Share + "Skip → claim items"). _(630aa6e)_
+- [x] **G5 — Name entry:** removed the redundant "Add" button; Enter/Done submits (`enterKeyHint="done"`). _(b7725f3)_
+- [x] **G6 — "Edit bill" → "Go back"** on the results screen (both occurrences). _(8573e7e)_
+- [x] **G7 — Claimed items:** dropped the opacity dimming; strikethrough on name + qty stays (reverses round-2 R3/G9 dimming). _(681089b)_
+- [x] **G8 — "Continue anyway" → "Finish anyway"** in the unclaimed-items finalize dialog. _(8aa1390)_
+- [x] **G9 — Results screen** always opens scrolled to top (one-shot `scrollTo(0,0)` on mount). _(531d337)_
+- [x] **G10 — Identity edit row:** Cancel (left) / Save (right) per convention (= R4-2). _(580b8d1)_
+
+**Round-5 status:** G3–G10 shipped + pushed; all touched/added tests green. Full suite: 427 pass, 3 pre-existing retired-wizard failures (AddPeopleStep ×2, AddItemsStep ×1 — present at the round's start commit, unrelated). G2 OCR remains the open major item, blocked on API budget.

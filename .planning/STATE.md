@@ -33,7 +33,7 @@ progress:
 Phase: 11 (bug-fixes-polish-bill-results-screens-participant-management) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-06-20 - Completed quick task 260620-2h0: scan-time bill guardrail (multi-qty price fix)
+Last activity: 2026-06-21 - Shipped Phase 11 UAT round-5 polish bundle G3–G10 (8 atomic commits, pushed to main). G2 OCR engine swap parked (budget-blocked).
 
 ```
 Progress: [██████████] 100%
