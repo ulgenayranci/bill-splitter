@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
 import { reconcileScannedBill, type ReconcileCompleteness } from '@/lib/reconcileScannedBill'
+import { formatCents } from '@/lib/billMath'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
 
@@ -36,6 +37,7 @@ export function SetupStep() {
   const setOcrStatus = useBillStore((s) => s.setOcrStatus)
   const setExpandStatus = useBillStore((s) => s.setExpandStatus)
   const setItems = useBillStore((s) => s.setItems)
+  const currencyCode = useBillStore((s) => s.currencyCode)
   const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
 
   const [name, setName] = useState('')
@@ -295,14 +297,18 @@ export function SetupStep() {
         </p>
       )}
 
-      {/* Scan guardrail — non-blocking. Continue is NEVER gated on these. */}
-      {guardrail && guardrail.completeness.mismatch && (
+      {/* Scan guardrail — non-blocking. Continue is NEVER gated on these.
+          G2.3: show the actual checksum gap (items sum vs printed receipt total)
+          so the warning is actionable, not vague. */}
+      {guardrail && guardrail.completeness.mismatch && guardrail.completeness.subtotalCents != null && (
         <div
           role="alert"
           data-testid="guardrail-completeness"
           className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13px] font-medium text-amber-800"
         >
-          Some items may be missing or misread — Retake or add manually.
+          Your items add up to {formatCents(guardrail.completeness.reconciledSumCents, currencyCode)}, but the
+          receipt total is {formatCents(guardrail.completeness.subtotalCents, currencyCode)}. An item may be
+          missing or misread — Retake, or add it manually.
         </div>
       )}
       {guardrail && guardrail.correctedCount > 0 && (

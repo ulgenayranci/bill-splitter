@@ -112,6 +112,36 @@ describe('SetupStep — GAP 6 failed/empty re-scan clears items', () => {
     fetchMock.mockRestore()
     consoleSpy.mockRestore()
   })
+
+  it('G2.3: completeness warning shows the items-sum vs receipt-total gap', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/ocr')) {
+        // Items sum to 10.00 but the printed grand total is 15.00 → mismatch.
+        return new Response(JSON.stringify({
+          items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
+          currencyCode: 'USD',
+          subtotalCents: 1500,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      if (url.includes('/api/expand')) {
+        return new Response(JSON.stringify({
+          items: [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response('', { status: 404 })
+    })
+
+    renderInProvider(<SetupStep />)
+    const fileInput = screen.getByTestId('ocr-file-input') as HTMLInputElement
+    fireEvent.change(fileInput, { target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] } })
+
+    const warn = await screen.findByTestId('guardrail-completeness')
+    expect(warn.textContent).toContain('$10.00')
+    expect(warn.textContent).toContain('$15.00')
+
+    fetchMock.mockRestore()
+  })
 })
 
 describe('SetupStep — GAPs 4/5/7 copy + chip + inline error', () => {
