@@ -353,7 +353,7 @@ export function CollaborativeClaimingView({
   }
 
   // The original done submission — runs directly when everything is claimed,
-  // or via "Continue anyway" from the unclaimed warning dialog (D-12).
+  // or via "Finish anyway" from the unclaimed warning dialog (D-12).
   async function submitDone() {
     if (!selectedPersonId || !session) return
     setDoneError(null)
@@ -838,7 +838,7 @@ export function CollaborativeClaimingView({
               }}
               className="flex-1 h-12 bg-amber-600 hover:bg-amber-700"
             >
-              Continue anyway
+              Finish anyway
             </Button>
           </div>
         </DialogContent>
