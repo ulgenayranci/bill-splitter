@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,13 @@ export function PersonResultsScreen({
   onAddTip,
   onEditBill,
 }: PersonResultsScreenProps) {
+  // G9: Results always opens at the top. The screen mounts fresh on the
+  // claiming→results phase transition, so this one-shot effect resets any
+  // scroll position carried over from the claiming screen.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   // Accordion state (R3-2): the current user's card is expanded by default; everyone
   // else's card starts collapsed. collapsedIds tracks which cards are collapsed, so it
   // is seeded with every OTHER person's id on first render.

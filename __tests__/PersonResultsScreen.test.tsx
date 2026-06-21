@@ -267,6 +267,13 @@ describe('PersonResultsScreen', () => {
     expect(screen.getByText('Go back')).toBeDefined()
   })
 
+  it('G9: scrolls to top on mount', () => {
+    const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+    expect(scrollSpy).toHaveBeenCalledWith(0, 0)
+    scrollSpy.mockRestore()
+  })
+
   it('G2+G4 (sticky bar): "New Split" and "Copy summary" are removed', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
     expect(screen.queryByText('New Split')).toBeNull()
