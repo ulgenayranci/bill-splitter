@@ -153,10 +153,10 @@ describe('PersonResultsScreen', () => {
     })
   })
 
-  it('Test 12 (edit bill): clicking Edit bill calls onEditBill', () => {
+  it('Test 12 (go back): clicking Go back calls onEditBill', () => {
     const onEditBill = vi.fn()
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} onEditBill={onEditBill} />)
-    fireEvent.click(screen.getByText('Edit bill'))
+    fireEvent.click(screen.getByText('Go back'))
     expect(onEditBill).toHaveBeenCalledTimes(1)
   })
 
@@ -254,7 +254,7 @@ describe('PersonResultsScreen', () => {
     expect(onAddTip).toHaveBeenCalledTimes(1)
   })
 
-  // G2+G4: New sticky bar — Share summary + Edit bill; no New Split / Copy summary
+  // G2+G4: New sticky bar — Share summary + Go back; no New Split / Copy summary
   it('G2+G4 (sticky bar): shows "Share summary" button', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
     expect(screen.getByLabelText('Copy summary to clipboard')).toBeDefined()
@@ -262,9 +262,9 @@ describe('PersonResultsScreen', () => {
     expect(screen.getByText('Share summary')).toBeDefined()
   })
 
-  it('G2+G4 (sticky bar): "Edit bill" button exists', () => {
+  it('G2+G4 (sticky bar): "Go back" button exists', () => {
     render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
-    expect(screen.getByText('Edit bill')).toBeDefined()
+    expect(screen.getByText('Go back')).toBeDefined()
   })
 
   it('G2+G4 (sticky bar): "New Split" and "Copy summary" are removed', () => {
@@ -361,8 +361,8 @@ describe('PersonResultsScreen', () => {
     })
     render(<PersonResultsScreen session={unclaimedSession} {...defaultProps} onEditBill={onEditBill} />)
     fireEvent.click(screen.getByRole('button', { name: /view unclaimed items/i }))
-    // The dialog should show; click the "Edit bill" confirm button inside the dialog
-    const editBillButtons = screen.getAllByText('Edit bill')
+    // The dialog should show; click the "Go back" confirm button inside the dialog
+    const editBillButtons = screen.getAllByText('Go back')
     // The one inside the dialog footer
     fireEvent.click(editBillButtons[editBillButtons.length - 1])
     expect(onEditBill).toHaveBeenCalled()

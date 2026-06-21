@@ -397,14 +397,14 @@ export function PersonResultsScreen({
 
           {/* G2+G4: Two half-width buttons in a row */}
           <div className="flex gap-3">
-            {/* Edit bill (outline, left) */}
+            {/* Go back (outline, left) */}
             <Button
               type="button"
               variant="outline"
               className="h-12 flex-1"
               onClick={onEditBill}
             >
-              Edit bill
+              Go back
             </Button>
 
             {/* Share summary (amber, right) */}
@@ -438,7 +438,7 @@ export function PersonResultsScreen({
                 onEditBill()
               }}
             >
-              Edit bill
+              Go back
             </Button>
             <Button
               variant="outline"
