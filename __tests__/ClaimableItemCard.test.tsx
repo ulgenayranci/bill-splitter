@@ -342,11 +342,11 @@ describe('ClaimableItemCard — Phase 9 (D-06, D-07, D-08, D-13, D-14, D-15)', (
   })
 })
 
-describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
+describe('ClaimableItemCard — Phase 11 G9/G7 (claimed indicator + strikethrough, no dim)', () => {
   afterEach(() => cleanup())
 
-  // G9: fully-claimed single-qty item has stronger dim class (opacity-55)
-  it('G9: fully-claimed single-qty item card has opacity-55 class (stronger dim)', () => {
+  // G7: fully-claimed single-qty item is NOT dimmed (opacity removed; strikethrough conveys claimed)
+  it('G7: fully-claimed single-qty item card has no opacity dimming', () => {
     const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -358,7 +358,7 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
       />
     )
     const card = screen.getByRole('button')
-    expect(card.className).toContain('opacity-55')
+    expect(card.className).not.toContain('opacity-55')
   })
 
   // G9: fully-claimed single-qty item has line-through on item name
@@ -394,8 +394,8 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
     expect(container?.className).not.toContain('opacity-55')
   })
 
-  // G9: fully-claimed multi-qty item has opacity-55 (all units taken)
-  it('G9: fully-claimed multi-qty item (all units taken) has opacity-55', () => {
+  // G7: fully-claimed multi-qty item (all units taken) is NOT dimmed
+  it('G7: fully-claimed multi-qty item (all units taken) has no opacity dimming', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 4 } }
     render(
       <ClaimableItemCard
@@ -407,7 +407,7 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
       />
     )
     const container = document.querySelector('.flex.flex-col.gap-2.px-4.py-3')
-    expect(container?.className).toContain('opacity-55')
+    expect(container?.className).not.toContain('opacity-55')
   })
 
   // G9: item with ≥1 claimant shows bottom-right "claimed" label (no avatar circle)
@@ -444,8 +444,8 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
     expect(screen.queryByTestId('claimed-indicator')).toBeNull()
   })
 
-  // G9: mine card preserves bg-amber-50/border-amber-400 even when fully claimed (dim doesn't erase "mine")
-  it('G9: fully-claimed mine card keeps bg-amber-50 and border-amber-400 alongside opacity-55', () => {
+  // G7: mine card preserves bg-amber-50/border-amber-400 when fully claimed, with no dimming
+  it('G7: fully-claimed mine card keeps bg-amber-50 and border-amber-400 with no dimming', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -459,6 +459,6 @@ describe('ClaimableItemCard — Phase 11 G9 (dim + claimed indicator)', () => {
     const card = screen.getByRole('button')
     expect(card.className).toContain('bg-amber-50')
     expect(card.className).toContain('border-amber-400')
-    expect(card.className).toContain('opacity-55')
+    expect(card.className).not.toContain('opacity-55')
   })
 })

@@ -101,7 +101,6 @@ export function ClaimableItemCard({
     mine ? 'bg-amber-50 border border-amber-400' : '',
     !mine && fullyClaimed ? 'bg-zinc-50' : '',
     !isMultiQty ? 'cursor-pointer' : '',
-    fullyClaimed ? 'opacity-55' : '',
   ].filter(Boolean).join(' ')
 
   const cardRole = isMultiQty ? undefined : 'button'
