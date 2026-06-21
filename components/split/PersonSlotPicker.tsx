@@ -75,19 +75,19 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                     <Button
                       type="button"
                       size="sm"
-                      className="flex-1 bg-amber-600 hover:bg-amber-700 text-[13px]"
-                      onClick={() => handleRenameConfirm(person.id)}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
                       variant="outline"
                       className="flex-1 text-[13px]"
                       onClick={() => setEditingPersonId(null)}
                     >
                       Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="flex-1 bg-amber-600 hover:bg-amber-700 text-[13px]"
+                      onClick={() => handleRenameConfirm(person.id)}
+                    >
+                      Save
                     </Button>
                   </div>
                 </Card>
