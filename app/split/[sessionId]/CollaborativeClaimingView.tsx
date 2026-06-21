@@ -24,6 +24,7 @@ import { IdentityModal } from '@/components/split/IdentityModal'
 import { BillViewHeader } from '@/components/split/BillViewHeader'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
+import { InvitePeopleStep } from '@/components/split/InvitePeopleStep'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import { computePersonShareFromClaims } from '@/lib/billMath'
@@ -52,7 +53,7 @@ interface CollaborativeClaimingViewProps {
   sessionId: string
 }
 
-type Phase = 'claiming' | 'results'
+type Phase = 'invite' | 'claiming' | 'results'
 
 /** Derive which phase a returning guest should land on based on persisted server state.
  *  D-01: tip phase removed — done users land on results directly; tip is optional from there.
@@ -69,7 +70,35 @@ export function CollaborativeClaimingView({
   const [selectedPersonId, setSelectedPersonId] = useState<PersonId | null>(null)
   const [itemErrors, setItemErrors] = useState<Record<ItemId, string>>({})
   const [doneError, setDoneError] = useState<string | null>(null)
-  const [phase, setPhase] = useState<Phase>('claiming')
+  // G4: the host (bill creator, arriving via in-app navigation with the store
+  // already holding this sessionId) lands on the "Invite your group" step once;
+  // the localStorage flag suppresses it on later visits. Guests skip straight to
+  // claiming. On the server / full reload the store is empty, so isHost is false
+  // and the initializer agrees on 'claiming' (no hydration mismatch).
+  const [phase, setPhase] = useState<Phase>(() => {
+    const isHost = useBillStore.getState().sessionId === sessionId
+    if (!isHost) return 'claiming'
+    try {
+      if (
+        typeof window !== 'undefined' &&
+        window.localStorage.getItem(`split:${sessionId}:invited`) === '1'
+      ) {
+        return 'claiming'
+      }
+    } catch {
+      return 'claiming'
+    }
+    return 'invite'
+  })
+
+  function handleInviteContinue() {
+    try {
+      localStorage.setItem(`split:${sessionId}:invited`, '1')
+    } catch {
+      // localStorage unavailable in private browsing — ignore
+    }
+    setPhase('claiming')
+  }
 
   // Identity modal state (IDENT-01/03): changingIdentity controls dismissibility.
   const [identityModalOpen, setIdentityModalOpen] = useState(false)
@@ -162,6 +191,11 @@ export function CollaborativeClaimingView({
   if (isExpired) {
     // Redirect is in-flight (effect above) — brief placeholder, never a dead-end.
     return <div role="status" className="p-6">Starting a fresh bill…</div>
+  }
+  // G4: host's first stop — invite the group before claiming. Needs only the
+  // sessionId (for the link), so it can render before the session finishes loading.
+  if (phase === 'invite') {
+    return <InvitePeopleStep sessionId={sessionId} onContinue={handleInviteContinue} />
   }
   if (!session) return <div role="status" className="p-6">Loading…</div>
 

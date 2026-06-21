@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
 import { CollaborativeClaimingView } from '@/app/split/[sessionId]/CollaborativeClaimingView'
+import { useBillStore } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
 // Mock next/navigation so AppHeader's useRouter() doesn't throw in jsdom
@@ -491,4 +492,45 @@ describe('CollaborativeClaimingView', () => {
     expect(doneFetch).toHaveBeenCalled()
   })
 
+})
+
+describe('CollaborativeClaimingView — G4 invite step (host, once)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    window.HTMLElement.prototype.scrollIntoView = vi.fn()
+    useSWRMock.mockReturnValue({ data: SESSION_FIXTURE, error: undefined, mutate: mutateMock })
+    useBillStore.getState().reset()
+  })
+  afterEach(() => {
+    useBillStore.getState().reset()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+    cleanup()
+  })
+
+  it('host (store sessionId matches) lands on the Invite step', () => {
+    useBillStore.getState().setSessionId('s1')
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    expect(screen.getByText('Invite your group')).toBeDefined()
+  })
+
+  it('host who already saw the invite (flag set) skips straight to claiming', () => {
+    useBillStore.getState().setSessionId('s1')
+    localStorage.setItem('split:s1:invited', '1')
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    expect(screen.queryByText('Invite your group')).toBeNull()
+  })
+
+  it('guest (no matching store sessionId) never sees the Invite step', () => {
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    expect(screen.queryByText('Invite your group')).toBeNull()
+  })
+
+  it('skipping the invite advances to claiming and sets the seen flag', () => {
+    useBillStore.getState().setSessionId('s1')
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /skip/i }))
+    expect(screen.queryByText('Invite your group')).toBeNull()
+    expect(localStorage.getItem('split:s1:invited')).toBe('1')
+  })
 })
