@@ -225,3 +225,27 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
     consoleSpy.mockRestore()
   })
 })
+
+describe('SetupStep — G5 name entry (no Add button, Enter submits)', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+  })
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  it('has no "Add" button next to the name input', () => {
+    renderInProvider(<SetupStep />)
+    expect(screen.getByPlaceholderText('Add a name…')).toBeDefined()
+    expect(screen.queryByRole('button', { name: /^add$/i })).toBeNull()
+  })
+
+  it('pressing Enter in the name input adds the person', () => {
+    renderInProvider(<SetupStep />)
+    const input = screen.getByPlaceholderText('Add a name…')
+    fireEvent.change(input, { target: { value: 'Carol' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(useBillStore.getState().people.some((p) => p.name === 'Carol')).toBe(true)
+  })
+})

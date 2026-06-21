@@ -363,28 +363,21 @@ export function SetupStep() {
           </span>
         </div>
 
-        <div className="flex gap-2">
-          <Input
-            placeholder="Add a name…"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                handleAddPerson()
-              }
-            }}
-            maxLength={100}
-            className="h-11 flex-1 text-base"
-          />
-          <Button
-            onClick={handleAddPerson}
-            disabled={!name.trim()}
-            className="h-11 w-[72px] bg-amber-600 hover:bg-amber-700"
-          >
-            Add
-          </Button>
-        </div>
+        {/* G5: no Add button — Enter/Done submits the name (handleAddPerson). */}
+        <Input
+          placeholder="Add a name…"
+          value={name}
+          enterKeyHint="done"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleAddPerson()
+            }
+          }}
+          maxLength={100}
+          className="h-11 w-full text-base"
+        />
 
         {people.length > 0 && (
           <ul className="flex flex-col gap-2">
