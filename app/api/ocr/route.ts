@@ -23,7 +23,9 @@ Rules:
 - Provide whichever of unitPriceCents / lineTotalCents the receipt actually prints; set the other to null. Provide BOTH when both are printed. Do NOT compute or guess the missing one — leave it null.
 - name should be a short readable description (3-6 words max).
 - Exclude subtotals, tax, tip, and total lines from "items".
-- subtotalCents (top level): the printed items subtotal (pre-tax/pre-tip) in integer cents, or null if the receipt does not print one. Do not invent it.
+- Include EVERY line the receipt prints, in order — including repeated identical items (e.g. several separate "AYRAN" lines). Never skip, drop, or silently lose a duplicate. If you combine identical lines into one, raise its quantity so the line total still covers all of them.
+- subtotalCents (top level): the receipt's printed GRAND TOTAL (or the pre-tax items subtotal if one is shown separately) in integer cents. Capture it whenever any total line is printed; null only if the receipt prints no total at all. Do not invent it.
+- Self-check before answering: the sum of all line totals (lineTotalCents, or unitPriceCents × quantity) should equal the printed grand total. If it does not, you have missed or miscounted a line — re-read and correct it.
 - If you cannot read an item clearly, include your best guess.
 - currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
 
