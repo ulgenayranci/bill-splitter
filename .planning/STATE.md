@@ -33,7 +33,7 @@ progress:
 Phase: 11 (bug-fixes-polish-bill-results-screens-participant-management) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-06-21 - Shipped Phase 11 UAT round-5 polish bundle G3–G10 (8 atomic commits, pushed to main). G2 OCR engine swap parked (budget-blocked).
+Last activity: 2026-06-21 - Shipped Phase 11 UAT round-5 G3–G10 polish + G2 OCR upgrade (gpt-4o-mini→gpt-4.1-mini after a 3-receipt bake-off, prompt hardening, checksum guardrail). All G1–G10 done, pushed to main.
 
 ```
 Progress: [██████████] 100%

@@ -124,7 +124,7 @@ Tests 1–5 PASS (items-claimed chip, results default expand/collapse, swipe-to-
 
 ### UAT round 5 (2026-06-20/21) — polish bundle G3–G10
 
-User re-tested the live app and dictated a 10-item punch list. G1 (money math) shipped earlier; G2 (OCR engine swap) is decided but **budget-blocked** and parked (Claude vision bake-off needs a funded Anthropic API balance; gpt-4o-mini proven weak on real receipts — 12/14 items, scrambled prices). The remaining eight no-cost UI/UX items were executed this session as atomic commits, each pushed to main:
+User re-tested the live app and dictated a 10-item punch list. G1 (money math) shipped earlier. The eight no-cost UI/UX items (G3–G10) were executed this session as atomic commits, each pushed to main:
 
 - [x] **G3 — Session expiry:** expired/dead `/split` link now auto-redirects host + guest to a fresh scan screen (`?expired=1` → one-shot "That link expired" notice); replaces the manual "Start over" button. _(298ad81)_
 - [x] **G4 — Share prominence:** new `InvitePeopleStep` — host sees "Invite your group" once after creating the bill (Copy link + native Share + "Skip → claim items"). _(630aa6e)_
@@ -135,4 +135,6 @@ User re-tested the live app and dictated a 10-item punch list. G1 (money math) s
 - [x] **G9 — Results screen** always opens scrolled to top (one-shot `scrollTo(0,0)` on mount). _(531d337)_
 - [x] **G10 — Identity edit row:** Cancel (left) / Save (right) per convention (= R4-2). _(580b8d1)_
 
-**Round-5 status:** G3–G10 shipped + pushed; all touched/added tests green. Full suite: 427 pass, 3 pre-existing retired-wizard failures (AddPeopleStep ×2, AddItemsStep ×1 — present at the round's start commit, unrelated). G2 OCR remains the open major item, blocked on API budget.
+**G2 — OCR quality** ✅ SHIPPED (no budget needed). A 3-receipt bake-off on the existing OpenAI key showed **gpt-4.1-mini** decisively beats gpt-4o-mini (correct quantities + unit-vs-line-total; 5/5 exact on the multi-qty receipts) and beats the pricier gpt-4o/gpt-4.1 (which misread the number format catastrophically). Shipped: model swap (2558d78); prompt hardening — every line incl. duplicates, capture printed grand total, self-check sum==total (a7b9ccd); actionable guardrail warning showing the items-sum-vs-receipt-total gap (57f4cfe). Weak spot remaining: many identical repeated lines — caught loudly by the checksum guardrail rather than shown silently.
+
+**Round-5 status:** G1–G10 ALL shipped + pushed; all touched/added tests green. Full suite: 428 pass, 3 pre-existing retired-wizard failures (AddPeopleStep ×2, AddItemsStep ×1 — present at the round's start commit, unrelated).
