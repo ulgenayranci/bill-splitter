@@ -126,6 +126,7 @@ None.
 | 260619-i48 | Fix expired-session dead-end: host gets a "Start over" button that clears the stale saved bill and returns to a fresh homepage; guest message unchanged | 2026-06-19 | b45ea0f | | [260619-i48-fix-expired-session-dead-end-when-the-ho](./quick/260619-i48-fix-expired-session-dead-end-when-the-ho/) |
 | 260620-2h0 | Scan-time bill guardrail: reconcile OCR figures before claiming — fix per-unit-vs-line-total quantity bug (priceCents = line total), auto-correct arithmetic, detect completeness gaps | 2026-06-20 | 7087166 | Verified | [260620-2h0-scan-time-bill-guardrail-validate-and-re](./quick/260620-2h0-scan-time-bill-guardrail-validate-and-re/) |
 | 260622-hjb | Phase 11 UAT round-6 follow-ups: OCR auto-retry on checksum mismatch (G2), scan edge-case catalogue (G2.3), invite-screen redesign (G4), drop redundant claimed badge (G7), finish-dialog redesign (G8) | 2026-06-22 | 124acff | Complete | [260622-hjb-phase-11-uat-round-6-followups](./quick/260622-hjb-phase-11-uat-round-6-followups/) |
+| 260622-q3m | OCR reconciliation guardrail + editable scan-review/confirm screen: capture subtotal vs grand total (reconcile to pre-tax truth, fall back to grand total), show an editable item review on a failed reconciliation after the server retry (soft gate — "Confirm & continue" proceeds even if off) | 2026-06-22 | f52dc33 | Complete | [260622-q3m-ocr-reconciliation-scan-review](./quick/260622-q3m-ocr-reconciliation-scan-review/) |
 
 ---
 
