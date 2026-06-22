@@ -15,7 +15,7 @@ function getOpenAI(): OpenAI {
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
-{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null }], "currencyCode": string, "subtotalCents": number | null }
+{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null }
 Rules:
 - All cents values must be integers (e.g. $12.99 -> 1299). NEVER use floats.
 - quantity must be a positive integer (default 1 if not shown).
@@ -25,8 +25,9 @@ Rules:
 - name should be a short readable description (3-6 words max).
 - Exclude subtotals, tax, tip, and total lines from "items".
 - Include EVERY line the receipt prints, in order — including repeated identical items (e.g. several separate "AYRAN" lines). Never skip, drop, or silently lose a duplicate. If you combine identical lines into one, raise its quantity so the line total still covers all of them.
-- subtotalCents (top level): the receipt's printed GRAND TOTAL (or the pre-tax items subtotal if one is shown separately) in integer cents. Capture it whenever any total line is printed; null only if the receipt prints no total at all. Do not invent it.
-- Self-check before answering: the sum of all line totals (lineTotalCents, or unitPriceCents × quantity) should equal the printed grand total. If it does not, you have missed or miscounted a line — re-read and correct it.
+- subtotalCents (top level): the printed PRE-TAX items subtotal — the figure the line items themselves should sum to, BEFORE any tax, service charge, or tip is added. Capture it only when the receipt prints a distinct pre-tax subtotal line; null if no separate subtotal is printed. Do not invent it.
+- grandTotalCents (top level): the final printed total the customer pays, AFTER tax, service charge, and tip are added. Capture it whenever a final total line is printed; null only if the receipt prints no total at all. Do not invent it.
+- Self-check before answering: the sum of all line totals (lineTotalCents, or unitPriceCents × quantity) should equal subtotalCents (the pre-tax items subtotal). If it does not, you have missed or miscounted a line — re-read and correct it.
 - If you cannot read an item clearly, include your best guess.
 - currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
 
@@ -44,7 +45,19 @@ interface OcrItem {
 interface OcrParsed {
   items: OcrItem[]
   currencyCode: string
+  /** Printed PRE-TAX items subtotal in integer cents — the figure line items should sum to. */
   subtotalCents: number | null
+  /** Final printed total (after tax/service/tip) in integer cents. */
+  grandTotalCents: number | null
+}
+
+/**
+ * The figure line items should reconcile against: the pre-tax subtotal when printed,
+ * falling back to the grand total. `reconcileScannedBill` is agnostic — it just receives
+ * this target as its `subtotalCents` option (locked decision 3).
+ */
+function reconcileTarget(pass: OcrParsed): number | null {
+  return pass.subtotalCents ?? pass.grandTotalCents
 }
 
 // Coerce a candidate to a positive integer cents value, else null.
@@ -95,8 +108,9 @@ function parseOcrResponse(content: string | null | undefined): OcrParsed | null 
     typeof rawCode === 'string' && /^[A-Za-z]{3}$/.test(rawCode) ? rawCode.toUpperCase() : 'USD'
 
   const subtotalCents = toIntCentsOrNull((parsed as { subtotalCents?: unknown }).subtotalCents)
+  const grandTotalCents = toIntCentsOrNull((parsed as { grandTotalCents?: unknown }).grandTotalCents)
 
-  return { items, currencyCode, subtotalCents }
+  return { items, currencyCode, subtotalCents, grandTotalCents }
 }
 
 /**
@@ -152,8 +166,9 @@ async function runOcrPass(
             },
             currencyCode: { type: 'string' },
             subtotalCents: { type: ['integer', 'null'] },
+            grandTotalCents: { type: ['integer', 'null'] },
           },
-          required: ['items', 'currencyCode', 'subtotalCents'],
+          required: ['items', 'currencyCode', 'subtotalCents', 'grandTotalCents'],
           additionalProperties: false,
         },
       },
@@ -163,9 +178,9 @@ async function runOcrPass(
   return parseOcrResponse(completion.choices[0]?.message?.content)
 }
 
-/** Absolute |subtotal − reconciledSum| for a pass; Infinity when no subtotal exists. */
+/** Absolute |target − reconciledSum| for a pass; Infinity when no truth figure exists. */
 function passMismatchMagnitude(pass: OcrParsed): number {
-  const { completeness } = reconcileScannedBill(pass.items, { subtotalCents: pass.subtotalCents })
+  const { completeness } = reconcileScannedBill(pass.items, { subtotalCents: reconcileTarget(pass) })
   if (!completeness.hasSubtotal) return Infinity
   return Math.abs(completeness.deltaCents)
 }
@@ -204,15 +219,16 @@ export async function POST(request: Request) {
     }
 
     // Reconcile pass 1 to decide whether a corrective retry is warranted. We only
-    // retry when the receipt printed a total AND our reading does not reconcile to
-    // it — that gap is the strongest signal of a missed/miscounted (often duplicate)
-    // line, the known weak spot.
-    const recon1 = reconcileScannedBill(pass1.items, { subtotalCents: pass1.subtotalCents })
+    // retry when the receipt printed a truth figure (pre-tax subtotal, else grand
+    // total) AND our reading does not reconcile to it — that gap is the strongest
+    // signal of a missed/miscounted (often duplicate) line, the known weak spot.
+    const target1 = reconcileTarget(pass1)
+    const recon1 = reconcileScannedBill(pass1.items, { subtotalCents: target1 })
 
     let best = pass1
-    if (pass1.subtotalCents != null && recon1.completeness.mismatch) {
+    if (target1 != null && recon1.completeness.mismatch) {
       const reconciledSum = recon1.completeness.reconciledSumCents
-      const subtotal = pass1.subtotalCents
+      const subtotal = target1
       const delta = Math.abs(recon1.completeness.deltaCents)
       const extraInstruction =
         `Your previous reading summed to ${formatCentsPlain(reconciledSum)} but the printed total is ` +
@@ -243,6 +259,7 @@ export async function POST(request: Request) {
       items: best.items,
       currencyCode: best.currencyCode,
       subtotalCents: best.subtotalCents,
+      grandTotalCents: best.grandTotalCents,
     })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.

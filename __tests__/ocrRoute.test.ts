@@ -51,6 +51,7 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
               ],
               currencyCode: 'EUR',
               subtotalCents: 2297,
+              grandTotalCents: 2500,
             }),
           },
         },
@@ -67,6 +68,7 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
       ],
       currencyCode: 'EUR',
       subtotalCents: 2297,
+      grandTotalCents: 2500,
     })
     expect(createMock).toHaveBeenCalledTimes(1)
     const callArgs = createMock.mock.calls[0][0]
@@ -77,6 +79,7 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(callArgs.response_format.json_schema.schema.required).toContain('currencyCode')
     // Scan-guardrail contract: new fields are part of the strict schema.
     expect(callArgs.response_format.json_schema.schema.required).toContain('subtotalCents')
+    expect(callArgs.response_format.json_schema.schema.required).toContain('grandTotalCents')
     const itemRequired = callArgs.response_format.json_schema.schema.properties.items.items.required
     expect(itemRequired).toContain('unitPriceCents')
     expect(itemRequired).toContain('lineTotalCents')
@@ -95,6 +98,7 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
               ],
               currencyCode: 'USD',
               subtotalCents: null,
+              grandTotalCents: null,
             }),
           },
         },
@@ -106,6 +110,47 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     const items = (json as { items: { name: string }[] }).items
     expect(items.map((i) => i.name)).toEqual(['Keeper', 'AlsoKeeper'])
     expect((json as { subtotalCents: number | null }).subtotalCents).toBeNull()
+    expect((json as { grandTotalCents: number | null }).grandTotalCents).toBeNull()
+  })
+
+  it('parses grandTotalCents and coerces non-positive-integers to null', async () => {
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              items: [{ name: 'Soup', quantity: 1, unitPriceCents: null, lineTotalCents: 800 }],
+              currencyCode: 'USD',
+              subtotalCents: null,
+              grandTotalCents: 880,
+            }),
+          },
+        },
+      ],
+    })
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    expect((json as { grandTotalCents: number | null }).grandTotalCents).toBe(880)
+    expect((json as { subtotalCents: number | null }).subtotalCents).toBeNull()
+
+    // A garbage grand total (zero / non-positive) coerces to null.
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              items: [{ name: 'Soup', quantity: 1, unitPriceCents: null, lineTotalCents: 800 }],
+              currencyCode: 'USD',
+              subtotalCents: null,
+              grandTotalCents: 0,
+            }),
+          },
+        },
+      ],
+    })
+    const second = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect((second.json as { grandTotalCents: number | null }).grandTotalCents).toBeNull()
   })
 
   it('normalizes the currency code to uppercase ISO 4217 (CURR-01 / D-01)', async () => {
@@ -327,5 +372,79 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(createMock).toHaveBeenCalledTimes(2)
     const items = (json as { items: { name: string }[] }).items
     expect(items).toHaveLength(1)
+  })
+
+  // ── Truth figure = subtotal ?? grandTotal (locked decision 3) ───────────────
+
+  it('reconciles to the PRE-TAX subtotal when both subtotal and grand total are printed', async () => {
+    // Items sum to 2000 == subtotalCents (clean against the pre-tax subtotal). The
+    // grand total (2300, includes tax) is NOT the reconciliation target, so no retry.
+    createMock.mockResolvedValue(
+      mockContent({
+        items: [
+          { name: 'Burger', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+          { name: 'Fries', quantity: 1, unitPriceCents: null, lineTotalCents: 800 },
+        ],
+        currencyCode: 'USD',
+        subtotalCents: 2000,
+        grandTotalCents: 2300,
+      }),
+    )
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    // No retry — items reconcile to the subtotal (the truth figure), not the grand total.
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect((json as { subtotalCents: number; grandTotalCents: number }).subtotalCents).toBe(2000)
+    expect((json as { grandTotalCents: number }).grandTotalCents).toBe(2300)
+  })
+
+  it('falls back to the grand total as the truth figure when no subtotal is printed', async () => {
+    // No pre-tax subtotal printed. Pass 1 sums to 1200 vs grand total 2400 -> mismatch
+    // against the fallback figure -> corrective retry. Pass 2 recovers the duplicate.
+    createMock
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [{ name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 }],
+          currencyCode: 'TRY',
+          subtotalCents: null,
+          grandTotalCents: 2400,
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [
+            { name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+            { name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+          ],
+          currencyCode: 'TRY',
+          subtotalCents: null,
+          grandTotalCents: 2400,
+        }),
+      )
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    // Retry fired off the grand-total mismatch even though subtotalCents was null.
+    expect(createMock).toHaveBeenCalledTimes(2)
+    const items = (json as { items: { name: string }[] }).items
+    expect(items).toHaveLength(2)
+    expect((json as { subtotalCents: number | null }).subtotalCents).toBeNull()
+    expect((json as { grandTotalCents: number }).grandTotalCents).toBe(2400)
+  })
+
+  it('does NOT retry when neither subtotal nor grand total is printed', async () => {
+    createMock.mockResolvedValue(
+      mockContent({
+        items: [{ name: 'Coffee', quantity: 1, unitPriceCents: null, lineTotalCents: 350 }],
+        currencyCode: 'USD',
+        subtotalCents: null,
+        grandTotalCents: null,
+      }),
+    )
+
+    const { status } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    expect(createMock).toHaveBeenCalledTimes(1)
   })
 })
