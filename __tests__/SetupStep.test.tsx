@@ -113,32 +113,155 @@ describe('SetupStep — GAP 6 failed/empty re-scan clears items', () => {
     consoleSpy.mockRestore()
   })
 
-  it('G2.3: completeness warning shows the items-sum vs receipt-total gap', async () => {
-    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+})
+
+// ── Scan-review/confirm screen (260622-q3m) ──────────────────────────────────
+describe('SetupStep — scan-review screen on a failed reconciliation', () => {
+  let origFR: typeof FileReader
+
+  beforeEach(() => {
+    useBillStore.getState().reset()
+    origFR = global.FileReader
+    ;(global as unknown as { FileReader: typeof StubFR }).FileReader = StubFR
+  })
+
+  afterEach(() => {
+    cleanup()
+    ;(global as unknown as { FileReader: typeof origFR }).FileReader = origFR
+    vi.restoreAllMocks()
+  })
+
+  /** Mock OCR (mismatch by default) + expand passthrough, then trigger a scan. */
+  function mockScan(
+    ocrPayload: Record<string, unknown>,
+    expandItems: { rawName: string; displayName: string; priceCents: number; confidence: string; quantity: number }[],
+  ) {
+    return vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
       const url = typeof input === 'string' ? input : (input as Request).url
       if (url.includes('/api/ocr')) {
-        // Items sum to 10.00 but the printed grand total is 15.00 → mismatch.
-        return new Response(JSON.stringify({
-          items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
-          currencyCode: 'USD',
-          subtotalCents: 1500,
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        return new Response(JSON.stringify(ocrPayload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
       }
       if (url.includes('/api/expand')) {
-        return new Response(JSON.stringify({
-          items: [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        return new Response(JSON.stringify({ items: expandItems }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
       }
       return new Response('', { status: 404 })
     })
+  }
+
+  it('mismatch → renders the editable review block with the live gap', async () => {
+    const fetchMock = mockScan(
+      {
+        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
+        currencyCode: 'USD',
+        subtotalCents: 1500,
+        grandTotalCents: 1500,
+      },
+      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
+    )
 
     renderInProvider(<SetupStep />)
-    const fileInput = screen.getByTestId('ocr-file-input') as HTMLInputElement
-    fireEvent.change(fileInput, { target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] } })
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
 
-    const warn = await screen.findByTestId('guardrail-completeness')
-    expect(warn.textContent).toContain('$10.00')
-    expect(warn.textContent).toContain('$15.00')
+    const review = await screen.findByTestId('scan-review')
+    expect(review.textContent).toContain('Please confirm or edit these detected items')
+    // Editable controls present.
+    expect(screen.getByLabelText('Item name')).toBeDefined()
+    expect(screen.getByLabelText('Price')).toBeDefined()
+    expect(screen.getByLabelText('Quantity')).toBeDefined()
+    expect(screen.getByRole('button', { name: /add item/i })).toBeDefined()
+    // Live gap line.
+    const gap = screen.getByTestId('scan-review-gap')
+    expect(gap.textContent).toContain('$10.00')
+    expect(gap.textContent).toContain('$15.00')
+    expect(gap.textContent).toContain('$5.00')
+
+    fetchMock.mockRestore()
+  })
+
+  it('editing the price to match the receipt clears the gap and removes review mode', async () => {
+    const fetchMock = mockScan(
+      {
+        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
+        currencyCode: 'USD',
+        subtotalCents: 1500,
+        grandTotalCents: 1500,
+      },
+      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
+    )
+
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
+
+    await screen.findByTestId('scan-review')
+    const priceInput = screen.getByLabelText('Price') as HTMLInputElement
+    // Edit the single item up to 15.00 so items sum == receipt 15.00.
+    fireEvent.change(priceInput, { target: { value: '15.00' } })
+    fireEvent.blur(priceInput)
+
+    await waitFor(() => expect(useBillStore.getState().items[0].priceCents).toBe(1500))
+    // Gap now within tolerance → the "still off" hint is gone.
+    expect(screen.queryByTestId('scan-review-still-off')).toBeNull()
+
+    fetchMock.mockRestore()
+  })
+
+  it('clean scan → no review block', async () => {
+    const fetchMock = mockScan(
+      {
+        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1500, lineTotalCents: null }],
+        currencyCode: 'USD',
+        subtotalCents: 1500,
+        grandTotalCents: 1500,
+      },
+      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1500, confidence: 'high', quantity: 1 }],
+    )
+
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
+
+    // Wait for the scan to land (item count chip appears) then assert no review.
+    await waitFor(() => expect(useBillStore.getState().items.length).toBe(1))
+    expect(screen.queryByTestId('scan-review')).toBeNull()
+
+    fetchMock.mockRestore()
+  })
+
+  it('"Confirm & continue" proceeds while a gap remains (soft gate)', async () => {
+    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().addPerson('Bob')
+
+    const fetchMock = mockScan(
+      {
+        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
+        currencyCode: 'USD',
+        subtotalCents: 1500,
+        grandTotalCents: 1500,
+      },
+      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
+    )
+
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
+
+    await screen.findByTestId('scan-review')
+    // CTA relabeled in review mode, enabled, and the soft-gate hint is visible.
+    const cta = screen.getByRole('button', { name: /confirm & continue/i }) as HTMLButtonElement
+    expect(cta.disabled).toBe(false)
+    expect(screen.getByTestId('scan-review-still-off')).toBeDefined()
 
     fetchMock.mockRestore()
   })

@@ -8,8 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
-import { reconcileScannedBill, type ReconcileCompleteness } from '@/lib/reconcileScannedBill'
-import { formatCents } from '@/lib/billMath'
+import {
+  reconcileScannedBill,
+  type ReconcileCompleteness,
+  TOLERANCE_CENTS,
+} from '@/lib/reconcileScannedBill'
+import { formatCents, parseCents, computeSubtotalCents } from '@/lib/billMath'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
 
@@ -37,6 +41,9 @@ export function SetupStep() {
   const setOcrStatus = useBillStore((s) => s.setOcrStatus)
   const setExpandStatus = useBillStore((s) => s.setExpandStatus)
   const setItems = useBillStore((s) => s.setItems)
+  const addItem = useBillStore((s) => s.addItem)
+  const updateItem = useBillStore((s) => s.updateItem)
+  const removeItem = useBillStore((s) => s.removeItem)
   const currencyCode = useBillStore((s) => s.currencyCode)
   const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
 
@@ -44,11 +51,18 @@ export function SetupStep() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   // Non-blocking scan guardrail: how many lines were auto-corrected to match the
-  // receipt + the bill-level completeness result. Cleared on retake/error.
+  // receipt + the bill-level completeness result + the truth figure the scan was
+  // reconciled against (subtotal ?? grand total). Cleared on retake/error.
   const [guardrail, setGuardrail] = useState<{
     correctedCount: number
     completeness: ReconcileCompleteness
+    targetCents: number | null
   } | null>(null)
+  // Per-row edit drafts for the scan-review screen, keyed by item id. Holds raw
+  // strings so the user can type freely; committed to the store on blur/Enter.
+  const [reviewDrafts, setReviewDrafts] = useState<
+    Record<string, { name: string; price: string; qty: string }>
+  >({})
   const [isCreating, setIsCreating] = useState(false)
   const [sessionCreateError, setSessionCreateError] = useState<string | null>(null)
   // G3: shown when we arrive here after an expired/dead bill link (?expired=1).
@@ -87,6 +101,57 @@ export function SetupStep() {
     setName('')
   }
 
+  // Scan-review gate: only when the receipt printed a truth figure AND the scanned
+  // items don't reconcile to it (mismatch after the server's retry). Clean scans
+  // never enter review (locked decision 1).
+  const reviewMode = Boolean(
+    guardrail && guardrail.completeness.mismatch && guardrail.targetCents != null,
+  )
+  // Live items sum recomputed from the store so the gap updates as the user edits.
+  const liveSumCents = computeSubtotalCents(items)
+  const targetCents = guardrail?.targetCents ?? null
+  const liveDeltaCents = targetCents != null ? targetCents - liveSumCents : 0
+  // Soft gate: in review mode Continue is still enabled (decision 2). "Still off"
+  // hint shows only while the live gap exceeds the rounding tolerance.
+  const stillOff = reviewMode && Math.abs(liveDeltaCents) > TOLERANCE_CENTS
+
+  // Read the live draft for a row, defaulting to the item's current store values.
+  const draftFor = (item: (typeof items)[number]) =>
+    reviewDrafts[item.id] ?? {
+      name: item.name,
+      price: (item.priceCents / 100).toFixed(2),
+      qty: String(item.quantity ?? 1),
+    }
+
+  const setDraft = (id: string, patch: Partial<{ name: string; price: string; qty: string }>) =>
+    setReviewDrafts((d) => ({
+      ...d,
+      [id]: { ...draftFor(items.find((i) => i.id === id)!), ...d[id], ...patch },
+    }))
+
+  // Commit a row's draft to the store via updateItem. priceCents is the LINE TOTAL.
+  // Invalid price/qty are ignored (kept as draft) so we never silently fudge a value.
+  const commitRow = (item: (typeof items)[number]) => {
+    const draft = reviewDrafts[item.id]
+    if (!draft) return
+    const trimmedName = draft.name.trim() || item.name
+    const priceCents = parseCents(draft.price)
+    const qty = Number.parseInt(draft.qty, 10)
+    const nextQty = Number.isInteger(qty) && qty > 0 ? qty : (item.quantity ?? 1)
+    if (priceCents == null) return // invalid price — leave the draft, don't write
+    updateItem(item.id, trimmedName, priceCents, nextQty)
+    setReviewDrafts((d) => {
+      const { [item.id]: _drop, ...rest } = d
+      return rest
+    })
+  }
+
+  const handleAddReviewItem = () => {
+    // Seed a new line at a placeholder price so the user immediately edits it. We
+    // never invent a real amount — 1 cent is the minimal non-zero parseCents allows.
+    addItem('New item', 1, 1)
+  }
+
   async function handleContinue() {
     if (isCreating) return
     setIsCreating(true)
@@ -116,6 +181,7 @@ export function SetupStep() {
       e.target.value = ''
       setScanError(null)
       setGuardrail(null)
+      setReviewDrafts({})
 
       const prevUrl = useBillStore.getState().billImageUrl
       if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
@@ -123,11 +189,12 @@ export function SetupStep() {
       setBillImage(blobUrl)
       setOcrStatus('loading')
 
-      // Raw OCR lines (per-unit and/or line-total may each be null) + printed subtotal.
+      // Raw OCR lines (per-unit and/or line-total may each be null) + printed totals.
       let ocrItems:
         | { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null }[]
         | null = null
       let ocrSubtotalCents: number | null = null
+      let ocrGrandTotalCents: number | null = null
 
       try {
         const compressed = await imageCompression(file, {
@@ -159,9 +226,11 @@ export function SetupStep() {
           items: { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null }[]
           currencyCode?: string
           subtotalCents?: number | null
+          grandTotalCents?: number | null
         }
         ocrItems = data.items
         ocrSubtotalCents = data.subtotalCents ?? null
+        ocrGrandTotalCents = data.grandTotalCents ?? null
         // CURR-01: store the detected ISO 4217 currency (route already defaults to USD).
         if (data.currencyCode) setCurrencyCode(data.currencyCode)
         if (ocrItems.length === 0) {
@@ -191,7 +260,11 @@ export function SetupStep() {
       // so /api/expand (which copies priceCents and passes quantity through) and all
       // downstream billMath work unchanged. unitPriceCents is re-attached by index
       // after expand, since the expand route drops it.
-      const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: ocrSubtotalCents })
+      // Truth figure (locked decision 3): reconcile against the printed PRE-TAX
+      // subtotal, falling back to the grand total. reconcileScannedBill is agnostic —
+      // it just receives the chosen target as its subtotalCents option.
+      const targetCents = ocrSubtotalCents ?? ocrGrandTotalCents
+      const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: targetCents })
       const correctedCount = reconciled.items.filter((i) => i.corrected).length
 
       // OCR succeeded. Chain into name expansion.
@@ -232,7 +305,7 @@ export function SetupStep() {
             confidence: ei.confidence,
           })),
         )
-        setGuardrail({ correctedCount, completeness: reconciled.completeness })
+        setGuardrail({ correctedCount, completeness: reconciled.completeness, targetCents })
         setExpandStatus('done')
       } catch (err) {
         console.error(err)
@@ -248,7 +321,7 @@ export function SetupStep() {
             unitPriceCents: i.unitPriceCents,
           })),
         )
-        setGuardrail({ correctedCount, completeness: reconciled.completeness })
+        setGuardrail({ correctedCount, completeness: reconciled.completeness, targetCents })
       }
     },
     [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setGuardrail],
@@ -298,21 +371,92 @@ export function SetupStep() {
         </p>
       )}
 
-      {/* Scan guardrail — non-blocking. Continue is NEVER gated on these.
-          G2.3: show the actual checksum gap (items sum vs printed receipt total)
-          so the warning is actionable, not vague. */}
-      {guardrail && guardrail.completeness.mismatch && guardrail.completeness.subtotalCents != null && (
+      {/* Scan-review/confirm screen — shown ONLY when the scan can't reconcile to
+          the printed truth figure after the server's retry (locked decision 1).
+          Soft gate: the user can edit/confirm here but is never blocked (decision 2).
+          Clean scans skip this entirely. */}
+      {reviewMode && targetCents != null && (
         <div
-          role="alert"
-          data-testid="guardrail-completeness"
-          className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13px] font-medium text-amber-800"
+          role="region"
+          aria-label="Confirm detected items"
+          data-testid="scan-review"
+          className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3"
         >
-          Your items add up to {formatCents(guardrail.completeness.reconciledSumCents, currencyCode)}, but the
-          receipt total is {formatCents(guardrail.completeness.subtotalCents, currencyCode)}. An item may be
-          missing or misread — Retake, or add it manually.
+          <p className="text-[14px] font-semibold text-amber-900">
+            Please confirm or edit these detected items
+          </p>
+
+          <ul className="flex flex-col gap-2">
+            {items.map((item) => {
+              const draft = draftFor(item)
+              return (
+                <li key={item.id} className="flex items-center gap-2">
+                  <Input
+                    aria-label="Item name"
+                    value={draft.name}
+                    onChange={(e) => setDraft(item.id, { name: e.target.value })}
+                    onBlur={() => commitRow(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRow(item)
+                    }}
+                    maxLength={100}
+                    className="h-10 flex-1 bg-white text-base"
+                  />
+                  <Input
+                    aria-label="Price"
+                    inputMode="decimal"
+                    value={draft.price}
+                    onChange={(e) => setDraft(item.id, { price: e.target.value })}
+                    onBlur={() => commitRow(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRow(item)
+                    }}
+                    maxLength={9}
+                    className="h-10 w-20 bg-white text-base"
+                  />
+                  <Input
+                    aria-label="Quantity"
+                    inputMode="numeric"
+                    value={draft.qty}
+                    onChange={(e) => setDraft(item.id, { qty: e.target.value })}
+                    onBlur={() => commitRow(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRow(item)
+                    }}
+                    maxLength={2}
+                    className="h-10 w-12 bg-white text-center text-base"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${item.name}`}
+                    onClick={() => removeItem(item.id)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-amber-100"
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+
+          <button
+            type="button"
+            onClick={handleAddReviewItem}
+            className="flex items-center gap-1.5 self-start rounded-md text-[13px] font-semibold text-amber-700 hover:text-amber-900"
+          >
+            <Plus size={15} aria-hidden="true" />
+            Add item
+          </button>
+
+          <p data-testid="scan-review-gap" className="text-[13px] font-medium text-amber-900">
+            Items add up to {formatCents(liveSumCents, currencyCode)} · Receipt{' '}
+            {guardrail?.completeness.subtotalCents != null ? 'subtotal' : 'total'}{' '}
+            {formatCents(targetCents, currencyCode)} · off by{' '}
+            {formatCents(Math.abs(liveDeltaCents), currencyCode)}
+          </p>
         </div>
       )}
-      {guardrail && guardrail.correctedCount > 0 && (
+      {!reviewMode && guardrail && guardrail.correctedCount > 0 && (
         <p
           role="status"
           data-testid="guardrail-corrected"
@@ -472,8 +616,22 @@ export function SetupStep() {
           disabled={!canContinue || isCreating}
           className="h-12 w-full bg-amber-600 text-base hover:bg-amber-700"
         >
-          {isCreating ? <LoaderCircle size={16} className="animate-spin" /> : 'Start splitting'}
+          {isCreating ? (
+            <LoaderCircle size={16} className="animate-spin" />
+          ) : reviewMode ? (
+            'Confirm & continue'
+          ) : (
+            'Start splitting'
+          )}
         </Button>
+        {/* Soft gate: in review mode the user may still proceed while a gap remains;
+            we only nudge with a subtle hint (locked decision 2). */}
+        {canContinue && stillOff && (
+          <p data-testid="scan-review-still-off" className="mt-2 text-center text-[12px] text-amber-700">
+            Still off by {formatCents(Math.abs(liveDeltaCents), currencyCode)} — you can confirm
+            anyway or keep editing.
+          </p>
+        )}
         {!canContinue && (
           <p className="mt-2 text-center text-[12px] text-zinc-400">
             {billScanned
