@@ -233,14 +233,6 @@ export function ClaimableItemCard({
         </p>
       )}
 
-      {/* G9: bottom-right "claimed" indicator — icon + label when ≥1 claimant */}
-      {allClaimantEntries.length > 0 && (
-        <div className="flex justify-end items-center gap-1" data-testid="claimed-indicator">
-          <Check size={12} className="text-zinc-400" aria-hidden="true" />
-          <span className="text-[12px] text-zinc-400">claimed</span>
-        </div>
-      )}
-
       {errorMessage && (
         <span className="text-sm text-red-600">{errorMessage}</span>
       )}

@@ -410,8 +410,10 @@ describe('ClaimableItemCard — Phase 11 G9/G7 (claimed indicator + strikethroug
     expect(container?.className).not.toContain('opacity-55')
   })
 
-  // G9: item with ≥1 claimant shows bottom-right "claimed" label (no avatar circle)
-  it('G9: item with ≥1 claimant shows the bottom-right "claimed" label (no avatar circle)', () => {
+  // G7 (round-6): the redundant bottom-right "claimed" badge is removed — even when
+  // a single-qty item has a claimant, no claimed-indicator renders (the top-row check
+  // + strikethrough already convey claimed state).
+  it('G7: single-qty claimed item does NOT show the redundant bottom-right claimed badge', () => {
     const claims: Record<PersonId, ClaimEntry> = { p2: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -422,16 +424,11 @@ describe('ClaimableItemCard — Phase 11 G9/G7 (claimed indicator + strikethroug
         onQtyChange={vi.fn()}
       />
     )
-    const indicator = screen.getByTestId('claimed-indicator')
-    expect(indicator).toBeDefined()
-    expect(indicator.textContent).toContain('claimed')
-    // No avatar circle — no rounded-full element with a person initial inside the indicator
-    const circles = indicator.querySelectorAll('.rounded-full')
-    expect(circles.length).toBe(0)
+    expect(screen.queryByTestId('claimed-indicator')).toBeNull()
   })
 
-  // G9: unclaimed item does NOT show the claimed indicator
-  it('G9: unclaimed item does NOT show the claimed indicator', () => {
+  // G7 (round-6): unclaimed item also has no claimed badge (unchanged).
+  it('G7: unclaimed item does NOT show the claimed badge', () => {
     render(
       <ClaimableItemCard
         item={singleQtyItem}
