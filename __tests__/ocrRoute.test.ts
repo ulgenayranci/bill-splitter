@@ -200,4 +200,132 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(status).toBe(500)
     expect(json).toEqual({ error: 'OCR failed' })
   })
+
+  // ── Auto-retry on failed checksum (G2 / UAT Test 2) ─────────────────────────
+
+  function mockContent(payload: unknown) {
+    return { choices: [{ message: { content: JSON.stringify(payload) } }] }
+  }
+
+  it('does NOT retry when pass 1 reconciles to the printed subtotal (clean scan)', async () => {
+    // Two lines summing to 2000 with a printed subtotal of 2000 — no mismatch.
+    createMock.mockResolvedValue(
+      mockContent({
+        items: [
+          { name: 'Burger', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+          { name: 'Fries', quantity: 1, unitPriceCents: null, lineTotalCents: 800 },
+        ],
+        currencyCode: 'USD',
+        subtotalCents: 2000,
+      }),
+    )
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(200)
+    // Single pass — no retry.
+    expect(createMock).toHaveBeenCalledTimes(1)
+    const items = (json as { items: { name: string }[] }).items
+    expect(items.map((i) => i.name)).toEqual(['Burger', 'Fries'])
+  })
+
+  it('retries once on checksum mismatch and passes through the corrected pass', async () => {
+    // Pass 1 misses a duplicate line: sums to 1200 vs printed 2400 (mismatch).
+    // Pass 2 (with the corrective instruction) re-reads the duplicate -> sums to 2400.
+    createMock
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [{ name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 }],
+          currencyCode: 'TRY',
+          subtotalCents: 2400,
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [
+            { name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+            { name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+          ],
+          currencyCode: 'TRY',
+          subtotalCents: 2400,
+        }),
+      )
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(200)
+    expect(createMock).toHaveBeenCalledTimes(2)
+    // The retry's corrective instruction is appended to the prompt text.
+    const retryPromptText = createMock.mock.calls[1][0].messages[0].content[0].text as string
+    expect(retryPromptText).toContain('printed total')
+    expect(retryPromptText).toContain('identical duplicates')
+    // Corrected (closer) pass is returned.
+    const items = (json as { items: { name: string }[] }).items
+    expect(items).toHaveLength(2)
+    expect(items.map((i) => i.name)).toEqual(['Ayran', 'Ayran'])
+  })
+
+  it('keeps the best (closest) pass when the retry is still mismatched', async () => {
+    // Printed total 2400. Pass 1 off by 1200 (one line). Pass 2 off by only 400
+    // (still short, but closer) — pass 2 must be kept. Caps at 2 passes.
+    createMock
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [{ name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 }],
+          currencyCode: 'TRY',
+          subtotalCents: 2400,
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [
+            { name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 },
+            { name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 800 },
+          ],
+          currencyCode: 'TRY',
+          subtotalCents: 2400,
+        }),
+      )
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(200)
+    expect(createMock).toHaveBeenCalledTimes(2)
+    const items = (json as { items: { name: string }[] }).items
+    // Pass 2 reconciles closer (sum 2000 vs 1200) -> kept.
+    expect(items).toHaveLength(2)
+  })
+
+  it('does NOT retry when no printed subtotal exists (checksum cannot run)', async () => {
+    createMock.mockResolvedValue(
+      mockContent({
+        items: [{ name: 'Coffee', quantity: 1, unitPriceCents: null, lineTotalCents: 350 }],
+        currencyCode: 'USD',
+        subtotalCents: null,
+      }),
+    )
+
+    const { status } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+    expect(status).toBe(200)
+    expect(createMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to pass 1 when the retry call throws', async () => {
+    createMock
+      .mockResolvedValueOnce(
+        mockContent({
+          items: [{ name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 }],
+          currencyCode: 'TRY',
+          subtotalCents: 2400,
+        }),
+      )
+      .mockRejectedValueOnce(new Error('retry rate-limited'))
+
+    const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+
+    expect(status).toBe(200)
+    expect(createMock).toHaveBeenCalledTimes(2)
+    const items = (json as { items: { name: string }[] }).items
+    expect(items).toHaveLength(1)
+  })
 })

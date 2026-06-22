@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
+import { reconcileScannedBill } from '@/lib/reconcileScannedBill'
 
 // Read OPENAI_API_KEY from server-only env. NEVER prefix with NEXT_PUBLIC_.
 // (T-2-01 mitigation — see 02-RESEARCH.md Security Domain.)
@@ -29,9 +30,150 @@ Rules:
 - If you cannot read an item clearly, include your best guess.
 - currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
 
-// Vercel Hobby tier allows up to 60s; 30s is generous for gpt-4.1-mini vision
-// on a ~500KB receipt image while keeping client-side overlay UX bounded.
-export const maxDuration = 30
+// Vercel Hobby tier allows up to 60s. A failed-checksum scan triggers ONE retry
+// pass (2 gpt-4.1-mini vision calls worst-case), so we budget the full 60s.
+export const maxDuration = 60
+
+/** Parsed + normalized shape the route returns to the client (contract unchanged). */
+interface OcrItem {
+  name: string
+  quantity: number
+  unitPriceCents: number | null
+  lineTotalCents: number | null
+}
+interface OcrParsed {
+  items: OcrItem[]
+  currencyCode: string
+  subtotalCents: number | null
+}
+
+// Coerce a candidate to a positive integer cents value, else null.
+function toIntCentsOrNull(v: unknown): number | null {
+  return Number.isInteger(v) && (v as number) > 0 ? (v as number) : null
+}
+
+/**
+ * Coerce/normalize one raw OpenAI JSON content string into the route's response
+ * shape. Returns null when the payload is missing/malformed (caller maps to 500).
+ */
+function parseOcrResponse(content: string | null | undefined): OcrParsed | null {
+  if (!content) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(content)
+  } catch {
+    return null
+  }
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    !Array.isArray((parsed as Record<string, unknown>).items)
+  ) {
+    return null
+  }
+
+  const items = (parsed as { items: unknown[] }).items
+    .map((raw) => {
+      const i = raw as Record<string, unknown>
+      const name = typeof i.name === 'string' ? i.name : null
+      const quantity =
+        Number.isInteger(i.quantity) && (i.quantity as number) > 0 ? (i.quantity as number) : 1
+      const unitPriceCents = toIntCentsOrNull(i.unitPriceCents)
+      const lineTotalCents = toIntCentsOrNull(i.lineTotalCents)
+      return { name, quantity, unitPriceCents, lineTotalCents }
+    })
+    .filter(
+      (i): i is OcrItem =>
+        // Drop a line only when it has NO usable price (both null) or no name.
+        i.name !== null && (i.unitPriceCents !== null || i.lineTotalCents !== null),
+    )
+
+  // CURR-01 / D-01: normalize to an ISO 4217 code; fall back to app default (USD)
+  // when the model can't determine the currency.
+  const rawCode = (parsed as { currencyCode?: unknown }).currencyCode
+  const currencyCode =
+    typeof rawCode === 'string' && /^[A-Za-z]{3}$/.test(rawCode) ? rawCode.toUpperCase() : 'USD'
+
+  const subtotalCents = toIntCentsOrNull((parsed as { subtotalCents?: unknown }).subtotalCents)
+
+  return { items, currencyCode, subtotalCents }
+}
+
+/**
+ * Run ONE OpenAI OCR pass and return the parsed/normalized payload (or null on a
+ * missing/malformed response). `extraInstruction`, when present, is appended to the
+ * base prompt — used by the retry pass to tell the model about the checksum gap.
+ */
+async function runOcrPass(
+  openai: OpenAI,
+  image: string,
+  extraInstruction?: string,
+): Promise<OcrParsed | null> {
+  const promptText = extraInstruction ? `${RECEIPT_PROMPT}\n\n${extraInstruction}` : RECEIPT_PROMPT
+  const completion = await openai.chat.completions.create({
+    // gpt-4.1-mini: bake-off across 3 real receipts beat gpt-4o-mini decisively
+    // (correct quantities + unit-vs-line-total), and beat gpt-4o/gpt-4.1 too
+    // (which catastrophically misread Turkish number formats). Same API key.
+    model: 'gpt-4.1-mini',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: promptText },
+          { type: 'image_url', image_url: { url: image, detail: 'high' } },
+        ],
+      },
+    ],
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'receipt_items',
+        strict: true,
+        schema: {
+          type: 'object',
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  quantity: { type: 'integer' },
+                  // Nullable in strict mode is expressed via a type union; null is
+                  // the "absent" signal (the receipt didn't print this figure).
+                  unitPriceCents: { type: ['integer', 'null'] },
+                  lineTotalCents: { type: ['integer', 'null'] },
+                },
+                // Strict mode requires EVERY property to appear in `required`;
+                // optionality is encoded by the null union above, not by omission.
+                required: ['name', 'quantity', 'unitPriceCents', 'lineTotalCents'],
+                additionalProperties: false,
+              },
+            },
+            currencyCode: { type: 'string' },
+            subtotalCents: { type: ['integer', 'null'] },
+          },
+          required: ['items', 'currencyCode', 'subtotalCents'],
+          additionalProperties: false,
+        },
+      },
+    },
+  })
+
+  return parseOcrResponse(completion.choices[0]?.message?.content)
+}
+
+/** Absolute |subtotal − reconciledSum| for a pass; Infinity when no subtotal exists. */
+function passMismatchMagnitude(pass: OcrParsed): number {
+  const { completeness } = reconcileScannedBill(pass.items, { subtotalCents: pass.subtotalCents })
+  if (!completeness.hasSubtotal) return Infinity
+  return Math.abs(completeness.deltaCents)
+}
+
+/** Format integer cents as a plain decimal string (e.g. 2297 -> "22.97") for the retry message. */
+function formatCentsPlain(cents: number): string {
+  return (cents / 100).toFixed(2)
+}
 
 export async function POST(request: Request) {
   let body: unknown
@@ -53,102 +195,55 @@ export async function POST(request: Request) {
 
   try {
     const openai = getOpenAI()
-    const completion = await openai.chat.completions.create({
-      // gpt-4.1-mini: bake-off across 3 real receipts beat gpt-4o-mini decisively
-      // (correct quantities + unit-vs-line-total), and beat gpt-4o/gpt-4.1 too
-      // (which catastrophically misread Turkish number formats). Same API key.
-      model: 'gpt-4.1-mini',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: RECEIPT_PROMPT },
-            { type: 'image_url', image_url: { url: image, detail: 'high' } },
-          ],
-        },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'receipt_items',
-          strict: true,
-          schema: {
-            type: 'object',
-            properties: {
-              items: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string' },
-                    quantity: { type: 'integer' },
-                    // Nullable in strict mode is expressed via a type union; null is
-                    // the "absent" signal (the receipt didn't print this figure).
-                    unitPriceCents: { type: ['integer', 'null'] },
-                    lineTotalCents: { type: ['integer', 'null'] },
-                  },
-                  // Strict mode requires EVERY property to appear in `required`;
-                  // optionality is encoded by the null union above, not by omission.
-                  required: ['name', 'quantity', 'unitPriceCents', 'lineTotalCents'],
-                  additionalProperties: false,
-                },
-              },
-              currencyCode: { type: 'string' },
-              subtotalCents: { type: ['integer', 'null'] },
-            },
-            required: ['items', 'currencyCode', 'subtotalCents'],
-            additionalProperties: false,
-          },
-        },
-      },
-    })
 
-    const content = completion.choices[0]?.message?.content
-    if (!content) {
-      console.error('OCR error: empty response from gpt-4.1-mini')
+    // Pass 1.
+    const pass1 = await runOcrPass(openai, image)
+    if (!pass1) {
+      console.error('OCR error: empty/malformed response from gpt-4.1-mini (pass 1)')
       return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
     }
 
-    const parsed = JSON.parse(content) as unknown
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      !Array.isArray((parsed as Record<string, unknown>).items)
-    ) {
-      console.error('OCR error: response did not match expected schema')
-      return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
-    }
-    // Coerce a candidate to a positive integer cents value, else null.
-    const toIntCentsOrNull = (v: unknown): number | null =>
-      Number.isInteger(v) && (v as number) > 0 ? (v as number) : null
+    // Reconcile pass 1 to decide whether a corrective retry is warranted. We only
+    // retry when the receipt printed a total AND our reading does not reconcile to
+    // it — that gap is the strongest signal of a missed/miscounted (often duplicate)
+    // line, the known weak spot.
+    const recon1 = reconcileScannedBill(pass1.items, { subtotalCents: pass1.subtotalCents })
 
-    const items = ((parsed as { items: unknown[] }).items)
-      .map((raw) => {
-        const i = raw as Record<string, unknown>
-        const name = typeof i.name === 'string' ? i.name : null
-        const quantity = Number.isInteger(i.quantity) && (i.quantity as number) > 0 ? (i.quantity as number) : 1
-        const unitPriceCents = toIntCentsOrNull(i.unitPriceCents)
-        const lineTotalCents = toIntCentsOrNull(i.lineTotalCents)
-        return { name, quantity, unitPriceCents, lineTotalCents }
-      })
-      .filter(
-        (i): i is { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null } =>
-          // Drop a line only when it has NO usable price (both null) or no name.
-          i.name !== null && (i.unitPriceCents !== null || i.lineTotalCents !== null),
+    let best = pass1
+    if (pass1.subtotalCents != null && recon1.completeness.mismatch) {
+      const reconciledSum = recon1.completeness.reconciledSumCents
+      const subtotal = pass1.subtotalCents
+      const delta = Math.abs(recon1.completeness.deltaCents)
+      const extraInstruction =
+        `Your previous reading summed to ${formatCentsPlain(reconciledSum)} but the printed total is ` +
+        `${formatCentsPlain(subtotal)} (off by ${formatCentsPlain(delta)}). You likely missed or ` +
+        `miscounted a repeated line. Re-read every line — including identical duplicates — and return ` +
+        `the corrected full list.`
+
+      console.log(
+        `OCR pass 1 checksum mismatch (delta ${delta} cents) — running corrective retry (pass 2)`,
       )
 
-    // CURR-01 / D-01: normalize to an ISO 4217 code; fall back to app default (USD)
-    // when the model can't determine the currency.
-    const rawCode = (parsed as { currencyCode?: unknown }).currencyCode
-    const currencyCode =
-      typeof rawCode === 'string' && /^[A-Za-z]{3}$/.test(rawCode)
-        ? rawCode.toUpperCase()
-        : 'USD'
+      try {
+        const pass2 = await runOcrPass(openai, image, extraInstruction)
+        if (pass2) {
+          // Keep whichever pass reconciles closer to the printed total.
+          best = passMismatchMagnitude(pass2) < passMismatchMagnitude(pass1) ? pass2 : pass1
+          console.log(`OCR retry complete — kept ${best === pass2 ? 'pass 2' : 'pass 1'}`)
+        } else {
+          console.error('OCR retry (pass 2) returned empty/malformed response — keeping pass 1')
+        }
+      } catch (retryErr) {
+        // A failed retry must never lose the usable pass-1 result.
+        console.error('OCR retry (pass 2) threw — keeping pass 1:', retryErr)
+      }
+    }
 
-    // Top-level printed items subtotal (integer cents) or null.
-    const subtotalCents = toIntCentsOrNull((parsed as { subtotalCents?: unknown }).subtotalCents)
-
-    return NextResponse.json({ items, currencyCode, subtotalCents })
+    return NextResponse.json({
+      items: best.items,
+      currencyCode: best.currencyCode,
+      subtotalCents: best.subtotalCents,
+    })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.
     console.error('OCR error:', err)
