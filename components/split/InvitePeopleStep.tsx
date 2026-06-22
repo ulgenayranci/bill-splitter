@@ -89,7 +89,7 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
           </p>
         </div>
 
-        <div className="mt-auto flex w-full gap-3 pb-8">
+        <div className="mt-2 flex w-full gap-3">
           <Button variant="outline" onClick={onContinue} className="h-12 flex-1">
             Skip
           </Button>
