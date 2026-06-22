@@ -847,7 +847,7 @@ export function CollaborativeClaimingView({
               Totals will only reflect what&rsquo;s been claimed. Share the link so others can add their items.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex gap-2">
+          <div className="mt-2 flex gap-2">
             <Button
               variant="outline"
               aria-label="Share bill link"
@@ -870,7 +870,7 @@ export function CollaborativeClaimingView({
           <button
             type="button"
             onClick={() => setShowUnclaimedWarning(false)}
-            className="mx-auto text-[15px] font-medium text-zinc-500 underline-offset-4 hover:underline"
+            className="mx-auto mt-2 text-[15px] font-medium text-zinc-500 underline-offset-4 hover:underline"
           >
             Continue editing
           </button>
