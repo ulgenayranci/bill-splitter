@@ -304,7 +304,7 @@ describe('CollaborativeClaimingView', () => {
 
   // D-12: previously this path could land on a blocking 'waiting' screen when items were
   // unclaimed. Now: done (through the warning) → Results directly (D-01); tip is optional modal.
-  it('Test 18 (D-12, Results always): with unclaimed items, Finish anyway → Results (no waiting screen)', async () => {
+  it('Test 18 (D-12, Results always): with unclaimed items, Show my result → Results (no waiting screen)', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
@@ -312,7 +312,7 @@ describe('CollaborativeClaimingView', () => {
     // Unclaimed items exist → warning dialog appears (D-09)
     const warnDialog = await screen.findByRole('dialog')
     expect(within(warnDialog).getByText(/items still unclaimed/i)).toBeDefined()
-    fireEvent.click(within(warnDialog).getByRole('button', { name: /finish anyway/i }))
+    fireEvent.click(within(warnDialog).getByRole('button', { name: /show my result/i }))
     // D-01: Done goes straight to Results. D-04: with unclaimed items remaining, the headline
     // is the playful "up for grabs" variant (not the "You're all set!" fully-claimed copy).
     await waitFor(() => expect(screen.getByText(/up for grabs/i)).toBeDefined())
@@ -466,27 +466,31 @@ describe('CollaborativeClaimingView', () => {
     expect(within(dialog).getByRole('button', { name: /share bill link/i })).toBeDefined()
   })
 
-  it('Test 30 (D-09 go back): "Go back" closes the dialog and stays in claiming', async () => {
+  it('Test 30 (D-09 continue editing): "Continue editing" closes the dialog and stays in claiming', async () => {
     await selectAlice()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) }))
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
     const warnDialog = await screen.findByRole('dialog')
     expect(within(warnDialog).getByText(/2 items still unclaimed/i)).toBeDefined()
-    fireEvent.click(within(warnDialog).getByRole('button', { name: /go back/i }))
+    // Round-6: "Go back" outline button replaced by a centered "Continue editing" link.
+    expect(within(warnDialog).queryByRole('button', { name: /go back/i })).toBeNull()
+    fireEvent.click(within(warnDialog).getByRole('button', { name: /continue editing/i }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.getByRole('button', { name: /i.?m done/i })).toBeDefined()
     // Still on claiming screen — the Results "Add a tip?" text is not present
     expect(screen.queryByText('Add a tip?')).toBeNull()
   })
 
-  it('Test 31 (D-12 continue): "Finish anyway" runs the done path and advances to Results', async () => {
+  it('Test 31 (D-12 continue): "Show my result" runs the done path and advances to Results', async () => {
     await selectAlice()
     const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', doneFetch)
     fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
     const warnDialog = await screen.findByRole('dialog')
     expect(within(warnDialog).getByText(/2 items still unclaimed/i)).toBeDefined()
-    fireEvent.click(within(warnDialog).getByRole('button', { name: /finish anyway/i }))
+    // Round-6: "Finish anyway" renamed to "Show my result".
+    expect(within(warnDialog).queryByRole('button', { name: /finish anyway/i })).toBeNull()
+    fireEvent.click(within(warnDialog).getByRole('button', { name: /show my result/i }))
     // G3: "Add a tip?" is now inline clickable text on PersonResultsScreen
     await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
     expect(doneFetch).toHaveBeenCalled()

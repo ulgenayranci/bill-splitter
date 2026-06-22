@@ -847,22 +847,15 @@ export function CollaborativeClaimingView({
               Totals will only reflect what&rsquo;s been claimed. Share the link so others can add their items.
             </DialogDescription>
           </DialogHeader>
-          <button
-            type="button"
-            aria-label="Share bill link"
-            onClick={() => void handleWarningShare()}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border text-[14px] text-zinc-700 hover:bg-zinc-50"
-          >
-            {warningLinkCopied ? <Check size={16} /> : <Share2 size={16} />}
-            {warningLinkCopied ? 'Link copied!' : 'Share bill link'}
-          </button>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setShowUnclaimedWarning(false)}
-              className="flex-1 h-12"
+              aria-label="Share bill link"
+              onClick={() => void handleWarningShare()}
+              className="flex-1 h-12 gap-2"
             >
-              Go back
+              {warningLinkCopied ? <Check size={16} /> : <Share2 size={16} />}
+              {warningLinkCopied ? 'Link copied!' : 'Share bill link'}
             </Button>
             <Button
               onClick={() => {
@@ -871,9 +864,16 @@ export function CollaborativeClaimingView({
               }}
               className="flex-1 h-12 bg-amber-600 hover:bg-amber-700"
             >
-              Finish anyway
+              Show my result
             </Button>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowUnclaimedWarning(false)}
+            className="mx-auto text-[15px] font-medium text-zinc-500 underline-offset-4 hover:underline"
+          >
+            Continue editing
+          </button>
         </DialogContent>
       </Dialog>
     </main>
