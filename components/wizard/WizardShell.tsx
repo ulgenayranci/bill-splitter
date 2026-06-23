@@ -57,7 +57,9 @@ export function WizardShell({ children }: WizardShellProps) {
 
       {/* Progress strip — 3px tall bars, 3 segments (Setup / Bill View / Results) */}
       <ProgressStrip filled={filled} />
-      <main className="flex flex-1 flex-col px-6 py-8 pb-24">{children}</main>
+      {/* pt-3 matches the bill screen's BillViewHeader top offset, so the scan
+          tagline/heading sits at the same level as the "Bill — date" heading. */}
+      <main className="flex flex-1 flex-col px-6 pt-3 pb-24">{children}</main>
     </div>
   )
 }

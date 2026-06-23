@@ -96,12 +96,28 @@ export function ClaimableItemCard({
     yourShareCents = shares[myPersonId] ?? null
   }
 
+  // The active person's own avatar color (raw hex). Selecting an item highlights it
+  // with this color — full-color stroke + a dim (~8%) tinted fill of the same hex —
+  // so "mine" reads as my color (green avatar → green card), not a generic coral.
+  const myColorHex = (
+    AVATAR_COLORS[(peopleById[myPersonId]?.colorIndex ?? 0) % AVATAR_COLORS.length] ??
+    AVATAR_COLORS[0]
+  )
+    .replace('bg-[', '')
+    .replace(']', '')
+
+  // State is a COLOR change only — border width never changes between states, so
+  // claiming/un-claiming an item never shifts the card's layout. No shadow, no ring.
+  // Selected (mine): white fill, avatar-colored stroke (border color applied inline).
+  let stateClasses = 'bg-white border-zinc-200'
+  if (mine) stateClasses = 'bg-white'
+  else if (fullyClaimed) stateClasses = 'bg-zinc-50 border-zinc-200'
+
   const cardClasses = [
-    'flex min-h-[44px] flex-col gap-2 px-4 py-3 transition-colors',
-    mine ? 'bg-coral-50 border border-coral-200' : '',
-    !mine && fullyClaimed ? 'bg-zinc-50' : '',
+    'flex min-h-[44px] flex-col gap-2 rounded-lg border px-4 py-3 shadow-none ring-0 transition-colors',
+    stateClasses,
     !isMultiQty ? 'cursor-pointer' : '',
-  ].filter(Boolean).join(' ')
+  ].join(' ')
 
   const cardRole = isMultiQty ? undefined : 'button'
   const cardAriaLabel = isMultiQty
@@ -117,15 +133,28 @@ export function ClaimableItemCard({
       aria-label={cardAriaLabel}
       onClick={cardOnClick}
       className={cardClasses}
+      style={
+        mine
+          ? {
+              borderColor: myColorHex,
+              // Tint composited over a solid white base (not the paper page behind it),
+              // so the color stays readable regardless of the cream background.
+              backgroundColor: '#ffffff',
+              backgroundImage: `linear-gradient(${myColorHex}14, ${myColorHex}14)`,
+            }
+          : undefined
+      }
     >
       {/* Top row: name + price + (qty=1) Check icon */}
       <div className="flex items-center gap-3">
         {!isMultiQty && (
-          <div className="shrink-0">
+          <div className="flex shrink-0 items-center">
             {mine ? (
-              <Check size={24} className="text-coral-600" aria-hidden="true" />
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full" style={{ backgroundColor: myColorHex }} aria-hidden="true">
+                <Check size={16} className="text-white" />
+              </span>
             ) : (
-              <span className="inline-block h-6 w-6 rounded-full border-2 border-zinc-300" aria-hidden="true" />
+              <span className="block h-6 w-6 rounded-full border-2 border-zinc-300" aria-hidden="true" />
             )}
           </div>
         )}
@@ -167,7 +196,8 @@ export function ClaimableItemCard({
               <Minus size={16} />
             </Button>
             <span
-              className={`min-w-[2ch] text-center text-[16px] font-semibold ${myQty > 0 ? 'text-coral-600' : 'text-zinc-400'}`}
+              className={`min-w-[2ch] text-center text-[16px] font-semibold ${myQty > 0 ? '' : 'text-zinc-400'}`}
+              style={myQty > 0 ? { color: myColorHex } : undefined}
               data-testid="qty-count"
             >
               {myQty}

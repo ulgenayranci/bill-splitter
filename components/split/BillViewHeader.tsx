@@ -9,17 +9,6 @@ import type { SessionPayload } from '@/lib/sessionSchema'
 /** Maximum number of "other people" circles shown before the +N overflow badge. */
 const MAX_STRIP_AVATARS = 3
 
-/**
- * Format a Unix-ms timestamp as "Mon DD" — e.g. "Jun 26".
- * RESEARCH Pitfall 7: no merchant field in schema; always falls back to "Bill — {Mon DD}".
- */
-export function formatBillDate(createdAt: number): string {
-  return new Date(createdAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 interface BillViewHeaderProps {
   session: SessionPayload
   myPersonId: PersonId | null
@@ -30,7 +19,7 @@ interface BillViewHeaderProps {
 /**
  * Bill View chrome header.
  *
- * Row 1: bill title ("Bill — Jun 26") + date line + receipt/share icons right-aligned.
+ * Row 1: bill title ("Bill — 23 June 2026") + share button right-aligned.
  * Row 2: people strip — own-identity as coral expanded pill; others as compact circles;
  *         overflow "+N" badge when more than MAX_STRIP_AVATARS=3 others.
  * The entire people strip is tappable (D-03 change-identity via onStripTap).
@@ -51,14 +40,22 @@ export function BillViewHeader({
   const visibleOthers = otherPeople.slice(0, MAX_STRIP_AVATARS)
   const overflowCount = Math.max(0, otherPeople.length - MAX_STRIP_AVATARS)
 
-  const billTitle = `Bill — ${formatBillDate(session.createdAt)}`
+  // Active person's own avatar color (raw hex) — used to highlight their pill
+  // in their own color instead of coral, so the chip reads as "you" by color.
+  const myColorHex = (
+    AVATAR_COLORS[(myPerson?.colorIndex ?? 0) % AVATAR_COLORS.length] ??
+    AVATAR_COLORS[0]
+  )
+    .replace('bg-[', '')
+    .replace(']', '')
 
-  // Full date line (e.g. "26 Jun 2025") for the secondary row
-  const dateLineFull = new Date(session.createdAt).toLocaleDateString('en-GB', {
+  // Bill name uses the full creation date — OCR has no merchant field (RESEARCH Pitfall 7),
+  // so we name it "Bill — {DD Month YYYY}" e.g. "Bill — 23 June 2026".
+  const billTitle = `Bill — ${new Date(session.createdAt).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  })
+  })}`
 
   async function handleShare() {
     const origin =
@@ -106,32 +103,15 @@ export function BillViewHeader({
 
   return (
     <div className="bg-background border-b border-zinc-100 px-4 pt-3 pb-2">
-      {/* Row 1: bill title + date (left) + Share button (right) */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-[20px] font-semibold text-zinc-900 leading-[1.2]">
-            {billTitle}
-          </h1>
-          <p className="text-[14px] text-zinc-400 mt-0.5">{dateLineFull}</p>
-        </div>
-        {/* Share button — top-right */}
-        <button
-          type="button"
-          aria-label="Share bill link"
-          onClick={handleShare}
-          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white transition-colors"
-        >
-          {copied ? (
-            <Check size={18} aria-hidden="true" />
-          ) : (
-            <Share2 size={18} aria-hidden="true" />
-          )}
-          <span className="text-[13px] font-medium">{copied ? 'Copied!' : 'Share'}</span>
-        </button>
+      {/* Row 1: bill title */}
+      <div className="min-w-0">
+        <h1 className="text-[20px] font-semibold text-zinc-900 leading-[1.2]">
+          {billTitle}
+        </h1>
       </div>
 
-      {/* Row 2: people strip alone */}
-      <div className="mt-2 pb-1">
+      {/* Row 2: people strip (left) + Invite button (right), bottom-aligned together */}
+      <div className="mt-2 pb-1 flex items-end justify-between gap-2">
         {/* People facepile — tappable to change identity */}
         <div
           role="button"
@@ -146,12 +126,17 @@ export function BillViewHeader({
         {/* Own-identity expanded pill — leftmost, highest z-index, no negative margin */}
         {myPerson && (
           <div
-            className="flex items-center gap-2 h-8 rounded-full bg-coral-50 border border-coral-200 px-3"
-            style={{ zIndex: otherPeople.length + 2, position: 'relative' }}
+            className="flex items-center gap-2 h-8 rounded-full border-2 pl-0.5 pr-3"
+            style={{
+              zIndex: otherPeople.length + 2,
+              position: 'relative',
+              backgroundColor: '#ffffff',
+              borderColor: myColorHex,
+            }}
           >
             {/* Avatar circle inside the pill */}
             <span
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${AVATAR_COLORS[(myPerson.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
+              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-white ${AVATAR_COLORS[(myPerson.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
               aria-hidden="true"
             >
               {myPerson.name.charAt(0).toUpperCase()}
@@ -162,7 +147,7 @@ export function BillViewHeader({
           </div>
         )}
 
-        {/* Other people — compact circles overlapping with negative margin + white ring */}
+        {/* Other people — compact circles overlapping with negative margin + paper ring */}
         {visibleOthers.map((person, i) => {
           const colorClass =
             AVATAR_COLORS[(person.colorIndex ?? 0) % AVATAR_COLORS.length] ??
@@ -171,7 +156,7 @@ export function BillViewHeader({
             <span
               key={person.id}
               title={person.name}
-              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ring-2 ring-white -ml-3 ${colorClass}`}
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ring-2 ring-paper -ml-3 ${colorClass}`}
               style={{ zIndex: otherPeople.length + 1 - i, position: 'relative' }}
               aria-hidden="true"
             >
@@ -183,13 +168,28 @@ export function BillViewHeader({
         {/* Overflow badge — overlapping, lowest z-index */}
         {overflowCount > 0 && (
           <span
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[14px] font-semibold text-zinc-500 ring-2 ring-white -ml-3"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[14px] font-semibold text-zinc-500 ring-2 ring-paper -ml-3"
             style={{ zIndex: 0, position: 'relative' }}
           >
             +{overflowCount}
           </span>
         )}
         </div>
+
+        {/* Invite button — sibling of the strip so it doesn't trigger change-identity */}
+        <button
+          type="button"
+          aria-label="Invite — copy bill link"
+          onClick={handleShare}
+          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white transition-colors"
+        >
+          {copied ? (
+            <Check size={18} aria-hidden="true" />
+          ) : (
+            <Share2 size={18} aria-hidden="true" />
+          )}
+          <span className="text-[13px] font-medium whitespace-nowrap">{copied ? 'Copied!' : 'Invite'}</span>
+        </button>
       </div>
     </div>
   )

@@ -636,18 +636,21 @@ export function CollaborativeClaimingView({
       />
 
       {/* R3-1: items-claimed progress bar — non-interactive x/N chip (units, not rows). */}
-      <div className="flex items-center justify-between border-b border-zinc-100 bg-background px-6 py-2">
-        <span className="text-[14px] text-zinc-500">Items claimed</span>
+      <div className="mt-4 flex items-center gap-3 border-b border-zinc-100 bg-background px-6 py-2">
+        <span className="text-[14px] font-semibold uppercase tracking-[0.07em] text-zinc-400">
+          Items claimed
+        </span>
+        <span className="h-px flex-1 bg-zinc-200" />
         <span
           data-testid="items-claimed-chip"
-          className="rounded-full bg-coral-100 px-3 py-1 text-[13px] font-semibold text-coral-700"
+          className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-coral-100 px-3 py-0.5 text-[14px] font-bold text-coral-700"
         >
           {claimedUnits}/{totalUnits}
         </span>
       </div>
 
       {/* Item list */}
-      <ul className="flex flex-col gap-2 px-6 py-4 pb-[160px]">
+      <ul className="flex flex-col gap-2 px-6 pt-2 pb-[160px]">
         {session.items.map((item) => {
           const claimsForItem = session.claims?.items?.[item.id] ?? {}
           const isEditing = inlineForm?.kind === 'edit' && inlineForm.itemId === item.id

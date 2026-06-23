@@ -14,7 +14,7 @@ interface ProgressStripProps {
  */
 export function ProgressStrip({ filled }: ProgressStripProps) {
   return (
-    <div className="flex w-full gap-1 px-5 pt-2.5">
+    <div className="flex w-full gap-1 px-5 pt-6 pb-4">
       {Array.from({ length: PROGRESS_SEGMENTS }, (_, idx) => (
         <div
           key={idx}

@@ -148,10 +148,11 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
             maxLength={50}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
+            className="h-12 w-full rounded-lg text-base"
           />
           <Button
             type="button"
-            className="bg-coral-500"
+            className="h-12 w-full bg-coral-500"
             onClick={handleAddMe}
           >
             Add me

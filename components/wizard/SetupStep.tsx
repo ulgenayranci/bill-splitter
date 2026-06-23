@@ -341,7 +341,7 @@ export function SetupStep() {
       />
 
       {/* Tagline */}
-      <p className="text-[16px] font-medium leading-[1.5] text-zinc-500">
+      <p className="text-[16px] font-medium leading-[1.5] text-zinc-900">
         Split any bill in seconds.
       </p>
 
@@ -512,7 +512,7 @@ export function SetupStep() {
           className={`flex flex-col items-center gap-3 rounded-xl border-[1.5px] border-dashed px-5 py-7 text-center transition-colors ${
             ocrStatus === 'error'
               ? 'border-red-300 bg-red-50'
-              : 'border-zinc-300 bg-zinc-50'
+              : 'border-zinc-300 bg-white'
           }`}
         >
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coral-50">
@@ -570,12 +570,13 @@ export function SetupStep() {
           <button
             type="button"
             aria-label="Add person"
-            disabled={!name.trim()}
             onClick={() => {
               handleAddPerson()
               nameInputRef.current?.focus()
             }}
-            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-ink text-white transition-opacity disabled:opacity-40"
+            className={`absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
+              name.trim() ? 'bg-coral-500 text-white' : 'text-zinc-400'
+            }`}
           >
             <Plus size={18} aria-hidden="true" />
           </button>

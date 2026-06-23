@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,7 @@ import { useBillStore } from '@/stores/useBillStore'
 
 /**
  * easy billsy app shell header (design "Style A").
- * White background, dark wordmark, coral hamburger lines — appears on every screen.
+ * White background, dark wordmark, coral "+" menu button — appears on every screen.
  * Menu: New Split (active) / History (disabled) / About Us (disabled) per D-04/D-06.
  */
 export function AppHeader() {
@@ -79,11 +80,11 @@ export function AppHeader() {
   return (
     <>
       <header
-        className={`sticky top-0 z-50 flex h-12 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 transition-opacity duration-300 ${isHidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        className={`sticky top-0 z-50 flex h-14 flex-shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-4 transition-opacity duration-300 ${isHidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
         {/* Wordmark */}
         <div
-          className="select-none text-[17px] leading-none tracking-[-0.03em] text-zinc-900"
+          className="relative top-0.5 select-none text-[17px] leading-none tracking-[-0.03em] text-zinc-900"
           aria-label="easy billsy"
         >
           <span className="font-normal">easy</span>
@@ -91,18 +92,18 @@ export function AppHeader() {
           <span className="font-bold">billsy</span>
         </div>
 
-        {/* Hamburger */}
+        {/* Menu trigger — a prominent coral "+" button (replaces the old hamburger).
+            With only split-bill functionality, this reads clearly as "start a new
+            split"; it still opens the same menu below. */}
         <button
           type="button"
           aria-label="Menu"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className="flex flex-col gap-[3px] p-2"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-coral-500 text-white transition-colors"
         >
-          <span className="block h-[1.5px] w-[18px] rounded bg-coral-500" />
-          <span className="block h-[1.5px] w-[18px] rounded bg-coral-500" />
-          <span className="block h-[1.5px] w-[18px] rounded bg-coral-500" />
+          <Plus size={22} aria-hidden="true" />
         </button>
 
         {/* Dropdown menu */}
@@ -117,7 +118,7 @@ export function AppHeader() {
             <div
               role="menu"
               aria-label="Main menu"
-              className="absolute right-3 top-[46px] z-50 w-[168px] overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 shadow-lg"
+              className="absolute right-3 top-[58px] z-50 w-[168px] overflow-hidden rounded-xl border border-zinc-200 bg-white py-1 shadow-lg"
             >
               <button
                 type="button"

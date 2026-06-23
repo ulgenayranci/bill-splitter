@@ -213,13 +213,19 @@ export function PersonResultsScreen({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)
               }}
-              className="cursor-pointer rounded-lg bg-[#e0a400]/10 border border-[#e0a400]/30 px-4 py-3 transition-colors"
+              className="cursor-pointer rounded-lg border border-coral-500 bg-white px-4 py-3 ring-[3px] ring-coral-200 transition-colors"
+              style={{
+                // 8% coral tint composited over a solid white base (not the paper page),
+                // so it stays readable on the cream background.
+                backgroundColor: '#ffffff',
+                backgroundImage: 'linear-gradient(#f1603f14, #f1603f14)',
+              }}
             >
-              <p className="text-[14px] font-medium text-warn mb-2">Unclaimed items</p>
+              <p className="text-[14px] font-semibold text-coral-700 mb-2">Unclaimed items</p>
               {/* R3-5: always list every unclaimed item (no count-collapse). */}
               <ul className="flex flex-col gap-1">
                 {unclaimedItems.map((item) => (
-                  <li key={item.id} className="text-[14px] text-warn">{item.name}</li>
+                  <li key={item.id} className="text-[14px] text-zinc-700">{item.name}</li>
                 ))}
               </ul>
             </div>
@@ -276,9 +282,13 @@ export function PersonResultsScreen({
                       {person.name.charAt(0).toUpperCase()}
                     </div>
 
-                    {/* Name + total */}
-                    <div className="flex flex-col">
-                      <span className="text-[14px] font-medium text-foreground">{person.name}</span>
+                    {/* Name — centered with the avatar */}
+                    <span className="flex-1 truncate text-[14px] font-medium text-foreground">
+                      {person.name}
+                    </span>
+
+                    {/* Total — right-aligned */}
+                    <div className="flex shrink-0 flex-col items-end">
                       <span
                         className="text-[28px] font-semibold text-coral-600"
                         data-testid={isCurrentUser ? 'results-total' : undefined}
@@ -286,9 +296,6 @@ export function PersonResultsScreen({
                         {isCurrentUser
                           ? formatCents(share.total, currencyCode)
                           : formatCents(share.itemSubtotal, currencyCode)}
-                      </span>
-                      <span className="text-[14px] text-zinc-500">
-                        {isCurrentUser ? 'Your share' : ''}
                       </span>
                     </div>
                   </div>
@@ -404,11 +411,11 @@ export function PersonResultsScreen({
 
           {/* G2+G4: Two half-width buttons in a row */}
           <div className="flex gap-3">
-            {/* Go back (outline, left) */}
+            {/* Go back (white, left) — white fill + visible border so it reads on the paper page */}
             <Button
               type="button"
               variant="outline"
-              className="h-12 flex-1"
+              className="h-12 flex-1 border-zinc-200 bg-white"
               onClick={onEditBill}
             >
               Go back
