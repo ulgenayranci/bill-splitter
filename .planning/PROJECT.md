@@ -50,20 +50,15 @@ Anyone splitting a restaurant bill with friends. Built for broad use, not just p
 
 Mobile-friendly web app. Works on any phone via browser, no install needed. Can be pinned to home screen.
 
-## Current Milestone: v2.0 easy-billsy Redesign
+## Latest Milestone: v2.0 easy-billsy Redesign — ✅ SHIPPED 2026-06-24
 
-**Goal:** Rebuild the bill splitter as "easy-billsy" — a clarity-driven, scan-first flow with no host role, so a casual table anywhere (any currency) can split fast without friction.
+**Goal (met):** Rebuilt the bill splitter as "easy-billsy" — a clarity-driven, scan-first flow with no host role, so a casual table anywhere (any currency) can split fast without friction.
 
-**Target features:**
-- App shell — easy-billsy header (wordmark + hamburger: New Split / History / About Us)
-- Setup screen — scan-first, inline people add
-- "Who are you?" identity modal between Setup and claiming
-- Bill View — flat real-time claiming (shared items, quantity stepper); **no host role**
-- Results — locked per-person breakdown + Copy / Edit bill / New bill
-- Tip — modal launched from a button on the Results screen
-- Currency recognition — OCR detects the receipt's currency symbol; all amounts render in it
+**Shipped:** easy-billsy app shell; scan-first Setup with inline people add; "Who are you?" identity modal; flat real-time Bill View (shared items, quantity stepper, no host role); locked per-person Results with Copy / Edit / New; Results-launched tip modal; currency recognition rendered throughout.
 
-**Deferred:** Bill history (inert "History" stub now; saved splits → v2.1+)
+**Deferred:** Bill history (inert "History" stub now; saved splits → v2.1+); live remove-person (descoped — setup-screen remove retained).
+
+**Next:** No milestone in flight — run `/gsd:new-milestone` to scope v2.1.
 
 ## Requirements
 
@@ -79,18 +74,18 @@ Mobile-friendly web app. Works on any phone via browser, no install needed. Can 
 - [x] Ambiguous items prompt: take menu photo OR enter manually — v1.0 Phase 3 (OCR-04)
 - [x] Shareable link so each person claims their own items — v1.0 Phase 4 (RESULTS-02)
 - [x] Real-time collaborative claiming with quantity, shared items, and per-person tips — v1.0 Phase 6
+- ✓ easy-billsy app shell — header wordmark + hamburger (New Split / History stub / About Us) — v2.0 Phase 7 (SHELL-01..04)
+- ✓ Scan-first Setup screen with inline people add — v2.0 Phase 7 (SETUP-01..04)
+- ✓ Currency recognition from the receipt (detected + rendered throughout, incl. zero-decimal) — v2.0 Phases 7/10 (CURR-01..04)
+- ✓ Flat real-time Bill View — claim/shared/quantity, **no host role** — v2.0 Phases 8/9 (CLAIM-01..06)
+- ✓ "Who are you?" identity modal (persisted, no-nag, "I'm not listed") — v2.0 Phase 9 (IDENT-01..04)
+- ✓ Locked Results — per-person breakdown + Copy / Edit / New + unclaimed callout — v2.0 Phases 10/11 (RESULTS-03..05)
+- ✓ Tip via a Results-screen modal (prominent button) — v2.0 Phases 10/11 (TIP-02, TIP-03)
+- ✓ Rename participants live (flat no-lock) — v2.0 Phase 11 (PART-03..05)
 
-### Active (v2.0 — easy-billsy)
+### Active (v2.1 — not yet scoped)
 
-- [ ] easy-billsy app shell — header wordmark + hamburger menu (New Split / History / About Us)
-- [ ] Scan-first Setup screen with inline people add
-- [ ] "Who are you?" identity modal
-- [ ] Flat real-time Bill View — claim items, shared items, quantity stepper (no host role)
-- [ ] Locked Results — per-person breakdown + Copy / Edit bill / New bill
-- [ ] Tip via a Results-screen modal
-- [ ] Currency recognition from the receipt (symbol detected + rendered throughout)
-
-REQ-IDs assigned in REQUIREMENTS.md.
+- Run `/gsd:new-milestone` to define v2.1 requirements. Candidate carry-overs: bill history (saved splits), live remove-person (needs a real Redis/Lua execution test), and a user-facing privacy disclosure (open TODO).
 
 ### Out of Scope (v1) / Deferred to v2
 
@@ -109,7 +104,11 @@ REQ-IDs assigned in REQUIREMENTS.md.
 | AI abbreviation expansion | Receipts are unreadable without it | ✓ Good — our clearest quality moat vs competitors |
 | Menu photo as fallback | Handles edge cases without forcing manual typing | ✓ Good — shipped Phase 3 |
 | Proportional tip/tax | Fairer than equal split when orders vary widely | ⚠️ Dropped — per-person tip shipped instead; tax cut from v2 |
-| Host approval / moderation flow | Central authority for edits & disputes | ⚠️ Revisit — adds complexity; v2 removes it for a flat model |
+| Flat model — remove host role entirely | A casual table has no "host"; approval queues add friction | ✓ Good — v2.0 shipped; one secret-free share link, anyone claims/edits |
+| Scan-first single Setup screen (wizard retired) | Scanning is the hero action; the multi-step wizard buried it | ✓ Good — v2.0 Phase 7 |
+| Currency from OCR, no manual selector | A `<select>` read as a converter and confused intent | ✓ Good — detected + rendered everywhere; selector removed (CURR-04) |
+| Per-claimed-unit billing (not full-line) | A claimer of 1-of-N units owes only their units; leftovers unbilled | ✓ Good — latent bug fixed 2026-06-24; display === billed |
+| Defer live remove-person | Lua purge had 2 Critical findings + no execution test | — Pending — setup-screen remove retained; revisit with a real test |
 
 ## Evolution
 
@@ -133,6 +132,10 @@ This document evolves at phase transitions and milestone boundaries.
 
 **v1.0 MVP shipped (2026-06-04)** — the full photo → OCR → AI-cleaned items → collaborative per-person claiming → per-person tips → results flow is live on Vercel. ~6,270 LOC TS/TSX across 6 phases. Stack: Next.js 16, React 19, Tailwind v4, shadcn/ui, Zustand, Upstash Redis, GPT-4o-mini vision.
 
-**v2.0 easy-billsy redesign — all phases complete (Phases 7–10).** Clarity-driven rebuild (flat model, scan-first flow). Phases 7–9 removed all host-role concepts from the schema, Lua scripts, and routes; shipped the direct `/edit` route and the fully flat collaborative Bill View ("Who are you?" identity modal, tap-to-join equal splits via the `share` claim action, live attribution chips, warn-but-allow done flow). Phase 10 closed the loop: currency-aware `formatCents` (Intl.NumberFormat, correct symbol + decimal places incl. zero-decimal JPY/KRW, legacy `$` path preserved); an atomic Lua `update_currency` op so a participant can change the bill currency for everyone without clobbering concurrent claims; the locked Results screen (all-people accordion, items-only grand total, fixed Copy/Edit/New Split CTA bar, inline currency override); and tip-as-optional-modal (Done → Results, "Add a tip?" launches a shadcn Dialog) replacing the mandatory linear tip phase. 6 UAT items pending from Phase 9 + 4 from Phase 10 (09/10-HUMAN-UAT.md). v2.0 milestone ready for completion/audit.
+**v2.0 easy-billsy redesign — SHIPPED 2026-06-24 (Phases 7–11).** Clarity-driven rebuild (flat model, scan-first flow). Phases 7–9 removed all host-role concepts from the schema, Lua scripts, and routes; shipped the direct `/edit` route and the fully flat collaborative Bill View ("Who are you?" identity modal, tap-to-join equal splits via the `share` claim action, live attribution chips, warn-but-allow done flow). Phase 10 added currency-aware `formatCents` (Intl.NumberFormat, zero-decimal JPY/KRW, legacy `$` path preserved), the locked Results screen, and tip-as-optional-modal. Phase 11 polished the bill/results screens (unclaimed callout, prominent tip button, ≥44px Share, currency-selector removal) and added live rename-person; live remove-person was descoped.
 
-*Last updated: 2026-06-08 after Phase 10 (final v2.0 phase)*
+**Milestone audit (2026-06-24):** status `tech_debt`, **0 blockers**, 32/35 requirements satisfied (3 PART reqs deferred by decision), all 5 E2E flows connect. Known debt: Phase 7 has no VERIFICATION/VALIDATION, Phases 9–11 verification reports sit at `human_needed`, and retired wizard components remain as dead code. A latent partial-claim billing bug (CLAIM-02) was found and fixed the same day.
+
+**Stack:** Next.js 16, React 19, Tailwind v4, shadcn/ui, Zustand, Upstash Redis, GPT-4o-mini vision. Live on Vercel.
+
+*Last updated: 2026-06-24 after v2.0 milestone completion*

@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: easy-billsy Redesign
-status: verifying
-last_updated: "2026-06-09T06:58:35.972Z"
-last_activity: 2026-06-09
+status: Awaiting next milestone
+last_updated: "2026-06-23T23:22:53.839Z"
+last_activity: 2026-06-23 — Milestone v2.0 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -16,28 +16,26 @@ progress:
 # Project State
 
 **Project:** Bill Splitter
-**Milestone:** v2.0 — easy-billsy Redesign
-**Last updated:** 2026-06-05
+**Milestone:** v2.0 — easy-billsy Redesign (✅ shipped 2026-06-24)
+**Last updated:** 2026-06-24
 
 ---
 
 ## Project Reference
 
+See: .planning/PROJECT.md (updated 2026-06-24)
+
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Phase 11 — bug-fixes-polish-bill-results-screens-participant-management
+**Current focus:** Planning next milestone (v2.1) — run `/gsd:new-milestone`
 
 ---
 
 ## Current Position
 
-Phase: 11 (bug-fixes-polish-bill-results-screens-participant-management) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-23 - Completed quick task 260623-u9k: implemented spec §06 button fills (outline buttons white-filled, primary coral shadow, ghost n100 fill). Pushed to main.
-
-```
-Progress: [██████████] 100%
-```
+Phase: Milestone v2.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-23 — Milestone v2.0 completed and archived
 
 ## Performance Metrics (v1.0 final)
 
@@ -149,13 +147,26 @@ Acknowledged and deferred at v1.0 milestone close (2026-06-04):
 
 All assessed in `milestones/v1.0-MILESTONE-AUDIT.md` (PASSED). The v2 easy-billsy redesign supersedes much of this surface.
 
+---
+
+Acknowledged and deferred at v2.0 milestone close (2026-06-24):
+
+| Category | Item | Status | Note |
+|----------|------|--------|------|
+| requirement | PART-01 / PART-02 / PART-06 | deferred | Live remove-person descoped (2 Critical Lua findings, no execution test). Setup-screen remove retained. |
+| verification | phase 07 | missing | No VERIFICATION.md/VALIDATION.md — functionally working + integration-confirmed; never formally verified. |
+| verification | phase 09 / 10 / 11 | human_needed | Automated truths verified (19/19, 13/13, 8/8); human UAT covered per Phase 11 UAT (fully green). |
+| traceability | phase 9 reqs | stale `[ ]` | IDENT-01..04, CLAIM-02/04/05/06 are verified + summary-complete; checkboxes never flipped (archived as-is in v2.0-REQUIREMENTS.md). |
+| dead_code | retired wizard + /api/clarify + UnclaimedBanner + empty OcrErrorToast | unused | No runtime route reaches them; only tests import. Safe to delete in a cleanup. |
+| todo | add-user-facing-privacy-disclosure | pending | Carried from v1.0; candidate for v2.1. |
+
+Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 blockers).
+
 ## Session Continuity
 
-**Last session:** 2026-06-09T06:58:35.967Z
-**Next action:** Phase 8 planned + verified (5 plans, 5 waves). Ready for `/gsd:execute-phase 8`. Waves are strictly sequential (schema → backend → small consumers → CollaborativeClaimingView → test migration).
+**Last session:** 2026-06-24 — v2.0 milestone audited (0 blockers) and closed; tagged v2.0.
+**Next action:** Start v2.1 with `/gsd:new-milestone`. Optional cleanup first: delete the retired wizard files + `/api/clarify` and flip the stale Phase-9 traceability checkboxes.
 
 ## Operator Next Steps
 
-- ✅ **Reassess gate complete (2026-06-05):** 8→9→10 sequencing confirmed; coverage complete. Decisions recorded in ROADMAP + Key Decisions: keep ≥2 Setup gate (revise IDENT-02), pull currencyCode payload field into Phase 8, doc drift fixed. Open for Phase 9 discuss: unclaimed-items UX.
-- **Next:** `/gsd:discuss-phase 8` → `/gsd:plan-phase 8`. Note for Phase 8: include the currencyCode payload field + USD migration default alongside the host-removal surgery.
-- Pre-milestone cleanup candidates (deferred, logged in `07-.../deferred-items.md`): add `eslint.config.js` so lint can gate CI; retire/repair the 5 stale v1 wizard tests (AddItemsStep, AddPeopleStep, CollaborativeClaimingView, PersonSlotPicker).
+- Start the next milestone with /gsd-new-milestone

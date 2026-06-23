@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–6 (shipped 2026-06-04) → [archive](milestones/v1.0-ROADMAP.md)
-- 📋 **v2.0 easy-billsy Redesign** — Phases 7–11 (in progress; reopened 2026-06-09 to add Phase 11 bug fixes)
+- ✅ **v2.0 easy-billsy Redesign** — Phases 7–11 (shipped 2026-06-24) → [archive](milestones/v2.0-ROADMAP.md)
 
 ## Phases
 
@@ -21,120 +21,19 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 
 </details>
 
-### 📋 v2.0 — easy-billsy Redesign
+<details>
+<summary>✅ v2.0 easy-billsy Redesign (Phases 7–11) — SHIPPED 2026-06-24</summary>
 
-- [x] **Phase 7: App Shell + Setup Screen** — easy-billsy branding on all screens; wizard replaced by scan-first single-screen setup; OCR returns ISO 4217 currency code ✅ 2026-06-05
-- [x] **Phase 8: Flat Model — Schema + API Surgery** — host role removed from schema, Lua scripts, and routes; direct edit route live; currencyCode added to the shared-bill payload; test suite migrated (completed 2026-06-05)
-- [x] **Phase 9: Bill View Redesign + Identity Modal** — flat collaborative claiming; "Who are you?" identity modal; live attribution; unassigned-items warning (completed 2026-06-07)
-- [x] **Phase 10: Results Screen + Tip Modal + Currency Display** — locked per-person results; tip-as-modal; currency symbol threaded through all amount displays (completed 2026-06-08)
-- [x] **Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management** — post-v2 UAT bug fixes + participant management (added 2026-06-09; milestone reopened) (completed 2026-06-09)
+- [x] Phase 7: App Shell + Setup Screen (4/4 plans) — 2026-06-05
+- [x] Phase 8: Flat Model — Schema + API Surgery (5/5 plans) — 2026-06-05
+- [x] Phase 9: Bill View Redesign + Identity Modal (8/8 plans) — 2026-06-08
+- [x] Phase 10: Results Screen + Tip Modal + Currency Display (5/5 plans) — 2026-06-08
+- [x] Phase 11: Bug Fixes & Polish — Bill/Results + Participant Mgmt (4/4 plans) — 2026-06-09
 
-## Phase Details
+Audit: [milestones/v2.0-MILESTONE-AUDIT.md](milestones/v2.0-MILESTONE-AUDIT.md) — status `tech_debt` (0 blockers; 32/35 reqs, 3 deferred)
+Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
 
-### Phase 7: App Shell + Setup Screen
-**Goal**: Users experience easy-billsy branding on every screen and can scan a receipt + add people on a single Setup screen (wizard gone)
-**Depends on**: Phase 6 (v1.0 complete)
-**Requirements**: SHELL-01, SHELL-02, SHELL-03, SHELL-04, SETUP-01, SETUP-02, SETUP-03, SETUP-04, CURR-01
-**Success Criteria** (what must be TRUE):
-  1. User sees the "easy-billsy" wordmark header on every screen of the app
-  2. User can open a hamburger menu and tap New Split, History (stub), or About Us
-  3. User lands on a single Setup screen where the camera/scan action is the primary call to action; the old multi-step wizard is gone
-  4. After scanning, Setup shows a bill thumbnail with item count and a Retake option; "Continue" is enabled only when a bill is scanned and at least two people are added
-  5. OCR returns an ISO 4217 currency code alongside item data; the value is stored in Zustand (display deferred to Phase 10)
-**Plans**: 4 plans (3 retroactively documented — work shipped in commits cb10468 / 430b02f; 07-04 gap closure from UAT)
-- [x] 07-01-PLAN.md — App Shell: easy-billsy header on every screen, hamburger menu (New Split / disabled History + About Us), 3-segment progress strip (SHELL-01..04)
-- [x] 07-02-PLAN.md — Setup Screen: scan-first single screen, inline people add, post-scan thumbnail + "N items found" + Retake, Continue gated on scan + ≥2 people, bridge to Assign (SETUP-01..04)
-- [x] 07-03-PLAN.md — Currency Detection: OCR returns ISO 4217 currencyCode (strict schema), stored on useBillStore; detection + store only, display threading deferred to Phase 10 (CURR-01)
-- [x] 07-04-PLAN.md — UAT Gap Closure: visible progress strip; gallery+camera capture (revises D-09); spacing, people count chip, copy cleanup; clear items on failed scan; inline scan-error (SHELL-04, SETUP-01..03)
-**UI hint**: yes
-
----
-
-> **Reassess gate**: After Phase 7 ships, explicitly review scope and sequencing of Phases 8–10 before continuing.
->
-> **✅ Reassessed 2026-06-05** — Sequencing 8→9→10 confirmed (strict dependency chain holds); requirement coverage complete (no orphans). Decisions:
-> 1. **Keep the ≥2-people Setup gate (SETUP-04).** IDENT-02's single-person auto-skip is unreachable under it and was revised — its "don't re-prompt" intent folds into IDENT-04 (persisted identity).
-> 2. **Move the currencyCode shared-bill (SessionPayload) field + v1 migration default up into Phase 8** (done while the schema/normalizer are already open). Phase 10 keeps only the visible currency-display work.
-> 3. Doc drift fixed: Phase 7 "currency symbol" → "ISO 4217 code"; SETUP-04 "≥1" → "≥2".
-> 4. Open for Phase 9 discuss: unclaimed-items UX (recommended: warn + share-join-link CTA).
-
-### Phase 8: Flat Model — Schema + API Surgery
-**Goal**: The session data model is clean of all host-role concepts; the direct-edit route is live; the shared-bill payload carries the detected currencyCode; test suite reflects the new model
-**Depends on**: Phase 7
-**Requirements**: CLAIM-01, CLAIM-03 (+ currencyCode payload plumbing toward CURR-02, moved up from Phase 10 per 2026-06-05 reassessment)
-**Success Criteria** (what must be TRUE):
-  1. A participant can claim an item without a host token — no host approval step exists anywhere in the API
-  2. Any participant can edit or remove an item directly via the new /edit route; edits apply immediately with no queue (deletes always show a confirm — D-02)
-  3. The five deleted host routes return 404; no TypeScript type errors remain related to hostToken, editRequests, or disputes
-  4. Editing a claimed item's price/quantity keeps existing claims and recalculates their shares (D-01)
-  5. The shared-bill payload includes the detected currencyCode (default 'USD' at creation if absent); no migration normalizer needed
-  6. Every deleted test file has a replacement with equivalent behavior coverage; CI is green
-**Plans**: 5 plans (5 waves — schema/test → backend → small consumers → view refactor → test migration)
-- [x] 08-01-PLAN.md — Schema flatten (remove host symbols, add currencyCode) + Wave-0 failing editRoute contract test (CLAIM-01, CLAIM-03, D-01, D-03, D-04)
-- [x] 08-02-PLAN.md — Backend surgery: delete 5 host routes, create /edit route (turns editRoute test green), currencyCode in create+get, Lua host-audit in claim route (CLAIM-01, CLAIM-03, D-01, D-04)
-- [x] 08-03-PLAN.md — Small consumers: strip hostToken from store, currencyCode in ShareLinkButton + fragment-free redirect, host UI off ClaimableItemCard/PersonSlotPicker, delete 3 host components (CLAIM-01, CLAIM-03, D-04)
-- [x] 08-04-PLAN.md — CollaborativeClaimingView refactor: delete host state/UI, wire add/edit/remove to /edit, D-02 delete confirm, simplify phase machine (CLAIM-01, CLAIM-03, D-01, D-02)
-- [x] 08-05-PLAN.md — Test migration: delete 7 obsolete tests, flatten surviving fixtures, currencyCode assertions, CI green modulo 4 known pre-existing failures (CLAIM-01, CLAIM-03, D-04)
-**Discuss note (2026-06-05, see 08-CONTEXT.md)**: No existing users → v1/old-session migration is a NULL EVENT (D-03) — the original "migrate v1 sessions" criterion was dropped; do NOT build a migrateSession normalizer. currencyCode is added to the payload here; Phase 10 owns currency display only. Deletes always confirm (D-02); claimed-item edits auto-recalculate (D-01).
-
-### Phase 9: Bill View Redesign + Identity Modal
-**Goal**: The collaborative Bill View is fully flat; any participant can claim and edit; the "Who are you?" identity modal replaces the blocking slot-picker; live attribution shows who claimed each item
-**Depends on**: Phase 8
-**Requirements**: IDENT-01, IDENT-02, IDENT-03, IDENT-04, CLAIM-02, CLAIM-04, CLAIM-05, CLAIM-06
-**Success Criteria** (what must be TRUE):
-  1. On navigating to a shared bill, a "Who are you?" modal prompts name selection; "I'm not listed" allows adding a name inline without leaving the modal _(IDENT-02 revised 2026-06-05: the single-person auto-skip is unreachable under the ≥2-people Setup gate; the no-re-prompt intent is covered by IDENT-04 persisted identity)_
-  2. The chosen identity survives a page reload (persisted to localStorage keyed by session)
-  3. Any participant can claim any item by tapping; multiple people can share one item with a quantity stepper that splits cost proportionally
-  4. Every item shows live attribution ("claimed by Alice") that updates across devices within the polling interval
-  5. Unclaimed items are surfaced with a prominent warning before results; user can share a join link so others claim on their own phones
-**Plans**: 7 plans (3 waves + 1 gap-closure wave [GAP-09-FLOW: unify main flow on collaborative /split])
-- [x] 09-01-PLAN.md — Equal-split math helper (computeEqualShareCents) + share claim action (SHARE_CLAIM_SCRIPT, no bounds check) for tap-to-join (CLAIM-02)
-- [x] 09-02-PLAN.md — add_person op on /edit (ADD_PERSON_SCRIPT atomic person+slot, server-generated personId, 20-person cap) for "I'm not listed" (IDENT-03)
-- [x] 09-03-PLAN.md — Identity modal: refactor PersonSlotPicker to modal content (opacity-50 fix, "I'm not listed" inline add) + IdentityModal Dialog wrapper (IDENT-01, IDENT-03)
-- [x] 09-04-PLAN.md — BillViewHeader (title/date, people strip, receipt+share icons) + UnclaimedBanner (live counter) (IDENT-03, CLAIM-05, CLAIM-06)
-- [x] 09-05-PLAN.md — ClaimableItemCard attribution: chips capped 3 +N, own-claim amber border, onShareChange tap-to-join, your-share line (CLAIM-02, CLAIM-04)
-- [x] 09-06-PLAN.md — CollaborativeClaimingView rewrite: identity modal orchestration, header+banner mount, share handler, warn-but-allow done dialog, waiting phase removed (IDENT-01..04, CLAIM-02, CLAIM-04..06)
-- [x] 09-07-PLAN.md — GAP-09-FLOW gap closure: SetupStep Continue creates session + routes to /split (shared createSession helper); retire AssignItemsStep/ResultsStep from main path; resume-redirect (IDENT-01..04, CLAIM-02, CLAIM-04..06)
-**UI hint**: yes
-
-### Phase 10: Results Screen + Tip Modal + Currency Display
-**Goal**: The Results screen shows a locked per-person breakdown with Copy/Edit/New bill actions; tip is added via a modal; the currency code from OCR (already carried in the shared-bill payload since Phase 8) is rendered correctly on every amount display throughout the app
-**Depends on**: Phase 9
-**Reassess note (2026-06-05)**: the currencyCode payload field now lands in Phase 8; Phase 10's currency work is display-only (formatCents threading + correct symbol/decimals incl. zero-decimal currencies like JPY).
-**Requirements**: RESULTS-03, RESULTS-04, TIP-02, CURR-02, CURR-03
-**Success Criteria** (what must be TRUE):
-  1. The Results screen shows each person's itemized breakdown; the current user's section is expanded by default; others tap to expand; a grand total is visible
-  2. User can add a tip via a modal launched from the Results screen; totals update immediately to include it
-  3. User can Copy a plain-text per-person summary, tap Edit to return to the Bill View, or start a New bill that resets the flow
-  4. All monetary amounts render in the currency detected from the receipt (correct symbol and decimal places); amounts are correct for the session's currency
-  5. When currency cannot be detected, the app falls back gracefully (sensible default displayed; user can override it without blocking the flow)
-**Plans**: 5 plans (4 base + 1 UAT gap-closure) (3 waves — formatCents + update_currency op (parallel) → Results screen → Tip Dialog + phase-machine wiring; 10-05 closes 3 UAT gaps)
-- [x] 10-01-PLAN.md — formatCents(cents, currencyCode?) upgrade: Intl.NumberFormat zero-decimal handling, legacy fallback, + tests (CURR-02, CURR-03)
-- [x] 10-02-PLAN.md — update_currency op on /edit route (shared session-level currency write path) + tests (CURR-03)
-- [x] 10-03-PLAN.md — PersonResultsScreen rewrite: all-people accordion, items-only grand total, Copy/Edit/New Split CTA bar, inline currency override (RESULTS-03, RESULTS-04, CURR-02, CURR-03)
-- [x] 10-04-PLAN.md — TipScreen → Dialog content + CollaborativeClaimingView two-phase machine (tip optional from Results) (TIP-02, CURR-02)
-- [x] 10-05-PLAN.md — UAT gap closure: currencyCode threaded into ClaimableItemCard/Bill View; Results Subtotal+Total rows; New Split clears persisted store sessionId (CURR-01, CURR-02)
-**UI hint**: yes
-
----
-
-### Phase 11: Bug Fixes & Polish — Bill/Results Screens + Participant Management
-**Goal**: Fix post-v2 UAT bugs and usability issues on the bill and results screens, and add participant management, so the collaborative split flow is clear and correctable end-to-end
-**Depends on**: Phase 10
-**Requirements**: PART-01, PART-02, PART-03, PART-04, PART-05, PART-06, RESULTS-05, TIP-03, CURR-04, HEADER-01, HEADER-02
-**Success Criteria** (what must be TRUE):
-  1. The non-functional Receipt button is removed from the bill view header (scanned image is not persisted to the shared session; real "receipt for all" deferred) — D-01
-  2. The Share button is a ≥44px tap target with visible presence (icon + label), easy to identify and tap on mobile — D-02
-  3. The Results screen shows an "Unclaimed items" section at the top whenever items remain unallocated, with a playful "still up for grabs" headline; fully-claimed shows the positive "all set" message — D-03/D-04
-  4. Participants can be **renamed** via the people modal (anyone can do it; propagates live via SWR poll), and **removed on the setup screen** before sharing. Live remove-person was descoped in Phase 11 (2 Critical code-review findings in its Lua purge + no execution-level test); revisit with a real Redis/Lua test if needed — D-05/D-07 (rename); D-05/D-06/PART-01/02/06 deferred for live remove
-  5. "Add a tip" is a prominent Button; the currency-change `<select>` is removed from Results (the detected symbol still displays; server update_currency op retained for future) — D-08/D-09
-**Plans**: 4 plans (2 waves — Wave 1: server ops + Results polish + header polish in parallel; Wave 2: participant-management UI + self-removal fix)
-- [x] 11-01-PLAN.md — remove_person + rename_person Lua ops on /edit (atomic purge of people/claims/personSlots/donePeople/tips, last_person guard, validation) + editRoute tests (PART-01, PART-02, PART-03)
-- [x] 11-02-PLAN.md — Results polish: extract getUnclaimedCounts/getUnclaimedItems to lib/sessionUtils; unclaimed section + conditional headline; prominent tip Button; remove currency select + tests (RESULTS-05, TIP-03, CURR-04)
-- [x] 11-03-PLAN.md — BillViewHeader: remove Receipt button + import; enlarge Share to ≥44px labeled tap target + tests (HEADER-01, HEADER-02)
-- [x] 11-04-PLAN.md — Participant-management UI: PersonSlotPicker remove/rename affordances, IdentityModal prop threading, CollaborativeClaimingView handlers + self-removal useEffect, onCurrencyChange cleanup + tests (PART-04, PART-05, PART-06)
-**UI hint**: yes
-**Source**: Post-v2.0 UAT bug list reported 2026-06-08 (see 10-UAT.md re-verification; new issues beyond it)
+</details>
 
 ## Progress
 
@@ -147,7 +46,7 @@ Full details: [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md)
 | 5. Polish & Hardening | v1.0 | 3/3 | Complete | 2026-05-14 |
 | 6. Collaborative Bill Claiming | v1.0 | 6/6 | Complete | 2026-05-27 |
 | 7. App Shell + Setup Screen | v2.0 | 4/4 | Complete | 2026-06-05 |
-| 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete   | 2026-06-05 |
-| 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete   | 2026-06-08 |
-| 10. Results Screen + Tip Modal + Currency Display | v2.0 | 5/5 | Complete   | 2026-06-08 |
-| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 4/4 | Complete   | 2026-06-09 |
+| 8. Flat Model — Schema + API Surgery | v2.0 | 5/5 | Complete | 2026-06-05 |
+| 9. Bill View Redesign + Identity Modal | v2.0 | 8/8 | Complete | 2026-06-08 |
+| 10. Results Screen + Tip Modal + Currency Display | v2.0 | 5/5 | Complete | 2026-06-08 |
+| 11. Bug Fixes & Polish — Bill/Results + Participant Mgmt | v2.0 | 4/4 | Complete | 2026-06-09 |

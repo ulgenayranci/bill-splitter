@@ -40,13 +40,47 @@ Photo → OCR (GPT-4o-mini vision) → AI-cleaned items → collaborative per-pe
 
 ---
 
+## Milestone: v2.0 — easy-billsy Redesign
+
+**Shipped:** 2026-06-24
+**Phases:** 5 (7–11) | **Plans:** 26 | **Tasks:** 29 | ~20 days
+
+### What Was Built
+A clarity-driven rebuild: easy-billsy app shell, scan-first single Setup screen, "Who are you?" identity modal, a fully flat collaborative Bill View (no host role), locked per-person Results with a Results-launched tip modal, and currency recognition rendered throughout. The big structural move was deleting the entire host/approval/dispute machinery and replacing it with a flat model where anyone claims/edits via one secret-free link.
+
+### What Worked
+- **Removing the host role paid off exactly as predicted.** v1's biggest complexity sink (~180 refs) came out cleanly because Phase 8 led with a schema flatten + a RED-by-design Wave-0 contract test, so the API surgery had a green target to hit.
+- **Reuse of the largest-remainder pattern** for splits kept cent-conservation consistent across single- and multi-qty paths.
+- **The audit-before-close gate caught real drift** — stale traceability checkboxes, an unverified Phase 7, and dead wizard code surfaced before tagging rather than after.
+
+### What Was Inefficient
+- **The milestone "completed" once already (after Phase 10) and had to be reopened** for Phase 11 UAT bugs — verification ran before UAT, so "done" was premature. Same "settle before declaring done" theme as v1.
+- **Verification reports never flipped from `human_needed`** even after UAT passed; the status drifted from reality and the close audit had to reconcile it by hand.
+- **Two billing bugs in the split math reached "complete."** A cent-conservation rounding bug (fixed 2026-06-19) and a partial-claim over-charge bug (fixed 2026-06-24, the day of close) both slipped past verification — the multi-qty/partial-claim cases weren't in the test matrix until they bit.
+
+### Patterns Established
+- Lead schema/API surgery with a RED Wave-0 contract test that defines "done."
+- One source of truth for split math (`computeQtyWeightedShares`) shared by card display and billing, so display === billed by construction.
+- Currency as ISO 4217 + `Intl.NumberFormat`, threaded OCR → store → session → every `formatCents` site.
+
+### Key Lessons
+- **Run UAT before declaring a milestone done, and flip the verification status when it passes.** Premature completion + stale `human_needed` reports caused the reopen and the close-time reconciliation.
+- **Money math needs an adversarial test matrix up front.** Both split bugs lived in the partial/multi-quantity corners that weren't enumerated — exactly where a "find the cases that break cent-conservation" pass would have caught them.
+- **Tracking artifacts still drift at close** (recurring from v1) — stale checkboxes and dead code accumulate; budget a cleanup pass.
+
+### Cost Observations
+- Model mix: balanced profile (Opus planning/discussion, Sonnet execution + audit subagents).
+- Heavy quick-task usage (9 quick tasks) for UI polish and UAT follow-ups alongside the 5 planned phases.
+
+---
+
 ## Cross-Milestone Trends
 
-_(Populated as more milestones complete.)_
+| Metric | v1.0 | v2.0 |
+|--------|------|------|
+| Phases | 6 | 5 |
+| Plans | 21 | 26 |
+| LOC (TS/TSX) | ~6,270 | (rebuild — net change modest; host code removed, flat code added) |
+| Recurring theme | Flow not settled before build → rework | Premature "done" + tracking drift; money-math edge cases slip past verification |
 
-| Metric | v1.0 |
-|--------|------|
-| Phases | 6 |
-| Plans | 21 |
-| LOC (TS/TSX) | ~6,270 |
-| Recurring theme | Flow not settled before build → rework |
+**Carried-forward lesson (both milestones):** declare "done" only after the real-world pass (UAT / adversarial math), and keep verification/tracking artifacts honest at close — gaps that look like phantoms in the audit are usually just un-updated status.
