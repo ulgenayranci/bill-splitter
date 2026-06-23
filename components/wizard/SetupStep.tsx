@@ -586,7 +586,7 @@ export function SetupStep() {
             {people.map((person) => (
               <li
                 key={person.id}
-                className="flex h-12 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-3"
+                className="flex h-12 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3"
               >
                 <div
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white ${AVATAR_COLORS[person.colorIndex]}`}
