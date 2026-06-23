@@ -81,9 +81,10 @@ export function ClaimableItemCard({
   }
 
   // Compute "your share" for any shared item the current user has joined (D-15, CR-02).
-  // CR-02: use the SAME quantity-weighted largest-remainder helper the Results screen bills
-  // with (computeQtyWeightedShares over the qty>0 claimants sorted ascending), so the card's
-  // displayed share equals the billed share exactly — for both single- and multi-qty items.
+  // CR-02 / partial-claim fix: use the SAME quantity-weighted largest-remainder helper the
+  // Results screen bills with (computeQtyWeightedShares over the qty>0 claimants sorted
+  // ascending, with item.quantity as the divisor), so the card's displayed share equals
+  // the billed share exactly — including when some units are unclaimed.
   const claimantCount = allClaimantEntries.length
   let yourShareCents: number | null = null
   if (mine && claimantCount > 1) {
@@ -92,7 +93,7 @@ export function ClaimableItemCard({
       .sort()
     const qtyById: Record<PersonId, number> = {}
     for (const pid of sortedIds) qtyById[pid] = claimsForItem[pid]?.qty ?? 0
-    const shares = computeQtyWeightedShares(item.priceCents, sortedIds, qtyById)
+    const shares = computeQtyWeightedShares(item.priceCents, sortedIds, qtyById, item.quantity ?? 1)
     yourShareCents = shares[myPersonId] ?? null
   }
 

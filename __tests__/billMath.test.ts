@@ -171,7 +171,7 @@ describe('computePersonShareFromClaims', () => {
     id, name: id, priceCents, quantity,
   })
 
-  it('single claimant qty=1: returns full price', () => {
+  it('single claimant qty=1 of quantity=1: returns full price', () => {
     const items = [makeItem('i1', 1000)]
     const claims = { i1: { p1: { qty: 1 } } }
     const r = computePersonShareFromClaims('p1', items, claims, 0)
@@ -181,14 +181,14 @@ describe('computePersonShareFromClaims', () => {
     expect(r.lineItems[0].shareCents).toBe(1000)
   })
 
-  it('two claimants qty=1 each: equal split', () => {
-    const items = [makeItem('i1', 1000)]
+  it('two claimants qty=1 each of quantity=2: equal split (all units claimed)', () => {
+    const items = [makeItem('i1', 1000, 2)]
     const claims = { i1: { p1: { qty: 1 }, p2: { qty: 1 } } }
     const r = computePersonShareFromClaims('p1', items, claims, 0)
     expect(r.itemSubtotal).toBe(500)
   })
 
-  it('qty=2 of total qty=3: 2/3 of price', () => {
+  it('qty=2 of total qty=3 (all units claimed): 2/3 of price', () => {
     const items = [makeItem('i1', 900, 3)]
     const claims = { i1: { p1: { qty: 2 }, p2: { qty: 1 } } }
     const r = computePersonShareFromClaims('p1', items, claims, 0)
@@ -264,8 +264,9 @@ describe('computePersonShareFromClaims', () => {
     expect(computePersonShareFromClaims('p3', items, claims, 0).itemSubtotal).toBe(333)
   })
 
-  // CR-02 (a): per-person shares of a multi-qty shared item sum EXACTLY to the line price.
-  it('CR-02: multi-qty shared shares sum to the line price exactly (cent conservation)', () => {
+  // CR-02 (a): per-person shares of a multi-qty shared item sum EXACTLY to the line price
+  // when ALL units are claimed. When units are unclaimed the sum is the claimed portion only.
+  it('CR-02: fully-claimed multi-qty shared shares sum to the line price exactly (cent conservation)', () => {
     const cases: Array<{ price: number; qty: number; claims: Record<string, { qty: number }> }> = [
       { price: 1000, qty: 3, claims: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 } } },
       { price: 1000, qty: 6, claims: { p1: { qty: 1 }, p2: { qty: 1 }, p3: { qty: 1 }, p4: { qty: 1 }, p5: { qty: 1 }, p6: { qty: 1 } } },
@@ -285,14 +286,14 @@ describe('computePersonShareFromClaims', () => {
   })
 
   // CR-02 (b): the card-displayed share equals the billed share for the SAME multi-qty item.
-  // The card renders computeQtyWeightedShares(price, sortedIds, qtyById)[me]; billing uses the
-  // same helper, so they must be identical for every claimant.
-  it('CR-02: card-displayed share === billed share for a multi-qty item', () => {
+  // The card renders computeQtyWeightedShares(price, sortedIds, qtyById, itemQty); billing uses
+  // the same helper, so they must be identical for every claimant.
+  it('CR-02: card-displayed share === billed share for a multi-qty item (all claimed)', () => {
     const items = [makeItem('i1', 1349, 7)]
     const claims = { i1: { p1: { qty: 2 }, p2: { qty: 2 }, p3: { qty: 3 } } }
     const sortedIds = ['p1', 'p2', 'p3']
     const qtyById = { p1: 2, p2: 2, p3: 3 }
-    const cardShares = computeQtyWeightedShares(1349, sortedIds, qtyById)
+    const cardShares = computeQtyWeightedShares(1349, sortedIds, qtyById, 7)
     for (const pid of sortedIds) {
       const billed = computePersonShareFromClaims(pid, items, claims, 0).itemSubtotal
       expect(billed).toBe(cardShares[pid])
@@ -305,6 +306,65 @@ describe('computePersonShareFromClaims', () => {
     const r = computePersonShareFromClaims('p1', items, claims, 200)
     expect(r.total).toBe(r.itemSubtotal + r.tip)
     expect(r.total).toBe(1200)
+  })
+
+  // Partial-claim contract (2026-06-24 decision): when fewer units are claimed than
+  // item.quantity, each claimant pays only priceCents × claimedQty / item.quantity.
+  // Unclaimed units stay UNBILLED — not redistributed to claimants.
+  it('partial claim: Carlsberg ×13 @ 2197, Mehmet claims 1 unit → billed 169 (not 2197)', () => {
+    const items = [makeItem('carlsberg', 2197, 13)]
+    const claims = { carlsberg: { mehmet: { qty: 1 } } }
+    const r = computePersonShareFromClaims('mehmet', items, claims, 0)
+    // unit price = 2197 / 13 = 169
+    expect(r.itemSubtotal).toBe(169)
+  })
+
+  it('partial claim: ×13 item, two people claim 1 and 6 units → 169 and 1014', () => {
+    const items = [makeItem('carlsberg', 2197, 13)]
+    const claims = { carlsberg: { mehmet: { qty: 1 }, ali: { qty: 6 } } }
+    const rMehmet = computePersonShareFromClaims('mehmet', items, claims, 0)
+    const rAli = computePersonShareFromClaims('ali', items, claims, 0)
+    // mehmet: 2197 × 1/13 = 169
+    expect(rMehmet.itemSubtotal).toBe(169)
+    // ali: 2197 × 6/13 = 1014
+    expect(rAli.itemSubtotal).toBe(1014)
+    // Total billed: 169 + 1014 = 1183, NOT 2197. 6 unclaimed units stay unbilled.
+    expect(rMehmet.itemSubtotal + rAli.itemSubtotal).toBe(1183)
+    expect(rMehmet.itemSubtotal + rAli.itemSubtotal).toBeLessThan(2197)
+  })
+
+  it('partial claim: claimants together only pay for their units — unclaimed portion is zero billed', () => {
+    // 10-unit item @ 1000. Only 4 units claimed by two people (2 each).
+    // Each pays 1000 × 2/10 = 200. 6 units unbilled.
+    const items = [makeItem('drinks', 1000, 10)]
+    const claims = { drinks: { p1: { qty: 2 }, p2: { qty: 2 } } }
+    const r1 = computePersonShareFromClaims('p1', items, claims, 0)
+    const r2 = computePersonShareFromClaims('p2', items, claims, 0)
+    expect(r1.itemSubtotal).toBe(200)
+    expect(r2.itemSubtotal).toBe(200)
+    expect(r1.itemSubtotal + r2.itemSubtotal).toBe(400)
+  })
+
+  it('partial claim: single sole claimant of multi-unit item pays only their unit-price × claimed', () => {
+    // 5-unit item @ 750, one person claims 2 → pays 300 (= 2 × 150)
+    const items = [makeItem('beer', 750, 5)]
+    const claims = { beer: { alice: { qty: 2 } } }
+    const r = computePersonShareFromClaims('alice', items, claims, 0)
+    expect(r.itemSubtotal).toBe(300)
+  })
+
+  it('partial claim: card share === billed share when units are unclaimed', () => {
+    // 13-unit item @ 2197; p1 claims 3, p2 claims 5 (5 units unclaimed)
+    const items = [makeItem('carlsberg', 2197, 13)]
+    const claims = { carlsberg: { p1: { qty: 3 }, p2: { qty: 5 } } }
+    const sortedIds = ['p1', 'p2']
+    const qtyById = { p1: 3, p2: 5 }
+    // Card uses computeQtyWeightedShares with itemQty=13
+    const cardShares = computeQtyWeightedShares(2197, sortedIds, qtyById, 13)
+    for (const pid of sortedIds) {
+      const billed = computePersonShareFromClaims(pid, items, claims, 0).itemSubtotal
+      expect(billed).toBe(cardShares[pid])
+    }
   })
 })
 
@@ -347,7 +407,9 @@ describe('computeEqualShareCents', () => {
 })
 
 describe('computeQtyWeightedShares', () => {
-  it('conserves cents for every claimant distribution (sum === priceCents)', () => {
+  // When called WITHOUT itemQty (backward-compatible path), divisor = totalClaimedQty.
+  // All cases below are fully-claimed, so sum still equals priceCents.
+  it('conserves cents for every fully-claimed distribution (sum === priceCents)', () => {
     const cases: Array<{ price: number; ids: string[]; qty: Record<string, number> }> = [
       { price: 1000, ids: ['a', 'b', 'c'], qty: { a: 1, b: 1, c: 1 } },
       { price: 1000, ids: ['a', 'b', 'c', 'd', 'e', 'f'], qty: { a: 1, b: 1, c: 1, d: 1, e: 1, f: 1 } },
@@ -369,7 +431,7 @@ describe('computeQtyWeightedShares', () => {
     expect(shares).toEqual({ p1: 334, p2: 333, p3: 333 })
   })
 
-  it('weights by qty: 2-of-3 claim gets ~2/3 of price', () => {
+  it('weights by qty: 2-of-3 claim gets ~2/3 of price (no itemQty → backward-compatible)', () => {
     const shares = computeQtyWeightedShares(1000, ['p1', 'p2'], { p1: 2, p2: 1 })
     expect(shares.p1 + shares.p2).toBe(1000)
     expect(shares.p1).toBe(667)
@@ -382,6 +444,48 @@ describe('computeQtyWeightedShares', () => {
 
   it('all-zero qty: every listed sharer gets 0 (no divide by zero)', () => {
     expect(computeQtyWeightedShares(1000, ['p1', 'p2'], { p1: 0, p2: 0 })).toEqual({ p1: 0, p2: 0 })
+  })
+
+  // Partial-claim tests: when itemQty is provided and totalClaimedQty < itemQty,
+  // shares sum to the claimed portion, not the full line price.
+  it('partial claim with itemQty: 1 of 13 units → share = unitPrice × 1', () => {
+    // Carlsberg ×13 @ 2197. One person claims 1 unit.
+    const shares = computeQtyWeightedShares(2197, ['mehmet'], { mehmet: 1 }, 13)
+    expect(shares.mehmet).toBe(169) // 2197 / 13 = 169
+    // Unclaimed 12 units contribute 0 — sum < priceCents.
+    expect(shares.mehmet).toBeLessThan(2197)
+  })
+
+  it('partial claim with itemQty: two claimants share a subset of units correctly', () => {
+    // 13-unit item @ 2197. p1 claims 3, p2 claims 5. 5 units unclaimed.
+    const shares = computeQtyWeightedShares(2197, ['p1', 'p2'], { p1: 3, p2: 5 }, 13)
+    // p1: floor(2197 × 3 / 13) = floor(507.23) = 507
+    // p2: floor(2197 × 5 / 13) = floor(845.38) = 845
+    // claimedPriceCents = floor(2197 × 8 / 13) = floor(1352) = 1352
+    // distributed = 507 + 845 = 1352; remainder = 0
+    expect(shares.p1).toBe(507)
+    expect(shares.p2).toBe(845)
+    expect(shares.p1 + shares.p2).toBe(1352)
+    expect(shares.p1 + shares.p2).toBeLessThan(2197)
+  })
+
+  it('full claim with itemQty: all units claimed → sum still equals priceCents', () => {
+    // 5-unit item @ 750. All 5 claimed (2+2+1). Sum must equal 750.
+    const shares = computeQtyWeightedShares(750, ['a', 'b', 'c'], { a: 2, b: 2, c: 1 }, 5)
+    expect(shares.a + shares.b + shares.c).toBe(750)
+    expect(shares.a).toBe(300)
+    expect(shares.b).toBe(300)
+    expect(shares.c).toBe(150)
+  })
+
+  it('over-claim guard: when totalClaimedQty > itemQty, divisor is clamped to totalClaimedQty', () => {
+    // 3-unit item @ 900. 4 units claimed (over-claim). Divisor should be 4 (not 3).
+    // No claimant should be billed more than priceCents.
+    const shares = computeQtyWeightedShares(900, ['p1', 'p2'], { p1: 3, p2: 1 }, 3)
+    // divisor = max(3, 4) = 4; p1 gets 900×3/4=675, p2 gets 225. Sum = 900 > claimed portion.
+    expect(shares.p1).toBe(675)
+    expect(shares.p2).toBe(225)
+    expect(shares.p1 + shares.p2).toBe(900)
   })
 })
 
@@ -413,7 +517,7 @@ describe('scan-guardrail line totals', () => {
   it('Carlsberg 750 with A=2,B=2,C=1 → 300/300/150 summing to 750 exactly', () => {
     const sortedIds = ['a', 'b', 'c']
     const qtyById = { a: 2, b: 2, c: 1 }
-    const shares = computeQtyWeightedShares(750, sortedIds, qtyById)
+    const shares = computeQtyWeightedShares(750, sortedIds, qtyById, 5)
     expect(shares.a).toBe(300)
     expect(shares.b).toBe(300)
     expect(shares.c).toBe(150)
