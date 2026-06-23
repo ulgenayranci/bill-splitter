@@ -1,14 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Archivo, Caveat } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const archivo = Archivo({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800', '900'],
+  variable: '--font-sans',
+});
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-accent',
+});
 
 export const metadata: Metadata = {
-  title: "Bill Splitter",
-  description: "Split restaurant bills fairly with your group",
+  title: "easy billsy",
+  description: "Split the restaurant bill without killing the vibe.",
 };
 
 export const viewport: Viewport = {
@@ -23,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en" className={cn("font-sans", archivo.variable, caveat.variable)}>
       <body><Providers>{children}</Providers></body>
     </html>
   );

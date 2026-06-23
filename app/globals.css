@@ -4,28 +4,94 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ──────────────────────────────────────────────────────────────────────
+   easy billsy — Brand & UI Spec §09 canonical token block.
+   Source of truth for all brand color/radius/shadow/font values.
+   ────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Coral ramp */
+  --eb-coral-50: #fff3ef;
+  --eb-coral-100: #ffe1d8;
+  --eb-coral-200: #ffc7b6;
+  --eb-coral-300: #fba48b;
+  --eb-coral-400: #f67e60;
+  --eb-coral-500: #f1603f;
+  --eb-coral-600: #dc4827;
+  --eb-coral-700: #b8381c;
+  --eb-coral-800: #8f2d18;
+  --eb-coral-900: #5e2113;
+  --eb-primary: var(--eb-coral-500);
+  --eb-primary-press: var(--eb-coral-600);
+  --eb-primary-soft: var(--eb-coral-100);
+
+  /* Warm neutrals */
+  --eb-paper: #faf5f1;
+  --eb-surface: #ffffff;
+  --eb-n50: #f6f1ec;
+  --eb-n100: #efe8e1;
+  --eb-n200: #e6ddd3;
+  --eb-n300: #d3c9bd;
+  --eb-n400: #a89d8f;
+  --eb-n500: #7d7466;
+  --eb-n600: #5a5249;
+  --eb-ink: #2a2420;
+
+  /* Semantic */
+  --eb-settle: #2f9e6a;
+  --eb-settle-soft: #d8f0e3;
+  --eb-warn: #e0a400;
+  --eb-danger: #d8493a;
+
+  /* Avatars (in order, never coral) */
+  --eb-av-blue: #3aa0e0;
+  --eb-av-violet: #9b6cf0;
+  --eb-av-green: #2f9e6a;
+  --eb-av-gold: #e0a02a;
+  --eb-av-teal: #16b1bd;
+  --eb-av-magenta: #d96aa6;
+
+  /* Radii */
+  --eb-r-xs: 7px;
+  --eb-r-sm: 9px;
+  --eb-r-md: 12px;
+  --eb-r-lg: 16px;
+  --eb-r-xl: 22px;
+  --eb-r-pill: 999px;
+
+  /* Shadows */
+  --eb-sh-card: 0 1px 0 rgba(0, 0, 0, 0.02), 0 18px 40px -28px rgba(42, 36, 32, 0.22);
+  --eb-sh-pop: 0 8px 30px rgba(42, 36, 32, 0.18);
+  --eb-sh-btn: 0 4px 14px rgba(241, 96, 63, 0.28);
+
+  /* Fonts */
+  --eb-font: 'Archivo';
+  --eb-font-accent: 'Caveat';
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
+    /* Remapped shadcn semantic tokens → easy billsy brand (HSL triples,
+       consumed via hsl(var(--x)) in @layer base). */
+    --background: 28 47% 96%;        /* paper #faf5f1 */
+    --foreground: 30 14% 14%;        /* ink #2a2420 */
+    --card: 0 0% 100%;               /* surface white */
+    --card-foreground: 30 14% 14%;   /* ink */
+    --popover: 0 0% 100%;            /* surface white */
+    --popover-foreground: 30 14% 14%;/* ink */
+    --primary: 11 86% 60%;           /* coral-500 #f1603f */
+    --primary-foreground: 0 0% 100%; /* white */
+    --secondary: 33 33% 95%;         /* n50 #f6f1ec */
+    --secondary-foreground: 30 14% 14%;
+    --muted: 33 28% 91%;             /* n100 #efe8e1 */
+    --muted-foreground: 40 10% 45%;  /* n500 #7d7466 */
+    --accent: 33 33% 95%;            /* n50 #f6f1ec */
+    --accent-foreground: 30 14% 14%;
+    --destructive: 5 67% 54%;        /* danger #d8493a */
+    --destructive-foreground: 0 0% 100%;
+    --border: 33 27% 86%;            /* n200 #e6ddd3 */
+    --input: 33 27% 86%;             /* n200 #e6ddd3 */
+    --ring: 11 86% 60%;              /* coral-500 */
+    --radius: 0.75rem;               /* 12px base → md ≈12px, lg ≈16px */
   }
   .dark {
     --background: 240 10% 3.9%;
@@ -72,6 +138,39 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
+  --font-accent: var(--font-accent);
+
+  /* easy billsy brand color utilities */
+  --color-coral-50: var(--eb-coral-50);
+  --color-coral-100: var(--eb-coral-100);
+  --color-coral-200: var(--eb-coral-200);
+  --color-coral-300: var(--eb-coral-300);
+  --color-coral-400: var(--eb-coral-400);
+  --color-coral-500: var(--eb-coral-500);
+  --color-coral-600: var(--eb-coral-600);
+  --color-coral-700: var(--eb-coral-700);
+  --color-coral-800: var(--eb-coral-800);
+  --color-coral-900: var(--eb-coral-900);
+  --color-paper: var(--eb-paper);
+  --color-surface: var(--eb-surface);
+  --color-ink: var(--eb-ink);
+  --color-n50: var(--eb-n50);
+  --color-n100: var(--eb-n100);
+  --color-n200: var(--eb-n200);
+  --color-n300: var(--eb-n300);
+  --color-n400: var(--eb-n400);
+  --color-n500: var(--eb-n500);
+  --color-n600: var(--eb-n600);
+  --color-settle: var(--eb-settle);
+  --color-settle-soft: var(--eb-settle-soft);
+  --color-warn: var(--eb-warn);
+  --color-danger: var(--eb-danger);
+  --color-av-blue: var(--eb-av-blue);
+  --color-av-violet: var(--eb-av-violet);
+  --color-av-green: var(--eb-av-green);
+  --color-av-gold: var(--eb-av-gold);
+  --color-av-teal: var(--eb-av-teal);
+  --color-av-magenta: var(--eb-av-magenta);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -103,40 +202,43 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Base --radius = 0.75rem (12px). md ≈12px (buttons/cards), lg ≈16px (totals/sheets). */
+  --radius-sm: calc(var(--radius) * 0.75);  /* ≈9px */
+  --radius-md: var(--radius);               /* ≈12px */
+  --radius-lg: calc(var(--radius) * 1.333); /* ≈16px */
+  --radius-xl: calc(var(--radius) * 1.833); /* ≈22px */
+  --radius-2xl: calc(var(--radius) * 2.2);
+  --radius-3xl: calc(var(--radius) * 2.6);
+  --radius-4xl: calc(var(--radius) * 3.0);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Remapped shadcn semantic tokens → easy billsy brand (standalone colors,
+     consumed by @theme inline → Tailwind utilities like bg-primary). */
+  --background: #faf5f1;            /* paper */
+  --foreground: #2a2420;            /* ink */
+  --card: #ffffff;                  /* surface */
+  --card-foreground: #2a2420;       /* ink */
+  --popover: #ffffff;               /* surface */
+  --popover-foreground: #2a2420;    /* ink */
+  --primary: #f1603f;               /* coral-500 */
+  --primary-foreground: #ffffff;    /* white */
+  --secondary: #f6f1ec;             /* n50 */
+  --secondary-foreground: #2a2420;  /* ink */
+  --muted: #efe8e1;                 /* n100 */
+  --muted-foreground: #7d7466;      /* n500 */
+  --accent: #f6f1ec;               /* n50 */
+  --accent-foreground: #2a2420;     /* ink */
+  --destructive: #d8493a;           /* danger */
+  --border: #e6ddd3;                /* n200 */
+  --input: #e6ddd3;                 /* n200 */
+  --ring: #f1603f;                  /* coral-500 */
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
