@@ -33,7 +33,7 @@ progress:
 Phase: 11 (bug-fixes-polish-bill-results-screens-participant-management) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-06-23 - Completed quick task 260623-plo: mobile button polish (removed all hover states; ghost icon buttons → outline design). Pushed to main.
+Last activity: 2026-06-23 - Completed quick task 260623-u9k: implemented spec §06 button fills (outline buttons white-filled, primary coral shadow, ghost n100 fill). Pushed to main.
 
 ```
 Progress: [██████████] 100%
@@ -129,6 +129,7 @@ None.
 | 260622-q3m | OCR reconciliation guardrail + editable scan-review/confirm screen: capture subtotal vs grand total (reconcile to pre-tax truth, fall back to grand total), show an editable item review on a failed reconciliation after the server retry (soft gate — "Confirm & continue" proceeds even if off) | 2026-06-22 | f52dc33 | Complete | [260622-q3m-ocr-reconciliation-scan-review](./quick/260622-q3m-ocr-reconciliation-scan-review/) |
 | 260623-olg | Apply the "easy billsy" Brand & UI Spec — rebrand amber/Geist → Friendly Coral (#f1603f) + warm cream paper + Archivo/Caveat fonts; remap shadcn tokens in both HSL & OKLch blocks, register coral/person/semantic Tailwind utilities, 6-color avatar palette, drop the minus from the wordmark ("easy billsy"), title → "easy billsy". 15 files de-ambered (one-coral-per-screen; settled/paid stays green). build passes | 2026-06-23 | ef83d2b | | [260623-olg-apply-the-easy-billsy-brand-ui-spec-rebr](./quick/260623-olg-apply-the-easy-billsy-brand-ui-spec-rebr/) |
 | 260623-plo | Mobile button polish: stripped all `hover:` utilities app-wide (button.tsx cva variants + 14 components) since touch has no hover; converted 13 borderless "ghost" icon buttons (−/+ steppers, pencil-edit, inline confirm/cancel) to the spec outline style (`border border-border bg-background`) so they're visible at rest. Kept active/focus states, coral CTA color, green settled states, dashed add controls. build passes | 2026-06-23 | 41e829a | | [260623-plo-mobile-button-polish-remove-all-hover-st](./quick/260623-plo-mobile-button-polish-remove-all-hover-st/) |
+| 260623-u9k | Implement spec §06 button fills (prior pass left buttons fill-less on paper): button.tsx outline `bg-background`→`bg-white`+ink text+n200 border; primary gained coral drop-shadow; ghost gained n100 fill (`bg-muted`). 13 custom icon buttons `bg-background`→`bg-white`. No hover reintroduced; sizes/dashed controls/inputs untouched. build passes | 2026-06-23 | 646df95 | | [260623-u9k-implement-spec-button-component-design-o](./quick/260623-u9k-implement-spec-button-component-design-o/) |
 
 ---
 
