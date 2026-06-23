@@ -636,7 +636,7 @@ export function CollaborativeClaimingView({
       />
 
       {/* R3-1: items-claimed progress bar — non-interactive x/N chip (units, not rows). */}
-      <div className="flex items-center justify-between border-b border-zinc-100 bg-white px-6 py-2">
+      <div className="flex items-center justify-between border-b border-zinc-100 bg-background px-6 py-2">
         <span className="text-[14px] text-zinc-500">Items claimed</span>
         <span
           data-testid="items-claimed-chip"
