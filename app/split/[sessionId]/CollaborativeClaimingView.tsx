@@ -691,11 +691,11 @@ export function CollaborativeClaimingView({
                         className="h-10 w-14 text-base text-center"
                       />
                       <button type="button" aria-label="Confirm edit" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700">
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-zinc-700">
                         <Check size={18} />
                       </button>
                       <button type="button" aria-label="Cancel edit" onClick={() => setInlineForm(null)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400">
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-zinc-400">
                         <X size={18} />
                       </button>
                     </div>
@@ -781,11 +781,11 @@ export function CollaborativeClaimingView({
                     aria-label="Quantity"
                   />
                   <button type="button" aria-label="Confirm" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700">
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-zinc-700">
                     <Check size={18} />
                   </button>
                   <button type="button" aria-label="Cancel" onClick={() => setInlineForm(null)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400">
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-zinc-400">
                     <X size={18} />
                   </button>
                 </div>

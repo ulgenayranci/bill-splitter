@@ -109,7 +109,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                           setRenameValue(person.name)
                           setEditingPersonId(person.id)
                         }}
-                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-zinc-400"
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded border border-border bg-background text-zinc-400"
                       >
                         <Pencil size={14} aria-hidden="true" />
                       </button>

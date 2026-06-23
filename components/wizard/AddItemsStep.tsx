@@ -375,7 +375,7 @@ export function AddItemsStep() {
                     type="button"
                     aria-label="Confirm"
                     onClick={handleCommit}
-                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700"
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-zinc-700"
                   >
                     <Check size={18} />
                   </button>
@@ -383,7 +383,7 @@ export function AddItemsStep() {
                     type="button"
                     aria-label="Cancel"
                     onClick={handleCancel}
-                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400"
+                    className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-zinc-400"
                   >
                     <X size={18} />
                   </button>
@@ -421,7 +421,7 @@ export function AddItemsStep() {
                     e.stopPropagation()
                     setPendingRemove({ id: item.id, name: item.name })
                   }}
-                  className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-500"
+                  className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-background text-zinc-500"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -475,7 +475,7 @@ export function AddItemsStep() {
                   type="button"
                   aria-label="Confirm"
                   onClick={handleCommit}
-                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700"
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-zinc-700"
                 >
                   <Check size={18} />
                 </button>
@@ -483,7 +483,7 @@ export function AddItemsStep() {
                   type="button"
                   aria-label="Cancel"
                   onClick={handleCancel}
-                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400"
+                  className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-background text-zinc-400"
                 >
                   <X size={18} />
                 </button>
