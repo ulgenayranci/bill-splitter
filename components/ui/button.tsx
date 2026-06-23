@@ -11,7 +11,7 @@ const buttonVariants = cva(
         default:
           "bg-primary text-primary-foreground shadow-[0_4px_14px_rgba(241,96,63,0.28)]",
         outline:
-          "border-border bg-white text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30",
+          "border-border bg-muted text-foreground aria-expanded:bg-accent aria-expanded:text-foreground dark:border-input dark:bg-input/30",
         secondary:
           "bg-secondary text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
