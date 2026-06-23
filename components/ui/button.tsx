@@ -8,13 +8,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground",
+        default:
+          "bg-primary text-primary-foreground shadow-[0_4px_14px_rgba(241,96,63,0.28)]",
         outline:
-          "border-border bg-background aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30",
+          "border-border bg-white text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30",
         secondary:
           "bg-secondary text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "aria-expanded:bg-muted aria-expanded:text-foreground",
+          "bg-muted text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         destructive:
           "bg-destructive/10 text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4",
