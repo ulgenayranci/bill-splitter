@@ -33,7 +33,7 @@ progress:
 Phase: 11 (bug-fixes-polish-bill-results-screens-participant-management) — EXECUTING
 Plan: 4 of 4
 Status: Phase complete — ready for verification
-Last activity: 2026-06-21 - Shipped Phase 11 UAT round-5 G3–G10 polish + G2 OCR upgrade (gpt-4o-mini→gpt-4.1-mini after a 3-receipt bake-off, prompt hardening, checksum guardrail). All G1–G10 done, pushed to main.
+Last activity: 2026-06-23 - Completed quick task 260623-olg: applied the "easy billsy" Brand & UI Spec (Friendly Coral + warm paper + Archivo/Caveat rebrand). Pushed to main.
 
 ```
 Progress: [██████████] 100%
@@ -127,6 +127,7 @@ None.
 | 260620-2h0 | Scan-time bill guardrail: reconcile OCR figures before claiming — fix per-unit-vs-line-total quantity bug (priceCents = line total), auto-correct arithmetic, detect completeness gaps | 2026-06-20 | 7087166 | Verified | [260620-2h0-scan-time-bill-guardrail-validate-and-re](./quick/260620-2h0-scan-time-bill-guardrail-validate-and-re/) |
 | 260622-hjb | Phase 11 UAT round-6 follow-ups: OCR auto-retry on checksum mismatch (G2), scan edge-case catalogue (G2.3), invite-screen redesign (G4), drop redundant claimed badge (G7), finish-dialog redesign (G8) | 2026-06-22 | 124acff | Complete | [260622-hjb-phase-11-uat-round-6-followups](./quick/260622-hjb-phase-11-uat-round-6-followups/) |
 | 260622-q3m | OCR reconciliation guardrail + editable scan-review/confirm screen: capture subtotal vs grand total (reconcile to pre-tax truth, fall back to grand total), show an editable item review on a failed reconciliation after the server retry (soft gate — "Confirm & continue" proceeds even if off) | 2026-06-22 | f52dc33 | Complete | [260622-q3m-ocr-reconciliation-scan-review](./quick/260622-q3m-ocr-reconciliation-scan-review/) |
+| 260623-olg | Apply the "easy billsy" Brand & UI Spec — rebrand amber/Geist → Friendly Coral (#f1603f) + warm cream paper + Archivo/Caveat fonts; remap shadcn tokens in both HSL & OKLch blocks, register coral/person/semantic Tailwind utilities, 6-color avatar palette, drop the minus from the wordmark ("easy billsy"), title → "easy billsy". 15 files de-ambered (one-coral-per-screen; settled/paid stays green). build passes | 2026-06-23 | ef83d2b | | [260623-olg-apply-the-easy-billsy-brand-ui-spec-rebr](./quick/260623-olg-apply-the-easy-billsy-brand-ui-spec-rebr/) |
 
 ---
 
