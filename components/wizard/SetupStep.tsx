@@ -565,7 +565,7 @@ export function SetupStep() {
               }
             }}
             maxLength={100}
-            className="h-11 w-full pr-12 text-base"
+            className="h-12 w-full pr-12 text-base"
           />
           <button
             type="button"
