@@ -54,7 +54,7 @@ export function AddPeopleStep() {
         <h1 className="text-[20px] font-semibold leading-[1.2]">Add people to your bill</h1>
       )}
 
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[14px] text-amber-800">
+      <div className="rounded-md border border-coral-200 bg-coral-50 px-3 py-2 text-[14px] text-coral-700">
         You&apos;re the host. Share the link in the next step so everyone can claim their items.
       </div>
 
@@ -110,7 +110,7 @@ export function AddPeopleStep() {
         <Button
           onClick={() => setStep(3)}
           disabled={people.length === 0}
-          className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+          className="h-12 w-full bg-coral-500 hover:bg-coral-600"
         >
           Continue
         </Button>

@@ -78,8 +78,8 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
       <ProgressStrip filled={1} />
 
       <main className="mx-auto flex w-full max-w-[480px] flex-1 flex-col items-center gap-6 px-6 pt-12 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
-          <Users size={32} className="text-amber-600" aria-hidden="true" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-coral-100">
+          <Users size={32} className="text-coral-600" aria-hidden="true" />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -93,7 +93,7 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
           <Button variant="outline" onClick={onContinue} className="h-12 flex-1">
             Skip
           </Button>
-          <Button onClick={handleShare} className="h-12 flex-1 bg-amber-600 hover:bg-amber-700">
+          <Button onClick={handleShare} className="h-12 flex-1 bg-coral-500 hover:bg-coral-600">
             <Share2 size={18} className="mr-2" aria-hidden="true" />
             {copied ? 'Copied!' : 'Share link'}
           </Button>

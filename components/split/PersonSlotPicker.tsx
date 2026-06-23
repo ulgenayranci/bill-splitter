@@ -84,7 +84,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                     <Button
                       type="button"
                       size="sm"
-                      className="flex-1 bg-amber-600 hover:bg-amber-700 text-[13px]"
+                      className="flex-1 bg-coral-500 hover:bg-coral-600 text-[13px]"
                       onClick={() => handleRenameConfirm(person.id)}
                     >
                       Save
@@ -135,7 +135,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
         <button
           type="button"
           onClick={() => setShowAddForm(true)}
-          className="text-[14px] text-amber-600 underline self-start"
+          className="text-[14px] text-coral-600 underline self-start"
         >
           I&apos;m not listed
         </button>
@@ -151,7 +151,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
           />
           <Button
             type="button"
-            className="bg-amber-600 hover:bg-amber-700"
+            className="bg-coral-500 hover:bg-coral-600"
             onClick={handleAddMe}
           >
             Add me

@@ -640,7 +640,7 @@ export function CollaborativeClaimingView({
         <span className="text-[14px] text-zinc-500">Items claimed</span>
         <span
           data-testid="items-claimed-chip"
-          className="rounded-full bg-amber-100 px-3 py-1 text-[13px] font-semibold text-amber-800"
+          className="rounded-full bg-coral-100 px-3 py-1 text-[13px] font-semibold text-coral-700"
         >
           {claimedUnits}/{totalUnits}
         </span>
@@ -817,7 +817,7 @@ export function CollaborativeClaimingView({
         {doneError && (
           <p className="mb-2 text-center text-sm text-red-600">{doneError}</p>
         )}
-        <Button onClick={handleDone} className="h-12 w-full bg-amber-600 hover:bg-amber-700">
+        <Button onClick={handleDone} className="h-12 w-full bg-coral-500 hover:bg-coral-600">
           I&rsquo;m done
         </Button>
       </div>
@@ -862,7 +862,7 @@ export function CollaborativeClaimingView({
                 setShowUnclaimedWarning(false)
                 void submitDone()
               }}
-              className="flex-1 h-12 bg-amber-600 hover:bg-amber-700"
+              className="flex-1 h-12 bg-coral-500 hover:bg-coral-600"
             >
               Show my result
             </Button>

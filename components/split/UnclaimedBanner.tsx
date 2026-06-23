@@ -22,7 +22,7 @@ export function UnclaimedBanner({ session, onTap }: UnclaimedBannerProps) {
     <div
       data-testid="unclaimed-banner"
       onClick={onTap}
-      className="flex items-center justify-between gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-[14px] text-amber-800 cursor-pointer"
+      className="flex items-center justify-between gap-2 px-4 py-2 bg-[#e0a400]/10 border-b border-[#e0a400]/30 text-[14px] text-warn cursor-pointer"
     >
       <span>{copy}</span>
     </div>

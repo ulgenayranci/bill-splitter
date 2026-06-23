@@ -86,7 +86,7 @@ export function TipScreen({
 
       <div className="flex flex-col gap-1">
         <span
-          className="text-[28px] font-semibold text-amber-600"
+          className="text-[28px] font-semibold text-coral-600"
           data-testid="tip-amount-display"
         >
           {formatCents(tipCents, currencyCode)}
@@ -135,7 +135,7 @@ export function TipScreen({
 
       <Button
         type="button"
-        className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+        className="h-12 w-full bg-coral-500 hover:bg-coral-600"
         onClick={handleConfirm}
         disabled={submitting}
         aria-label={submitting ? 'Confirming tip…' : 'Confirm tip'}

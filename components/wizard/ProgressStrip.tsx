@@ -10,7 +10,7 @@ interface ProgressStripProps {
 /**
  * Reusable 3-segment progress strip (Setup / Bill View / Results).
  * Extracted from WizardShell for use on any screen that needs a progress indicator.
- * 3px tall bars, amber-600 filled, zinc-200 empty.
+ * 3px tall bars, coral-500 filled, zinc-200 empty.
  */
 export function ProgressStrip({ filled }: ProgressStripProps) {
   return (
@@ -18,7 +18,7 @@ export function ProgressStrip({ filled }: ProgressStripProps) {
       {Array.from({ length: PROGRESS_SEGMENTS }, (_, idx) => (
         <div
           key={idx}
-          className={`h-[3px] flex-1 rounded-sm ${idx + 1 <= filled ? 'bg-amber-600' : 'bg-zinc-200'}`}
+          className={`h-[3px] flex-1 rounded-sm ${idx + 1 <= filled ? 'bg-coral-500' : 'bg-zinc-200'}`}
         />
       ))}
     </div>

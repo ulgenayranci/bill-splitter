@@ -31,7 +31,7 @@ interface BillViewHeaderProps {
  * Bill View chrome header.
  *
  * Row 1: bill title ("Bill — Jun 26") + date line + receipt/share icons right-aligned.
- * Row 2: people strip — own-identity as amber expanded pill; others as compact circles;
+ * Row 2: people strip — own-identity as coral expanded pill; others as compact circles;
  *         overflow "+N" badge when more than MAX_STRIP_AVATARS=3 others.
  * The entire people strip is tappable (D-03 change-identity via onStripTap).
  */
@@ -119,7 +119,7 @@ export function BillViewHeader({
           type="button"
           aria-label="Share bill link"
           onClick={handleShare}
-          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 text-white hover:bg-amber-700 transition-colors"
+          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white hover:bg-coral-600 transition-colors"
         >
           {copied ? (
             <Check size={18} aria-hidden="true" />
@@ -146,7 +146,7 @@ export function BillViewHeader({
         {/* Own-identity expanded pill — leftmost, highest z-index, no negative margin */}
         {myPerson && (
           <div
-            className="flex items-center gap-2 h-8 rounded-full bg-amber-50 border border-amber-400 px-3"
+            className="flex items-center gap-2 h-8 rounded-full bg-coral-50 border border-coral-200 px-3"
             style={{ zIndex: otherPeople.length + 2, position: 'relative' }}
           >
             {/* Avatar circle inside the pill */}

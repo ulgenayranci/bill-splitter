@@ -213,13 +213,13 @@ export function PersonResultsScreen({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)
               }}
-              className="cursor-pointer rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 hover:bg-amber-100 transition-colors"
+              className="cursor-pointer rounded-lg bg-[#e0a400]/10 border border-[#e0a400]/30 px-4 py-3 hover:bg-[#e0a400]/15 transition-colors"
             >
-              <p className="text-[14px] font-medium text-amber-800 mb-2">Unclaimed items</p>
+              <p className="text-[14px] font-medium text-warn mb-2">Unclaimed items</p>
               {/* R3-5: always list every unclaimed item (no count-collapse). */}
               <ul className="flex flex-col gap-1">
                 {unclaimedItems.map((item) => (
-                  <li key={item.id} className="text-[14px] text-amber-700">{item.name}</li>
+                  <li key={item.id} className="text-[14px] text-warn">{item.name}</li>
                 ))}
               </ul>
             </div>
@@ -280,7 +280,7 @@ export function PersonResultsScreen({
                     <div className="flex flex-col">
                       <span className="text-[14px] font-medium text-foreground">{person.name}</span>
                       <span
-                        className="text-[28px] font-semibold text-amber-600"
+                        className="text-[28px] font-semibold text-coral-600"
                         data-testid={isCurrentUser ? 'results-total' : undefined}
                       >
                         {isCurrentUser
@@ -356,7 +356,7 @@ export function PersonResultsScreen({
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') onAddTip()
                               }}
-                              className="cursor-pointer text-[14px] text-amber-600"
+                              className="cursor-pointer text-[14px] text-coral-600"
                             >
                               Add a tip?
                             </span>
@@ -414,10 +414,10 @@ export function PersonResultsScreen({
               Go back
             </Button>
 
-            {/* Share summary (amber, right) */}
+            {/* Share summary (coral, right) */}
             <Button
               type="button"
-              className="h-12 flex-1 bg-amber-600 hover:bg-amber-700"
+              className="h-12 flex-1 bg-coral-500 hover:bg-coral-600"
               onClick={handleShareSummary}
               aria-label={copied ? 'Summary copied' : 'Copy summary to clipboard'}
             >
@@ -439,7 +439,7 @@ export function PersonResultsScreen({
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
-              className="h-12 w-full bg-amber-600 hover:bg-amber-700"
+              className="h-12 w-full bg-coral-500 hover:bg-coral-600"
               onClick={() => {
                 setShowUnclaimedConfirm(false)
                 onEditBill()

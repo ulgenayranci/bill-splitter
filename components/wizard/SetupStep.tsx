@@ -350,14 +350,14 @@ export function SetupStep() {
         <div
           role="status"
           data-testid="expired-notice"
-          className="flex items-start justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13px] font-medium text-amber-800"
+          className="flex items-start justify-between gap-2 rounded-xl border border-[#e0a400]/30 bg-[#e0a400]/10 px-3 py-2.5 text-[13px] font-medium text-warn"
         >
           <span>That link expired — here&rsquo;s a fresh start.</span>
           <button
             type="button"
             aria-label="Dismiss"
             onClick={() => setExpiredNotice(false)}
-            className="shrink-0 text-amber-700 hover:text-amber-900"
+            className="shrink-0 text-warn hover:opacity-70"
           >
             <X size={16} aria-hidden="true" />
           </button>
@@ -380,9 +380,9 @@ export function SetupStep() {
           role="region"
           aria-label="Confirm detected items"
           data-testid="scan-review"
-          className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-3"
+          className="flex flex-col gap-3 rounded-xl border border-[#e0a400]/30 bg-[#e0a400]/10 px-3 py-3"
         >
-          <p className="text-[14px] font-semibold text-amber-900">
+          <p className="text-[14px] font-semibold text-warn">
             Please confirm or edit these detected items
           </p>
 
@@ -430,7 +430,7 @@ export function SetupStep() {
                     type="button"
                     aria-label={`Remove ${item.name}`}
                     onClick={() => removeItem(item.id)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-amber-100"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
                   >
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
@@ -442,13 +442,13 @@ export function SetupStep() {
           <button
             type="button"
             onClick={handleAddReviewItem}
-            className="flex items-center gap-1.5 self-start rounded-md text-[13px] font-semibold text-amber-700 hover:text-amber-900"
+            className="flex items-center gap-1.5 self-start rounded-md text-[13px] font-semibold text-coral-600 hover:text-coral-700"
           >
             <Plus size={15} aria-hidden="true" />
             Add item
           </button>
 
-          <p data-testid="scan-review-gap" className="text-[13px] font-medium text-amber-900">
+          <p data-testid="scan-review-gap" className="text-[13px] font-medium text-warn">
             Items add up to {formatCents(liveSumCents, currencyCode)} · Receipt{' '}
             {guardrail?.completeness.subtotalCents != null ? 'subtotal' : 'total'}{' '}
             {formatCents(targetCents, currencyCode)} · off by{' '}
@@ -485,9 +485,9 @@ export function SetupStep() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <Receipt size={22} className="text-amber-700/40" aria-hidden="true" />
+              <Receipt size={22} className="text-coral-700/40" aria-hidden="true" />
             )}
-            <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white">
+            <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-coral-500 px-2.5 py-1 text-[11px] font-bold text-white">
               <Check size={10} strokeWidth={3} aria-hidden="true" />
               {items.length} {items.length === 1 ? 'item' : 'items'} found
             </span>
@@ -498,7 +498,7 @@ export function SetupStep() {
               setGuardrail(null)
               fileInputRef.current?.click()
             }}
-            className="ml-auto mt-1 flex items-center gap-1 text-[13px] font-semibold text-amber-600 hover:text-amber-700"
+            className="ml-auto mt-1 flex items-center gap-1 text-[13px] font-semibold text-coral-600 hover:text-coral-700"
           >
             <RotateCcw size={13} aria-hidden="true" />
             Retake
@@ -515,8 +515,8 @@ export function SetupStep() {
               : 'border-zinc-300 bg-zinc-50 hover:bg-zinc-100'
           }`}
         >
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50">
-            <Camera size={26} className="text-amber-600" aria-hidden="true" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coral-50">
+            <Camera size={26} className="text-coral-600" aria-hidden="true" />
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-[16px] font-semibold text-zinc-900">Scan your receipt</span>
@@ -575,7 +575,7 @@ export function SetupStep() {
               handleAddPerson()
               nameInputRef.current?.focus()
             }}
-            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-amber-600 text-white transition-opacity hover:bg-amber-700 disabled:opacity-40"
+            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-ink text-white transition-opacity hover:opacity-80 disabled:opacity-40"
           >
             <Plus size={18} aria-hidden="true" />
           </button>
@@ -614,7 +614,7 @@ export function SetupStep() {
         <Button
           onClick={handleContinue}
           disabled={!canContinue || isCreating}
-          className="h-12 w-full bg-amber-600 text-base hover:bg-amber-700"
+          className="h-12 w-full bg-coral-500 text-base hover:bg-coral-600"
         >
           {isCreating ? (
             <LoaderCircle size={16} className="animate-spin" />
@@ -627,7 +627,7 @@ export function SetupStep() {
         {/* Soft gate: in review mode the user may still proceed while a gap remains;
             we only nudge with a subtle hint (locked decision 2). */}
         {canContinue && stillOff && (
-          <p data-testid="scan-review-still-off" className="mt-2 text-center text-[12px] text-amber-700">
+          <p data-testid="scan-review-still-off" className="mt-2 text-center text-[12px] text-warn">
             Still off by {formatCents(Math.abs(liveDeltaCents), currencyCode)} — you can confirm
             anyway or keep editing.
           </p>

@@ -409,7 +409,7 @@ export function AddItemsStep() {
                   )}
                 </span>
                 {(item.confidence === 'low' || item.confidence === 'ambiguous') && (
-                  <Badge className="bg-amber-100 text-amber-700 border border-amber-300 text-xs font-medium">
+                  <Badge className="bg-[#e0a400]/15 text-warn border border-[#e0a400]/30 text-xs font-medium">
                     Review
                   </Badge>
                 )}
@@ -513,7 +513,7 @@ export function AddItemsStep() {
         <Button
           onClick={handleCTAClick}
           disabled={items.length === 0}
-          className={`h-12 w-full text-base bg-amber-600 hover:bg-amber-700 ${editState !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`h-12 w-full text-base bg-coral-500 hover:bg-coral-600 ${editState !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Continue
         </Button>

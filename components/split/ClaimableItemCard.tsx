@@ -98,7 +98,7 @@ export function ClaimableItemCard({
 
   const cardClasses = [
     'flex min-h-[44px] flex-col gap-2 px-4 py-3 transition-colors',
-    mine ? 'bg-amber-50 border border-amber-400' : '',
+    mine ? 'bg-coral-50 border border-coral-200' : '',
     !mine && fullyClaimed ? 'bg-zinc-50' : '',
     !isMultiQty ? 'cursor-pointer' : '',
   ].filter(Boolean).join(' ')
@@ -123,7 +123,7 @@ export function ClaimableItemCard({
         {!isMultiQty && (
           <div className="shrink-0">
             {mine ? (
-              <Check size={24} className="text-amber-600" aria-hidden="true" />
+              <Check size={24} className="text-coral-600" aria-hidden="true" />
             ) : (
               <span className="inline-block h-6 w-6 rounded-full border-2 border-zinc-300" aria-hidden="true" />
             )}
@@ -167,7 +167,7 @@ export function ClaimableItemCard({
               <Minus size={16} />
             </Button>
             <span
-              className={`min-w-[2ch] text-center text-[16px] font-semibold ${myQty > 0 ? 'text-amber-600' : 'text-zinc-400'}`}
+              className={`min-w-[2ch] text-center text-[16px] font-semibold ${myQty > 0 ? 'text-coral-600' : 'text-zinc-400'}`}
               data-testid="qty-count"
             >
               {myQty}
@@ -207,7 +207,7 @@ export function ClaimableItemCard({
             return (
               <span
                 key={pid}
-                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass} ${isMe ? 'ring-2 ring-amber-600 ring-offset-1' : ''}`}
+                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass} ${isMe ? 'ring-2 ring-coral-500 ring-offset-1' : ''}`}
                 title={isMe ? 'You' : (person?.name ?? '')}
               >
                 {isMe ? 'Y' : (person?.name ?? '?').charAt(0).toUpperCase()}

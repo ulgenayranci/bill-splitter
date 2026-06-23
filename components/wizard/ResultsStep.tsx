@@ -124,7 +124,7 @@ export function ResultsStep() {
                   </div>
                   <div className="flex flex-1 items-center justify-between">
                     <span className="text-[20px] font-semibold">{person.name}</span>
-                    <span className="text-[28px] font-semibold text-amber-600">
+                    <span className="text-[28px] font-semibold text-coral-600">
                       {formatCents(personTotal)}
                     </span>
                   </div>
