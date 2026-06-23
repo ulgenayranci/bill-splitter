@@ -357,7 +357,7 @@ export function SetupStep() {
             type="button"
             aria-label="Dismiss"
             onClick={() => setExpiredNotice(false)}
-            className="shrink-0 text-warn hover:opacity-70"
+            className="shrink-0 text-warn"
           >
             <X size={16} aria-hidden="true" />
           </button>
@@ -430,7 +430,7 @@ export function SetupStep() {
                     type="button"
                     aria-label={`Remove ${item.name}`}
                     onClick={() => removeItem(item.id)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400"
                   >
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
@@ -442,7 +442,7 @@ export function SetupStep() {
           <button
             type="button"
             onClick={handleAddReviewItem}
-            className="flex items-center gap-1.5 self-start rounded-md text-[13px] font-semibold text-coral-600 hover:text-coral-700"
+            className="flex items-center gap-1.5 self-start rounded-md text-[13px] font-semibold text-coral-600"
           >
             <Plus size={15} aria-hidden="true" />
             Add item
@@ -498,7 +498,7 @@ export function SetupStep() {
               setGuardrail(null)
               fileInputRef.current?.click()
             }}
-            className="ml-auto mt-1 flex items-center gap-1 text-[13px] font-semibold text-coral-600 hover:text-coral-700"
+            className="ml-auto mt-1 flex items-center gap-1 text-[13px] font-semibold text-coral-600"
           >
             <RotateCcw size={13} aria-hidden="true" />
             Retake
@@ -512,7 +512,7 @@ export function SetupStep() {
           className={`flex flex-col items-center gap-3 rounded-xl border-[1.5px] border-dashed px-5 py-7 text-center transition-colors ${
             ocrStatus === 'error'
               ? 'border-red-300 bg-red-50'
-              : 'border-zinc-300 bg-zinc-50 hover:bg-zinc-100'
+              : 'border-zinc-300 bg-zinc-50'
           }`}
         >
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-coral-50">
@@ -575,7 +575,7 @@ export function SetupStep() {
               handleAddPerson()
               nameInputRef.current?.focus()
             }}
-            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-ink text-white transition-opacity hover:opacity-80 disabled:opacity-40"
+            className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-ink text-white transition-opacity disabled:opacity-40"
           >
             <Plus size={18} aria-hidden="true" />
           </button>
@@ -599,7 +599,7 @@ export function SetupStep() {
                   type="button"
                   aria-label={`Remove ${person.name}`}
                   onClick={() => removePerson(person.id)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
+                  className="flex h-9 w-9 items-center justify-center rounded-md text-zinc-400"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -614,7 +614,7 @@ export function SetupStep() {
         <Button
           onClick={handleContinue}
           disabled={!canContinue || isCreating}
-          className="h-12 w-full bg-coral-500 text-base hover:bg-coral-600"
+          className="h-12 w-full bg-coral-500 text-base"
         >
           {isCreating ? (
             <LoaderCircle size={16} className="animate-spin" />

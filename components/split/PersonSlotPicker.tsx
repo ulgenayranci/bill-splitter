@@ -84,7 +84,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                     <Button
                       type="button"
                       size="sm"
-                      className="flex-1 bg-coral-500 hover:bg-coral-600 text-[13px]"
+                      className="flex-1 bg-coral-500 text-[13px]"
                       onClick={() => handleRenameConfirm(person.id)}
                     >
                       Save
@@ -109,7 +109,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                           setRenameValue(person.name)
                           setEditingPersonId(person.id)
                         }}
-                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-zinc-400"
                       >
                         <Pencil size={14} aria-hidden="true" />
                       </button>
@@ -151,7 +151,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
           />
           <Button
             type="button"
-            className="bg-coral-500 hover:bg-coral-600"
+            className="bg-coral-500"
             onClick={handleAddMe}
           >
             Add me

@@ -135,7 +135,7 @@ export function TipScreen({
 
       <Button
         type="button"
-        className="h-12 w-full bg-coral-500 hover:bg-coral-600"
+        className="h-12 w-full bg-coral-500"
         onClick={handleConfirm}
         disabled={submitting}
         aria-label={submitting ? 'Confirming tip…' : 'Confirm tip'}

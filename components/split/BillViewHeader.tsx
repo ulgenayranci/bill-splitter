@@ -119,7 +119,7 @@ export function BillViewHeader({
           type="button"
           aria-label="Share bill link"
           onClick={handleShare}
-          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white hover:bg-coral-600 transition-colors"
+          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white transition-colors"
         >
           {copied ? (
             <Check size={18} aria-hidden="true" />

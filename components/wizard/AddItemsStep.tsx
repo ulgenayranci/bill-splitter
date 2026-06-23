@@ -261,7 +261,7 @@ export function AddItemsStep() {
             type="button"
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
-            className="h-12 w-full gap-2 border-dashed border-zinc-300 text-zinc-600 hover:bg-zinc-50"
+            className="h-12 w-full gap-2 border-dashed border-zinc-300 text-zinc-600"
             aria-label="Scan bill"
           >
             <Camera size={20} />
@@ -273,7 +273,7 @@ export function AddItemsStep() {
 
       {billImageUrl && (
         <Card
-          className="cursor-pointer p-2 hover:bg-zinc-50"
+          className="cursor-pointer p-2"
           onClick={() => setLightboxOpen(true)}
           role="button"
           tabIndex={0}
@@ -303,7 +303,7 @@ export function AddItemsStep() {
             type="button"
             aria-label="Close"
             onClick={() => setLightboxOpen(false)}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white"
           >
             <X size={20} />
           </button>
@@ -375,7 +375,7 @@ export function AddItemsStep() {
                     type="button"
                     aria-label="Confirm"
                     onClick={handleCommit}
-                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
+                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700"
                   >
                     <Check size={18} />
                   </button>
@@ -383,7 +383,7 @@ export function AddItemsStep() {
                     type="button"
                     aria-label="Cancel"
                     onClick={handleCancel}
-                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
+                    className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400"
                   >
                     <X size={18} />
                   </button>
@@ -395,7 +395,7 @@ export function AddItemsStep() {
             ) : (
               /* Display mode */
               <Card
-                className="flex flex-row items-center gap-3 px-4 min-h-14 cursor-pointer hover:bg-zinc-50"
+                className="flex flex-row items-center gap-3 px-4 min-h-14 cursor-pointer"
                 onClick={() => handleItemRowClick(item)}
                 role="button"
                 tabIndex={0}
@@ -421,7 +421,7 @@ export function AddItemsStep() {
                     e.stopPropagation()
                     setPendingRemove({ id: item.id, name: item.name })
                   }}
-                  className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100"
+                  className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-500"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -475,7 +475,7 @@ export function AddItemsStep() {
                   type="button"
                   aria-label="Confirm"
                   onClick={handleCommit}
-                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100"
+                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-700"
                 >
                   <Check size={18} />
                 </button>
@@ -483,7 +483,7 @@ export function AddItemsStep() {
                   type="button"
                   aria-label="Cancel"
                   onClick={handleCancel}
-                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
+                  className="flex h-10 w-10 items-center justify-center rounded-md text-zinc-400"
                 >
                   <X size={18} />
                 </button>
@@ -499,7 +499,7 @@ export function AddItemsStep() {
               type="button"
               aria-label="Add item"
               onClick={handleAddItemClick}
-              className="flex w-full items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-[16px] text-zinc-500 hover:bg-zinc-50"
+              className="flex w-full items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-[16px] text-zinc-500"
             >
               <Plus size={20} />
               Add item
@@ -513,7 +513,7 @@ export function AddItemsStep() {
         <Button
           onClick={handleCTAClick}
           disabled={items.length === 0}
-          className={`h-12 w-full text-base bg-coral-500 hover:bg-coral-600 ${editState !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`h-12 w-full text-base bg-coral-500 ${editState !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Continue
         </Button>

@@ -134,7 +134,7 @@ export function DisambiguationDialog({
           <button
             type="button"
             onClick={() => setDialogState('choices')}
-            className="self-start text-sm text-zinc-500 hover:text-zinc-700"
+            className="self-start text-sm text-zinc-500"
           >
             ← Back
           </button>

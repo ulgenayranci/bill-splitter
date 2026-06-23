@@ -213,7 +213,7 @@ export function PersonResultsScreen({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)
               }}
-              className="cursor-pointer rounded-lg bg-[#e0a400]/10 border border-[#e0a400]/30 px-4 py-3 hover:bg-[#e0a400]/15 transition-colors"
+              className="cursor-pointer rounded-lg bg-[#e0a400]/10 border border-[#e0a400]/30 px-4 py-3 transition-colors"
             >
               <p className="text-[14px] font-medium text-warn mb-2">Unclaimed items</p>
               {/* R3-5: always list every unclaimed item (no count-collapse). */}
@@ -417,7 +417,7 @@ export function PersonResultsScreen({
             {/* Share summary (coral, right) */}
             <Button
               type="button"
-              className="h-12 flex-1 bg-coral-500 hover:bg-coral-600"
+              className="h-12 flex-1 bg-coral-500"
               onClick={handleShareSummary}
               aria-label={copied ? 'Summary copied' : 'Copy summary to clipboard'}
             >
@@ -439,7 +439,7 @@ export function PersonResultsScreen({
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
-              className="h-12 w-full bg-coral-500 hover:bg-coral-600"
+              className="h-12 w-full bg-coral-500"
               onClick={() => {
                 setShowUnclaimedConfirm(false)
                 onEditBill()

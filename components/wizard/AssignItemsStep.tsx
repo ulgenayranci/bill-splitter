@@ -69,7 +69,7 @@ export function AssignItemsStep() {
             type="button"
             onClick={() => setPhotoOpen(true)}
             aria-label="View bill photo"
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[13px] font-medium text-zinc-600 hover:bg-zinc-50"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[13px] font-medium text-zinc-600"
           >
             <Receipt size={15} aria-hidden="true" />
             View bill
@@ -120,7 +120,7 @@ export function AssignItemsStep() {
                           'flex h-9 max-w-[9rem] items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-sm font-medium transition-all',
                           isFilled
                             ? `${AVATAR_COLORS[person.colorIndex]} text-white`
-                            : 'border border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50',
+                            : 'border border-zinc-200 bg-white text-zinc-400',
                         ].join(' ')}
                       >
                         <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${isFilled ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-400'}`}>

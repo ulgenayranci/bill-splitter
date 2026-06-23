@@ -123,7 +123,7 @@ export function AppHeader() {
                 type="button"
                 role="menuitem"
                 onClick={handleNewSplit}
-                className="flex w-full items-center px-4 py-2.5 text-left text-[14px] font-medium text-zinc-900 hover:bg-coral-50"
+                className="flex w-full items-center px-4 py-2.5 text-left text-[14px] font-medium text-zinc-900"
               >
                 New Split
               </button>
@@ -160,7 +160,7 @@ export function AppHeader() {
               Cancel
             </Button>
             <Button
-              className="bg-coral-500 hover:bg-coral-600"
+              className="bg-coral-500"
               onClick={() => {
                 setConfirmReset(false)
                 startNewSplit()

@@ -36,7 +36,7 @@ export function AddPeopleStep() {
       <button
         type="button"
         onClick={() => setStep(1)}
-        className="flex items-center gap-1 text-[14px] text-zinc-500 hover:text-zinc-800"
+        className="flex items-center gap-1 text-[14px] text-zinc-500"
         aria-label="Back to Define the Bill"
       >
         <ChevronLeft size={16} />
@@ -98,7 +98,7 @@ export function AddPeopleStep() {
               type="button"
               aria-label={`Remove ${person.name}`}
               onClick={() => setPendingRemove({ id: person.id, name: person.name })}
-              className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100"
+              className="flex h-12 w-12 items-center justify-center rounded-md text-zinc-500"
             >
               <Trash2 size={20} />
             </button>
@@ -110,7 +110,7 @@ export function AddPeopleStep() {
         <Button
           onClick={() => setStep(3)}
           disabled={people.length === 0}
-          className="h-12 w-full bg-coral-500 hover:bg-coral-600"
+          className="h-12 w-full bg-coral-500"
         >
           Continue
         </Button>

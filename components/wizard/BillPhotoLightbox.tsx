@@ -32,7 +32,7 @@ export function BillPhotoLightbox({ open, onClose }: BillPhotoLightboxProps) {
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30"
+        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white"
       >
         <X size={20} />
       </button>

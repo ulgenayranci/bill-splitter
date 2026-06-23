@@ -117,7 +117,7 @@ export function ShareLinkButton() {
         <Button
           onClick={handleShare}
           disabled={isLoading}
-          className="h-12 w-full bg-coral-500 hover:bg-coral-600"
+          className="h-12 w-full bg-coral-500"
         >
           {isLoading ? <LoaderCircle size={16} className="animate-spin" /> : 'Share link'}
         </Button>
@@ -143,7 +143,7 @@ export function ShareLinkButton() {
           <DialogFooter>
             <Button
               onClick={handleCopyLink}
-              className="w-full bg-coral-500 hover:bg-coral-600"
+              className="w-full bg-coral-500"
             >
               {copied ? (
                 <><Check size={16} className="mr-2" /> Copied!</>

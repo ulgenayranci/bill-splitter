@@ -691,11 +691,11 @@ export function CollaborativeClaimingView({
                         className="h-10 w-14 text-base text-center"
                       />
                       <button type="button" aria-label="Confirm edit" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100">
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700">
                         <Check size={18} />
                       </button>
                       <button type="button" aria-label="Cancel edit" onClick={() => setInlineForm(null)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100">
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400">
                         <X size={18} />
                       </button>
                     </div>
@@ -705,7 +705,7 @@ export function CollaborativeClaimingView({
                       type="button"
                       aria-label={`Delete ${item.name}`}
                       onClick={() => { void handleDeleteItem(inlineForm.itemId); setInlineForm(null) }}
-                      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[13px] text-red-600 hover:bg-red-50"
+                      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[13px] text-red-600"
                       data-testid={`delete-item-${item.id}`}
                     >
                       <Trash2 size={14} aria-hidden="true" />
@@ -733,7 +733,7 @@ export function CollaborativeClaimingView({
                     onClick={() => setInlineForm({ kind: 'edit', itemId: item.id,
                       name: item.name, price: originalPrice, qty: String(item.quantity ?? 1),
                       originalName: item.name, originalPrice, originalQty: String(item.quantity ?? 1), error: null })}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500 hover:bg-zinc-100"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500"
                     data-testid={`edit-pencil-${item.id}`}
                   >
                     <Pencil size={16} />
@@ -781,11 +781,11 @@ export function CollaborativeClaimingView({
                     aria-label="Quantity"
                   />
                   <button type="button" aria-label="Confirm" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-100">
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-700">
                     <Check size={18} />
                   </button>
                   <button type="button" aria-label="Cancel" onClick={() => setInlineForm(null)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100">
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-zinc-400">
                     <X size={18} />
                   </button>
                 </div>
@@ -800,7 +800,7 @@ export function CollaborativeClaimingView({
             <button
               type="button"
               onClick={() => setInlineForm({ kind: 'add', name: '', price: '', qty: '1', error: null })}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-dashed border-border text-[14px] text-zinc-600 hover:bg-zinc-50"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-dashed border-border text-[14px] text-zinc-600"
               data-testid="add-item-button"
             >
               <Plus size={16} /> Add item
@@ -817,7 +817,7 @@ export function CollaborativeClaimingView({
         {doneError && (
           <p className="mb-2 text-center text-sm text-red-600">{doneError}</p>
         )}
-        <Button onClick={handleDone} className="h-12 w-full bg-coral-500 hover:bg-coral-600">
+        <Button onClick={handleDone} className="h-12 w-full bg-coral-500">
           I&rsquo;m done
         </Button>
       </div>
@@ -862,7 +862,7 @@ export function CollaborativeClaimingView({
                 setShowUnclaimedWarning(false)
                 void submitDone()
               }}
-              className="flex-1 h-12 bg-coral-500 hover:bg-coral-600"
+              className="flex-1 h-12 bg-coral-500"
             >
               Show my result
             </Button>
@@ -870,7 +870,7 @@ export function CollaborativeClaimingView({
           <button
             type="button"
             onClick={() => setShowUnclaimedWarning(false)}
-            className="mx-auto mt-2 text-[15px] font-medium text-zinc-500 underline-offset-4 hover:underline"
+            className="mx-auto mt-2 text-[15px] font-medium text-zinc-500 underline-offset-4"
           >
             Continue editing
           </button>
