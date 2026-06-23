@@ -11,13 +11,14 @@ export const randomId = (): string =>
 export type PersonId = string
 export type ItemId = string
 
+// easy billsy person palette (spec §09) — in order, never coral.
 export const AVATAR_COLORS = [
-  'bg-amber-400',
-  'bg-sky-400',
-  'bg-emerald-400',
-  'bg-violet-400',
-  'bg-rose-400',
-  'bg-orange-400',
+  'bg-[#3aa0e0]', // blue
+  'bg-[#9b6cf0]', // violet
+  'bg-[#2f9e6a]', // green
+  'bg-[#e0a02a]', // gold
+  'bg-[#16b1bd]', // teal
+  'bg-[#d96aa6]', // magenta
 ] as const
 
 export interface Person {

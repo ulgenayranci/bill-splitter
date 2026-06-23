@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button'
 import { useBillStore } from '@/stores/useBillStore'
 
 /**
- * easy-billsy app shell header (design "Style A").
- * White background, dark wordmark, amber hamburger lines — appears on every screen.
+ * easy billsy app shell header (design "Style A").
+ * White background, dark wordmark, coral hamburger lines — appears on every screen.
  * Menu: New Split (active) / History (disabled) / About Us (disabled) per D-04/D-06.
  */
 export function AppHeader() {
@@ -84,10 +84,10 @@ export function AppHeader() {
         {/* Wordmark */}
         <div
           className="select-none text-[17px] leading-none tracking-[-0.03em] text-zinc-900"
-          aria-label="easy-billsy"
+          aria-label="easy billsy"
         >
           <span className="font-normal">easy</span>
-          <span className="opacity-30">−</span>
+          <span> </span>
           <span className="font-bold">billsy</span>
         </div>
 
@@ -100,9 +100,9 @@ export function AppHeader() {
           onClick={() => setMenuOpen((o) => !o)}
           className="flex flex-col gap-[3px] p-2"
         >
-          <span className="block h-[1.5px] w-[18px] rounded bg-amber-600" />
-          <span className="block h-[1.5px] w-[18px] rounded bg-amber-600" />
-          <span className="block h-[1.5px] w-[18px] rounded bg-amber-600" />
+          <span className="block h-[1.5px] w-[18px] rounded bg-coral-500" />
+          <span className="block h-[1.5px] w-[18px] rounded bg-coral-500" />
+          <span className="block h-[1.5px] w-[18px] rounded bg-coral-500" />
         </button>
 
         {/* Dropdown menu */}
@@ -123,7 +123,7 @@ export function AppHeader() {
                 type="button"
                 role="menuitem"
                 onClick={handleNewSplit}
-                className="flex w-full items-center px-4 py-2.5 text-left text-[14px] font-medium text-zinc-900 hover:bg-amber-50"
+                className="flex w-full items-center px-4 py-2.5 text-left text-[14px] font-medium text-zinc-900 hover:bg-coral-50"
               >
                 New Split
               </button>
@@ -160,7 +160,7 @@ export function AppHeader() {
               Cancel
             </Button>
             <Button
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-coral-500 hover:bg-coral-600"
               onClick={() => {
                 setConfirmReset(false)
                 startNewSplit()
