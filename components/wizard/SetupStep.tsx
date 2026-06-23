@@ -540,7 +540,7 @@ export function SetupStep() {
           {/* GAP 4: count chip bound to people.length */}
           <span
             data-testid="people-count-chip"
-            className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-500"
+            className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-coral-100 px-2 py-0.5 text-[12px] font-bold text-coral-700"
           >
             {people.length}
           </span>
