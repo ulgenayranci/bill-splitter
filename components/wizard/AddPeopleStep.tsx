@@ -98,7 +98,7 @@ export function AddPeopleStep() {
               type="button"
               aria-label={`Remove ${person.name}`}
               onClick={() => setPendingRemove({ id: person.id, name: person.name })}
-              className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-background text-zinc-500"
+              className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-white text-zinc-500"
             >
               <Trash2 size={20} />
             </button>

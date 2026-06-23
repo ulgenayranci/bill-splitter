@@ -430,7 +430,7 @@ export function SetupStep() {
                     type="button"
                     aria-label={`Remove ${item.name}`}
                     onClick={() => removeItem(item.id)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-zinc-400"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-400"
                   >
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
@@ -599,7 +599,7 @@ export function SetupStep() {
                   type="button"
                   aria-label={`Remove ${person.name}`}
                   onClick={() => removePerson(person.id)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-zinc-400"
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-white text-zinc-400"
                 >
                   <Trash2 size={16} />
                 </button>
