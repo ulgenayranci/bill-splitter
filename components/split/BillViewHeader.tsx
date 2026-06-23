@@ -105,7 +105,7 @@ export function BillViewHeader({
   }
 
   return (
-    <div className="bg-white border-b border-zinc-100 px-4 pt-3 pb-2">
+    <div className="bg-background border-b border-zinc-100 px-4 pt-3 pb-2">
       {/* Row 1: bill title + date (left) + Share button (right) */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
