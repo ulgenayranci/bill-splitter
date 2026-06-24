@@ -3,7 +3,7 @@ import type { SessionPayload } from '@/lib/sessionSchema'
 
 /**
  * Count items whose total claimed quantity is below their quantity (unclaimed).
- * Shared helper used by CollaborativeClaimingView, UnclaimedBanner, and PersonResultsScreen.
+ * Shared helper used by CollaborativeClaimingView and PersonResultsScreen.
  *
  * WR-02: guard the entry (e?.qty ?? 0) to match the defensive pattern used elsewhere
  * (CollaborativeClaimingView, billMath). A null entry from a malformed payload would

@@ -13,7 +13,7 @@ export interface CreateSessionResult {
 
 /**
  * Shared helper that POSTs /api/session with {people, items, currencyCode}
- * and returns {sessionId, guestUrl}. Used by both SetupStep and ShareLinkButton
+ * and returns {sessionId, guestUrl}. Used by SetupStep
  * so the session-create logic lives in one place.
  *
  * Assignments are NOT sent — claims start empty per the flat model (CLAIM-01/03).
