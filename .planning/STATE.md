@@ -4,7 +4,7 @@ milestone: v2.0
 milestone_name: easy-billsy Redesign
 status: Awaiting next milestone
 last_updated: "2026-06-23T23:22:53.839Z"
-last_activity: 2026-06-23 — Milestone v2.0 completed and archived
+last_activity: 2026-06-24 — Completed quick task 260624-j9b: deleted v2.0 dead code (retired wizard, UnclaimedBanner, /api/clarify, OcrErrorToast)
 progress:
   total_phases: 5
   completed_phases: 5
@@ -128,6 +128,7 @@ None.
 | 260623-olg | Apply the "easy billsy" Brand & UI Spec — rebrand amber/Geist → Friendly Coral (#f1603f) + warm cream paper + Archivo/Caveat fonts; remap shadcn tokens in both HSL & OKLch blocks, register coral/person/semantic Tailwind utilities, 6-color avatar palette, drop the minus from the wordmark ("easy billsy"), title → "easy billsy". 15 files de-ambered (one-coral-per-screen; settled/paid stays green). build passes | 2026-06-23 | ef83d2b | | [260623-olg-apply-the-easy-billsy-brand-ui-spec-rebr](./quick/260623-olg-apply-the-easy-billsy-brand-ui-spec-rebr/) |
 | 260623-plo | Mobile button polish: stripped all `hover:` utilities app-wide (button.tsx cva variants + 14 components) since touch has no hover; converted 13 borderless "ghost" icon buttons (−/+ steppers, pencil-edit, inline confirm/cancel) to the spec outline style (`border border-border bg-background`) so they're visible at rest. Kept active/focus states, coral CTA color, green settled states, dashed add controls. build passes | 2026-06-23 | 41e829a | | [260623-plo-mobile-button-polish-remove-all-hover-st](./quick/260623-plo-mobile-button-polish-remove-all-hover-st/) |
 | 260623-u9k | Implement spec §06 button fills (prior pass left buttons fill-less on paper): button.tsx outline `bg-background`→`bg-white`+ink text+n200 border; primary gained coral drop-shadow; ghost gained n100 fill (`bg-muted`). 13 custom icon buttons `bg-background`→`bg-white`. No hover reintroduced; sizes/dashed controls/inputs untouched. build passes | 2026-06-23 | 646df95 | | [260623-u9k-implement-spec-button-component-design-o](./quick/260623-u9k-implement-spec-button-component-design-o/) |
+| 260624-j9b | Delete v2.0 dead code from the milestone audit: 8 retired wizard/split components (AssignItemsStep, ResultsStep, AddItemsStep, AddPeopleStep, DisambiguationDialog, ShareLinkButton, OcrErrorToast, UnclaimedBanner) + 8 tests + the dead /api/clarify route; drop the empty OcrErrorToast/Toast.Provider mount from providers.tsx; fix 2 stale comments. ~2,980 lines removed. tsc clean, build passes. | 2026-06-24 | 2d0d5b9 | Complete | [260624-j9b-cleanup-v2-dead-code](./quick/260624-j9b-cleanup-v2-dead-code/) |
 
 ---
 
@@ -157,7 +158,7 @@ Acknowledged and deferred at v2.0 milestone close (2026-06-24):
 | verification | phase 07 | missing | No VERIFICATION.md/VALIDATION.md — functionally working + integration-confirmed; never formally verified. |
 | verification | phase 09 / 10 / 11 | human_needed | Automated truths verified (19/19, 13/13, 8/8); human UAT covered per Phase 11 UAT (fully green). |
 | traceability | phase 9 reqs | stale `[ ]` | IDENT-01..04, CLAIM-02/04/05/06 are verified + summary-complete; checkboxes never flipped (archived as-is in v2.0-REQUIREMENTS.md). |
-| dead_code | retired wizard + /api/clarify + UnclaimedBanner + empty OcrErrorToast | unused | No runtime route reaches them; only tests import. Safe to delete in a cleanup. |
+| dead_code | retired wizard + /api/clarify + UnclaimedBanner + empty OcrErrorToast | ✅ RESOLVED 2026-06-24 (quick 260624-j9b) | Deleted — 8 components + 8 tests + the route removed; providers.tsx Toast mount dropped. ~2,980 lines gone; tsc + build clean. |
 | todo | add-user-facing-privacy-disclosure | pending | Carried from v1.0; candidate for v2.1. |
 
 Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 blockers).
