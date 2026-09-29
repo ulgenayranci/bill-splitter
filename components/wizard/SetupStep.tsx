@@ -1,19 +1,15 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Camera, Check, RotateCcw, Receipt, Trash2, LoaderCircle, X, Plus } from 'lucide-react'
+import { Camera, Check, RotateCcw, Pencil, Receipt, Trash2, LoaderCircle, X, Plus } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
-import {
-  reconcileScannedBill,
-  type ReconcileCompleteness,
-  TOLERANCE_CENTS,
-} from '@/lib/reconcileScannedBill'
-import { formatCents, parseCents, computeSubtotalCents } from '@/lib/billMath'
+import { reconcileScannedBill, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
+import { formatCents, computeSubtotalCents } from '@/lib/billMath'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
 
@@ -23,7 +19,9 @@ import { BillPhotoLightbox } from './BillPhotoLightbox'
  * Scan-FIRST entry: camera is the hero action, but the native picker also offers
  * the photo library (D-09 revised 2026-06-05 — capture attr dropped). No manual
  * item entry.
- * After a scan: thumbnail + "N items found" badge + Retake, no item list (D-10).
+ * After a scan: the "scanned bill review container" - thumbnail + "N items found"
+ * badge + Retake / Edit buttons, no item list (D-10). Items are edited on the
+ * separate ScanItemsEditor screen (store step 2), auto-opened after a mismatched scan.
  * Continue is gated on a scanned bill AND ≥2 people (D-11), then bridges to
  * the existing Assign flow as a stopgap (D-12).
  */
@@ -41,28 +39,15 @@ export function SetupStep() {
   const setOcrStatus = useBillStore((s) => s.setOcrStatus)
   const setExpandStatus = useBillStore((s) => s.setExpandStatus)
   const setItems = useBillStore((s) => s.setItems)
-  const addItem = useBillStore((s) => s.addItem)
-  const updateItem = useBillStore((s) => s.updateItem)
-  const removeItem = useBillStore((s) => s.removeItem)
+  const scanCheck = useBillStore((s) => s.scanCheck)
+  const setScanCheck = useBillStore((s) => s.setScanCheck)
+  const setStep = useBillStore((s) => s.setStep)
   const currencyCode = useBillStore((s) => s.currencyCode)
   const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
 
   const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
-  // Non-blocking scan guardrail: how many lines were auto-corrected to match the
-  // receipt + the bill-level completeness result + the truth figure the scan was
-  // reconciled against (subtotal ?? grand total). Cleared on retake/error.
-  const [guardrail, setGuardrail] = useState<{
-    correctedCount: number
-    completeness: ReconcileCompleteness
-    targetCents: number | null
-  } | null>(null)
-  // Per-row edit drafts for the scan-review screen, keyed by item id. Holds raw
-  // strings so the user can type freely; committed to the store on blur/Enter.
-  const [reviewDrafts, setReviewDrafts] = useState<
-    Record<string, { name: string; price: string; qty: string }>
-  >({})
   const [isCreating, setIsCreating] = useState(false)
   const [sessionCreateError, setSessionCreateError] = useState<string | null>(null)
   // G3: shown when we arrive here after an expired/dead bill link (?expired=1).
@@ -102,55 +87,16 @@ export function SetupStep() {
   }
 
   // Scan-review gate: only when the receipt printed a truth figure AND the scanned
-  // items don't reconcile to it (mismatch after the server's retry). Clean scans
-  // never enter review (locked decision 1).
-  const reviewMode = Boolean(
-    guardrail && guardrail.completeness.mismatch && guardrail.targetCents != null,
-  )
+  // items don't reconcile to it (mismatch after the server's retry). The scan check is
+  // persisted in the store, so this survives refresh.
+  const reviewMode = Boolean(scanCheck?.mismatch && scanCheck.targetCents != null)
   // Live items sum recomputed from the store so the gap updates as the user edits.
   const liveSumCents = computeSubtotalCents(items)
-  const targetCents = guardrail?.targetCents ?? null
+  const targetCents = scanCheck?.targetCents ?? null
   const liveDeltaCents = targetCents != null ? targetCents - liveSumCents : 0
-  // Soft gate: in review mode Continue is still enabled (decision 2). "Still off"
-  // hint shows only while the live gap exceeds the rounding tolerance.
+  // Soft gate: in review mode Continue is still enabled. "Still off" hint shows only
+  // while the live gap exceeds the rounding tolerance.
   const stillOff = reviewMode && Math.abs(liveDeltaCents) > TOLERANCE_CENTS
-
-  // Read the live draft for a row, defaulting to the item's current store values.
-  const draftFor = (item: (typeof items)[number]) =>
-    reviewDrafts[item.id] ?? {
-      name: item.name,
-      price: (item.priceCents / 100).toFixed(2),
-      qty: String(item.quantity ?? 1),
-    }
-
-  const setDraft = (id: string, patch: Partial<{ name: string; price: string; qty: string }>) =>
-    setReviewDrafts((d) => ({
-      ...d,
-      [id]: { ...draftFor(items.find((i) => i.id === id)!), ...d[id], ...patch },
-    }))
-
-  // Commit a row's draft to the store via updateItem. priceCents is the LINE TOTAL.
-  // Invalid price/qty are ignored (kept as draft) so we never silently fudge a value.
-  const commitRow = (item: (typeof items)[number]) => {
-    const draft = reviewDrafts[item.id]
-    if (!draft) return
-    const trimmedName = draft.name.trim() || item.name
-    const priceCents = parseCents(draft.price)
-    const qty = Number.parseInt(draft.qty, 10)
-    const nextQty = Number.isInteger(qty) && qty > 0 ? qty : (item.quantity ?? 1)
-    if (priceCents == null) return // invalid price — leave the draft, don't write
-    updateItem(item.id, trimmedName, priceCents, nextQty)
-    setReviewDrafts((d) => {
-      const { [item.id]: _drop, ...rest } = d
-      return rest
-    })
-  }
-
-  const handleAddReviewItem = () => {
-    // Seed a new line at a placeholder price so the user immediately edits it. We
-    // never invent a real amount — 1 cent is the minimal non-zero parseCents allows.
-    addItem('New item', 1, 1)
-  }
 
   async function handleContinue() {
     if (isCreating) return
@@ -180,8 +126,7 @@ export function SetupStep() {
       if (!file) return
       e.target.value = ''
       setScanError(null)
-      setGuardrail(null)
-      setReviewDrafts({})
+      setScanCheck(null)
 
       const prevUrl = useBillStore.getState().billImageUrl
       if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
@@ -240,7 +185,7 @@ export function SetupStep() {
           setItems([])
           setBillImage(null)
           setOcrStatus('error')
-          setGuardrail(null)
+          setScanCheck(null)
           setScanError('No items found — tap Scan to try a clearer photo')
           return
         }
@@ -250,7 +195,7 @@ export function SetupStep() {
         setItems([])
         setBillImage(null)
         setOcrStatus('error')
-        setGuardrail(null)
+        setScanCheck(null)
         setScanError("Couldn't read the bill — tap Scan to try again")
         return
       }
@@ -305,7 +250,15 @@ export function SetupStep() {
             confidence: ei.confidence,
           })),
         )
-        setGuardrail({ correctedCount, completeness: reconciled.completeness, targetCents })
+        // Write items BEFORE opening the edit screen: app/page.tsx falls back to
+        // step 1 when step === 2 and items are empty.
+        setScanCheck({
+          correctedCount,
+          mismatch: reconciled.completeness.mismatch,
+          targetCents,
+          hasSubtotal: reconciled.completeness.subtotalCents != null,
+        })
+        if (reconciled.completeness.mismatch && targetCents != null) setStep(2)
         setExpandStatus('done')
       } catch (err) {
         console.error(err)
@@ -321,10 +274,18 @@ export function SetupStep() {
             unitPriceCents: i.unitPriceCents,
           })),
         )
-        setGuardrail({ correctedCount, completeness: reconciled.completeness, targetCents })
+        // Write items BEFORE opening the edit screen: app/page.tsx falls back to
+        // step 1 when step === 2 and items are empty.
+        setScanCheck({
+          correctedCount,
+          mismatch: reconciled.completeness.mismatch,
+          targetCents,
+          hasSubtotal: reconciled.completeness.subtotalCents != null,
+        })
+        if (reconciled.completeness.mismatch && targetCents != null) setStep(2)
       }
     },
-    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setGuardrail],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setStep],
   )
 
   return (
@@ -371,114 +332,28 @@ export function SetupStep() {
         </p>
       )}
 
-      {/* Scan-review/confirm screen — shown ONLY when the scan can't reconcile to
-          the printed truth figure after the server's retry (locked decision 1).
-          Soft gate: the user can edit/confirm here but is never blocked (decision 2).
-          Clean scans skip this entirely. */}
-      {reviewMode && targetCents != null && (
-        <div
-          role="region"
-          aria-label="Confirm detected items"
-          data-testid="scan-review"
-          className="flex flex-col gap-3 rounded-xl border border-[#e0a400]/30 bg-[#e0a400]/10 px-3 py-3"
-        >
-          <p className="text-[14px] font-semibold text-warn">
-            Please confirm or edit these detected items
-          </p>
-
-          <ul className="flex flex-col gap-2">
-            {items.map((item) => {
-              const draft = draftFor(item)
-              return (
-                <li key={item.id} className="flex flex-col gap-2">
-                  <Input
-                    aria-label="Item name"
-                    value={draft.name}
-                    onChange={(e) => setDraft(item.id, { name: e.target.value })}
-                    onBlur={() => commitRow(item)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitRow(item)
-                    }}
-                    maxLength={100}
-                    className="h-10 w-full bg-white text-base"
-                  />
-                  <div className="flex items-center gap-2">
-                  <Input
-                    aria-label="Price"
-                    inputMode="decimal"
-                    value={draft.price}
-                    onChange={(e) => setDraft(item.id, { price: e.target.value })}
-                    onBlur={() => commitRow(item)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitRow(item)
-                    }}
-                    maxLength={9}
-                    className="h-10 w-20 bg-white text-base"
-                  />
-                  <Input
-                    aria-label="Quantity"
-                    inputMode="numeric"
-                    value={draft.qty}
-                    onChange={(e) => setDraft(item.id, { qty: e.target.value })}
-                    onBlur={() => commitRow(item)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') commitRow(item)
-                    }}
-                    maxLength={2}
-                    className="h-10 w-12 bg-white text-center text-base"
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Remove ${item.name}`}
-                    onClick={() => removeItem(item.id)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-400"
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                  </button>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-
-          <button
-            type="button"
-            onClick={handleAddReviewItem}
-            className="flex items-center gap-1.5 self-start rounded-md text-[13px] font-semibold text-coral-600"
-          >
-            <Plus size={15} aria-hidden="true" />
-            Add item
-          </button>
-
-          <p data-testid="scan-review-gap" className="text-[13px] font-medium text-warn">
-            Items add up to {formatCents(liveSumCents, currencyCode)} · Receipt{' '}
-            {guardrail?.completeness.subtotalCents != null ? 'subtotal' : 'total'}{' '}
-            {formatCents(targetCents, currencyCode)} · off by{' '}
-            {formatCents(Math.abs(liveDeltaCents), currencyCode)}
-          </p>
-        </div>
-      )}
-      {!reviewMode && guardrail && guardrail.correctedCount > 0 && (
+      {!reviewMode && scanCheck && scanCheck.correctedCount > 0 && (
         <p
           role="status"
           data-testid="guardrail-corrected"
           className="text-[12px] text-zinc-500"
         >
-          {guardrail.correctedCount === 1
+          {scanCheck.correctedCount === 1
             ? '1 price was adjusted to match the receipt total.'
-            : `${guardrail.correctedCount} prices were adjusted to match the receipt totals.`}
+            : `${scanCheck.correctedCount} prices were adjusted to match the receipt totals.`}
         </p>
       )}
 
       {/* Scan tile (empty) OR receipt thumbnail (after scan) */}
       {billScanned ? (
-        <div>
+        // Scanned bill review container: photo + Retake / Edit.
+        <div data-testid="scanned-bill-review">
           <button
             type="button"
             onClick={() => billImageUrl && setLightboxOpen(true)}
             disabled={!billImageUrl}
             aria-label="View bill photo"
-            className="relative flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 [background:repeating-linear-gradient(45deg,#f5ece2,#f5ece2_8px,#fdf6ef_8px,#fdf6ef_16px)] enabled:cursor-pointer"
+            className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 [background:repeating-linear-gradient(45deg,#f5ece2,#f5ece2_8px,#fdf6ef_8px,#fdf6ef_16px)] enabled:cursor-pointer"
           >
             {billImageUrl ? (
               <img
@@ -494,17 +369,23 @@ export function SetupStep() {
               {items.length} {items.length === 1 ? 'item' : 'items'} found
             </span>
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setGuardrail(null)
-              fileInputRef.current?.click()
-            }}
-            className="ml-auto mt-1 flex items-center gap-1 text-[13px] font-semibold text-coral-600"
-          >
-            <RotateCcw size={13} aria-hidden="true" />
-            Retake
-          </button>
+          <div className="mt-2 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setScanCheck(null)
+                fileInputRef.current?.click()
+              }}
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              Retake
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setStep(2)}>
+              <Pencil size={13} aria-hidden="true" />
+              Edit
+            </Button>
+          </div>
         </div>
       ) : (
         <button

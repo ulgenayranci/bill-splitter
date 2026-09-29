@@ -234,3 +234,35 @@ describe('syncStatus + sessionId (Phase 4)', () => {
     expect(useBillStore.getState().sessionId).toBeNull()
   })
 })
+
+describe('scanCheck (260929-k3j)', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+  })
+
+  const check = { correctedCount: 0, mismatch: true, targetCents: 1500, hasSubtotal: true }
+
+  it('defaults to null', () => {
+    expect(useBillStore.getState().scanCheck).toBeNull()
+  })
+
+  it('setScanCheck stores and clears', () => {
+    useBillStore.getState().setScanCheck(check)
+    expect(useBillStore.getState().scanCheck).toEqual(check)
+    useBillStore.getState().setScanCheck(null)
+    expect(useBillStore.getState().scanCheck).toBeNull()
+  })
+
+  it('reset clears scanCheck', () => {
+    useBillStore.getState().setScanCheck(check)
+    useBillStore.getState().reset()
+    expect(useBillStore.getState().scanCheck).toBeNull()
+  })
+
+  it('partialize persists scanCheck and step', () => {
+    useBillStore.getState().setScanCheck(check)
+    const out = useBillStore.persist.getOptions().partialize!(useBillStore.getState()) as Record<string, unknown>
+    expect(out).toHaveProperty('scanCheck', check)
+    expect(out).toHaveProperty('step')
+  })
+})

@@ -116,7 +116,7 @@ describe('SetupStep — GAP 6 failed/empty re-scan clears items', () => {
 })
 
 // ── Scan-review/confirm screen (260622-q3m) ──────────────────────────────────
-describe('SetupStep — scan-review screen on a failed reconciliation', () => {
+describe('SetupStep — scanned bill review container + auto-open edit screen', () => {
   let origFR: typeof FileReader
 
   beforeEach(() => {
@@ -154,116 +154,98 @@ describe('SetupStep — scan-review screen on a failed reconciliation', () => {
     })
   }
 
-  it('mismatch → renders the editable review block with the live gap', async () => {
+  const scanOnce = (subtotal: number, itemCents: number) => {
     const fetchMock = mockScan(
       {
-        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
+        items: [{ name: 'Widget', quantity: 1, unitPriceCents: itemCents, lineTotalCents: null }],
         currencyCode: 'USD',
-        subtotalCents: 1500,
-        grandTotalCents: 1500,
+        subtotalCents: subtotal,
+        grandTotalCents: subtotal,
       },
-      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
+      [{ rawName: 'Widget', displayName: 'Widget', priceCents: itemCents, confidence: 'high', quantity: 1 }],
     )
-
     renderInProvider(<SetupStep />)
     fireEvent.change(screen.getByTestId('ocr-file-input'), {
       target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
     })
+    return fetchMock
+  }
 
-    const review = await screen.findByTestId('scan-review')
-    expect(review.textContent).toContain('Please confirm or edit these detected items')
-    // Editable controls present.
-    expect(screen.getByLabelText('Item name')).toBeDefined()
-    expect(screen.getByLabelText('Price')).toBeDefined()
-    expect(screen.getByLabelText('Quantity')).toBeDefined()
-    expect(screen.getByRole('button', { name: /add item/i })).toBeDefined()
-    // Live gap line.
-    const gap = screen.getByTestId('scan-review-gap')
-    expect(gap.textContent).toContain('$10.00')
-    expect(gap.textContent).toContain('$15.00')
-    expect(gap.textContent).toContain('$5.00')
+  it('mismatch → persists scanCheck, opens the edit screen (step 2), no in-page review list', async () => {
+    const fetchMock = scanOnce(1500, 1000)
 
-    fetchMock.mockRestore()
-  })
-
-  it('editing the price to match the receipt clears the gap and removes review mode', async () => {
-    const fetchMock = mockScan(
-      {
-        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
-        currencyCode: 'USD',
-        subtotalCents: 1500,
-        grandTotalCents: 1500,
-      },
-      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
-    )
-
-    renderInProvider(<SetupStep />)
-    fireEvent.change(screen.getByTestId('ocr-file-input'), {
-      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    await waitFor(() => expect(useBillStore.getState().step).toBe(2))
+    // Items were written before the step flipped (page.tsx falls back to step 1 on empty items).
+    expect(useBillStore.getState().items.length).toBe(1)
+    expect(useBillStore.getState().scanCheck).toMatchObject({
+      mismatch: true,
+      targetCents: 1500,
+      hasSubtotal: true,
     })
-
-    await screen.findByTestId('scan-review')
-    const priceInput = screen.getByLabelText('Price') as HTMLInputElement
-    // Edit the single item up to 15.00 so items sum == receipt 15.00.
-    fireEvent.change(priceInput, { target: { value: '15.00' } })
-    fireEvent.blur(priceInput)
-
-    await waitFor(() => expect(useBillStore.getState().items[0].priceCents).toBe(1500))
-    // Gap now within tolerance → the "still off" hint is gone.
-    expect(screen.queryByTestId('scan-review-still-off')).toBeNull()
-
-    fetchMock.mockRestore()
-  })
-
-  it('clean scan → no review block', async () => {
-    const fetchMock = mockScan(
-      {
-        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1500, lineTotalCents: null }],
-        currencyCode: 'USD',
-        subtotalCents: 1500,
-        grandTotalCents: 1500,
-      },
-      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1500, confidence: 'high', quantity: 1 }],
-    )
-
-    renderInProvider(<SetupStep />)
-    fireEvent.change(screen.getByTestId('ocr-file-input'), {
-      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
-    })
-
-    // Wait for the scan to land (item count chip appears) then assert no review.
-    await waitFor(() => expect(useBillStore.getState().items.length).toBe(1))
     expect(screen.queryByTestId('scan-review')).toBeNull()
 
     fetchMock.mockRestore()
   })
 
-  it('"Confirm & continue" proceeds while a gap remains (soft gate)', async () => {
+  it('clean scan → stays on step 1 with the scanned bill review container + Retake/Edit', async () => {
+    const fetchMock = scanOnce(1500, 1500)
+
+    await waitFor(() => expect(useBillStore.getState().items.length).toBe(1))
+    await screen.findByTestId('scanned-bill-review')
+    expect(useBillStore.getState().step).toBe(1)
+    expect(useBillStore.getState().scanCheck?.mismatch).toBe(false)
+    expect(screen.queryByTestId('scan-review')).toBeNull()
+    expect(screen.getByRole('button', { name: /retake/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeDefined()
+
+    fetchMock.mockRestore()
+  })
+
+  it('Edit button opens the edit screen (step 2)', () => {
+    seedPriorScan()
+    renderInProvider(<SetupStep />)
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }))
+    expect(useBillStore.getState().step).toBe(2)
+  })
+
+  it('Retake clears scanCheck and opens the file picker', () => {
+    seedPriorScan()
+    useBillStore.getState().setScanCheck({
+      correctedCount: 0,
+      mismatch: true,
+      targetCents: 5000,
+      hasSubtotal: true,
+    })
+    renderInProvider(<SetupStep />)
+    const clickSpy = vi.spyOn(screen.getByTestId('ocr-file-input') as HTMLInputElement, 'click')
+    fireEvent.click(screen.getByRole('button', { name: /retake/i }))
+    expect(useBillStore.getState().scanCheck).toBeNull()
+    expect(clickSpy).toHaveBeenCalled()
+  })
+
+  it('photo frame is 192px (h-48), not h-24', () => {
+    seedPriorScan()
+    renderInProvider(<SetupStep />)
+    const photo = screen.getByRole('button', { name: /view bill photo/i })
+    expect(photo.className).toContain('h-48')
+    expect(photo.className).not.toContain('h-24')
+  })
+
+  it('"Confirm & continue" proceeds while a gap remains (soft gate, from persisted scanCheck)', () => {
     useBillStore.getState().addPerson('Alice')
     useBillStore.getState().addPerson('Bob')
-
-    const fetchMock = mockScan(
-      {
-        items: [{ name: 'Widget', quantity: 1, unitPriceCents: 1000, lineTotalCents: null }],
-        currencyCode: 'USD',
-        subtotalCents: 1500,
-        grandTotalCents: 1500,
-      },
-      [{ rawName: 'Widget', displayName: 'Widget', priceCents: 1000, confidence: 'high', quantity: 1 }],
-    )
-
-    renderInProvider(<SetupStep />)
-    fireEvent.change(screen.getByTestId('ocr-file-input'), {
-      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    seedPriorScan()
+    useBillStore.getState().setScanCheck({
+      correctedCount: 0,
+      mismatch: true,
+      targetCents: 5000,
+      hasSubtotal: true,
     })
 
-    await screen.findByTestId('scan-review')
-    // CTA relabeled in review mode, enabled, and the soft-gate hint is visible.
+    renderInProvider(<SetupStep />)
     const cta = screen.getByRole('button', { name: /confirm & continue/i }) as HTMLButtonElement
     expect(cta.disabled).toBe(false)
     expect(screen.getByTestId('scan-review-still-off')).toBeDefined()
-
-    fetchMock.mockRestore()
   })
 })
 
