@@ -8,6 +8,7 @@ import {
   computePersonShareFromClaims,
   computeEqualShareCents,
   computeQtyWeightedShares,
+  computeServiceFeeShares,
 } from '@/lib/billMath'
 import type { Item, Person } from '@/stores/useBillStore'
 
@@ -529,5 +530,59 @@ describe('scan-guardrail line totals', () => {
     for (const pid of sortedIds) {
       expect(computePersonShareFromClaims(pid, items, claims, 0).itemSubtotal).toBe(shares[pid])
     }
+  })
+})
+
+describe('computeServiceFeeShares', () => {
+  const mk = (n: number): Person[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `P${i + 1}`, colorIndex: i }))
+
+  it('splits 500 over 2 people as 250/250', () => {
+    expect(computeServiceFeeShares(500, mk(2))).toEqual({ p1: 250, p2: 250 })
+  })
+
+  it('splits 500 over 3 people as 167/167/166 in people-array order, summing to 500', () => {
+    const s = computeServiceFeeShares(500, mk(3))
+    expect(s).toEqual({ p1: 167, p2: 167, p3: 166 })
+    expect(Object.values(s).reduce((a, b) => a + b, 0)).toBe(500)
+  })
+
+  it('tiny fee: 2 cents over 3 people is 1/1/0 and sums to 2', () => {
+    const s = computeServiceFeeShares(2, mk(3))
+    expect(s).toEqual({ p1: 1, p2: 1, p3: 0 })
+    expect(Object.values(s).reduce((a, b) => a + b, 0)).toBe(2)
+  })
+
+  it('zero / null / undefined fee gives every person 0', () => {
+    expect(computeServiceFeeShares(0, mk(2))).toEqual({ p1: 0, p2: 0 })
+    expect(computeServiceFeeShares(null, mk(2))).toEqual({ p1: 0, p2: 0 })
+    expect(computeServiceFeeShares(undefined, mk(2))).toEqual({ p1: 0, p2: 0 })
+  })
+
+  it('empty people gives {}', () => {
+    expect(computeServiceFeeShares(500, [])).toEqual({})
+  })
+
+  it('late join: adding a 3rd person recalculates 250/250 to 167/167/166', () => {
+    expect(computeServiceFeeShares(500, mk(2))).toEqual({ p1: 250, p2: 250 })
+    expect(computeServiceFeeShares(500, mk(3))).toEqual({ p1: 167, p2: 167, p3: 166 })
+  })
+})
+
+describe('computePersonShareFromClaims with service fee share', () => {
+  const items: Item[] = [{ id: 'i1', name: 'Burger', priceCents: 1000, quantity: 1 }]
+  const claims = { i1: { p1: { qty: 1 } } }
+
+  it('adds the fee share to total but not to itemSubtotal', () => {
+    const r = computePersonShareFromClaims('p1', items, claims, 100, 167)
+    expect(r.serviceFee).toBe(167)
+    expect(r.itemSubtotal).toBe(1000)
+    expect(r.total).toBe(1000 + 167 + 100)
+  })
+
+  it('without the 5th arg serviceFee is 0 and total is unchanged', () => {
+    const r = computePersonShareFromClaims('p1', items, claims, 100)
+    expect(r.serviceFee).toBe(0)
+    expect(r.total).toBe(1100)
   })
 })

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   reconcileScannedBill,
   TOLERANCE_CENTS,
+  itemsReconcileTarget,
   type ReconcileInputLine,
 } from '@/lib/reconcileScannedBill'
 
@@ -144,5 +145,23 @@ describe('reconcileScannedBill — completeness', () => {
       { subtotalCents: 5000 }, // huge mismatch must NOT add phantom items
     )
     expect(items).toHaveLength(2)
+  })
+})
+
+describe('itemsReconcileTarget', () => {
+  it('printed subtotal wins; fee ignored', () => {
+    expect(itemsReconcileTarget(2000, 2700, 500)).toBe(2000)
+  })
+  it('grand total minus fee when no subtotal', () => {
+    expect(itemsReconcileTarget(null, 2500, 500)).toBe(2000)
+  })
+  it('grand total unchanged when no fee', () => {
+    expect(itemsReconcileTarget(null, 2500, null)).toBe(2500)
+  })
+  it('null when non-positive after subtracting', () => {
+    expect(itemsReconcileTarget(null, 400, 500)).toBeNull()
+  })
+  it('null when no grand total', () => {
+    expect(itemsReconcileTarget(null, null, 500)).toBeNull()
   })
 })

@@ -162,3 +162,21 @@ export function reconcileScannedBill(
     },
   }
 }
+
+/**
+ * The figure scanned items should reconcile against. The printed pre-tax subtotal wins
+ * (service fee ignored); otherwise the grand total MINUS any service fee (the fee is not
+ * an item, so it must neither cause nor hide an "Off by"); otherwise null.
+ */
+export function itemsReconcileTarget(
+  subtotalCents: number | null | undefined,
+  grandTotalCents: number | null | undefined,
+  serviceFeeCents: number | null | undefined,
+): number | null {
+  if (isUsablePrice(subtotalCents)) return subtotalCents
+  if (isUsablePrice(grandTotalCents)) {
+    const target = grandTotalCents - (isUsablePrice(serviceFeeCents) ? serviceFeeCents : 0)
+    return target > 0 ? target : null
+  }
+  return null
+}
