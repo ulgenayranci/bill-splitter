@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Share2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AppHeader } from '@/components/wizard/AppHeader'
 import { ProgressStrip } from '@/components/wizard/ProgressStrip'
+
+/** How long "Copied!" stays visible before auto-advancing to the claiming screen. */
+const COPY_CONTINUE_DELAY_MS = 5000
 
 interface InvitePeopleStepProps {
   sessionId: string
@@ -28,10 +31,34 @@ function buildShareUrl(sessionId: string): string {
  * invite → claim → results). Skip and Share link are the only two actions;
  * `handleShare` clipboard-copies when the native share sheet is unavailable, so
  * copying stays covered without a separate button.
+ *
+ * Auto-continue: a successful native share advances immediately; a successful
+ * copy keeps "Copied!" showing and advances after 5 s. `proceed` is the single
+ * path to `onContinue` (single-fire), and the pending timer is cleared on
+ * unmount or Skip.
  */
 export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProps) {
   const [copied, setCopied] = useState(false)
   const url = buildShareUrl(sessionId)
+  const continuedRef = useRef(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  // Single path to onContinue: fires at most once (Skip, share success, copy timer).
+  function proceed() {
+    if (continuedRef.current) return
+    continuedRef.current = true
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    onContinue()
+  }
 
   // 3-tier copy: Clipboard API → execCommand fallback (non-secure/local dev).
   async function copyToClipboard(): Promise<boolean> {
@@ -54,9 +81,10 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
     return ok
   }
 
-  function flashCopied() {
+  function copiedThenContinue() {
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (timerRef.current || continuedRef.current) return
+    timerRef.current = setTimeout(proceed, COPY_CONTINUE_DELAY_MS)
   }
 
   // Native share sheet first (mobile), falling back to clipboard copy.
@@ -64,12 +92,13 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({ url, title: 'Split the bill' })
+        proceed()
         return
       } catch {
         // user cancelled or unsupported — fall through to copy
       }
     }
-    if (await copyToClipboard()) flashCopied()
+    if (await copyToClipboard()) copiedThenContinue()
   }
 
   return (
@@ -90,7 +119,7 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
         </div>
 
         <div className="mt-2 flex w-full gap-3">
-          <Button variant="outline" onClick={onContinue} className="h-12 flex-1">
+          <Button variant="outline" onClick={proceed} className="h-12 flex-1">
             Skip
           </Button>
           <Button onClick={handleShare} className="h-12 flex-1 bg-coral-500">
