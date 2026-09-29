@@ -45,7 +45,10 @@ describe('ClaimableItemCard — Phase 6', () => {
         onQtyChange={onQtyChange}
       />
     )
-    expect(screen.getByRole('button').className).toMatch(/bg-amber-50/)
+    // Mine state: card is labelled Un-claim and carries the avatar-coloured border
+    const mineCard = screen.getByRole('button')
+    expect(mineCard.getAttribute('aria-label')).toBe(`Un-claim ${singleQtyItem.name}`)
+    expect(mineCard.style.borderColor).not.toBe('')
     fireEvent.click(screen.getByRole('button'))
     expect(onQtyChange).toHaveBeenCalledWith(0)
   })
@@ -186,8 +189,8 @@ describe('ClaimableItemCard — Phase 9 (D-06, D-07, D-08, D-13, D-14, D-15)', (
     expect(stack.textContent).toMatch(/\+2/)
   })
 
-  // D-06: own-claim card has BOTH bg-amber-50 AND border-amber-400
-  it('D-06: when mine is true, the card root has both bg-amber-50 and border-amber-400', () => {
+  // D-06: own-claim card uses the avatar-colour highlight (inline border + tinted gradient)
+  it('D-06: mine card uses the avatar-colour highlight', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -199,8 +202,10 @@ describe('ClaimableItemCard — Phase 9 (D-06, D-07, D-08, D-13, D-14, D-15)', (
       />
     )
     const card = screen.getByRole('button')
-    expect(card.className).toMatch(/bg-amber-50/)
-    expect(card.className).toMatch(/border-amber-400/)
+    expect(card.className).toContain('bg-white')
+    expect(card.className).not.toContain('border-zinc-200')
+    expect(card.style.borderColor).not.toBe('')
+    expect(card.style.backgroundImage).toContain('linear-gradient')
   })
 
   // D-13: single-qty unclaimed — onShareChange(true) called; onQtyChange NOT called
@@ -441,8 +446,8 @@ describe('ClaimableItemCard — Phase 11 G9/G7 (claimed indicator + strikethroug
     expect(screen.queryByTestId('claimed-indicator')).toBeNull()
   })
 
-  // G7: mine card preserves bg-amber-50/border-amber-400 when fully claimed, with no dimming
-  it('G7: fully-claimed mine card keeps bg-amber-50 and border-amber-400 with no dimming', () => {
+  // G7: mine card preserves the avatar-colour highlight when fully claimed, with no dimming
+  it('G7: fully-claimed mine card keeps the avatar-colour highlight with no dimming', () => {
     const claims: Record<PersonId, ClaimEntry> = { p1: { qty: 1 } }
     render(
       <ClaimableItemCard
@@ -454,8 +459,9 @@ describe('ClaimableItemCard — Phase 11 G9/G7 (claimed indicator + strikethroug
       />
     )
     const card = screen.getByRole('button')
-    expect(card.className).toContain('bg-amber-50')
-    expect(card.className).toContain('border-amber-400')
+    expect(card.className).toContain('bg-white')
+    expect(card.style.borderColor).not.toBe('')
+    expect(card.style.backgroundImage).toContain('linear-gradient')
     expect(card.className).not.toContain('opacity-55')
   })
 })

@@ -36,8 +36,14 @@ describe('BillViewHeader', () => {
     // Title must contain "Bill —"
     const titleEl = screen.getByText(/Bill —/)
     expect(titleEl).toBeDefined()
-    // Must contain a month abbreviation (Jun in this case)
-    expect(titleEl.textContent).toMatch(/Bill — Jun/)
+    // Must contain the en-GB long date derived from session.createdAt (same formatter as the component)
+    const expected = new Date(mockSession.createdAt).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    expect(titleEl.textContent).toBe(`Bill — ${expected}`)
+    expect(titleEl.textContent).toMatch(/Bill — \d{1,2} June \d{4}/)
   })
 
   it('Test 2: own identity (myPersonId) renders as an expanded pill showing the person name', () => {
@@ -101,7 +107,7 @@ describe('BillViewHeader', () => {
     expect(onStripTap).toHaveBeenCalledTimes(1)
   })
 
-  it('Test 6: share affordance with aria-label "Share bill link" is present', () => {
+  it('Test 6: share affordance (Invite button) is present', () => {
     render(
       <BillViewHeader
         session={mockSession}
@@ -110,7 +116,7 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    const shareBtn = screen.getByLabelText('Share bill link')
+    const shareBtn = screen.getByLabelText('Invite — copy bill link')
     expect(shareBtn).toBeDefined()
   })
 
@@ -127,7 +133,7 @@ describe('BillViewHeader', () => {
   })
 
   it('Test 8: avatar color class for a person matches AVATAR_COLORS[colorIndex % 6]', () => {
-    // p2 colorIndex=1 → bg-sky-400
+    // p2 colorIndex=1 → bg-[#9b6cf0]
     render(
       <BillViewHeader
         session={mockSession}
@@ -136,12 +142,14 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    // Find any element with bg-sky-400 class (Bob's circle)
-    const bobCircle = document.querySelector('.bg-sky-400')
+    // Find the element carrying Bob's avatar class (arbitrary-value class, so match via classList)
+    const bobCircle = Array.from(document.querySelectorAll('span, div')).find((el) =>
+      el.classList.contains(AVATAR_COLORS[1])
+    )
     expect(bobCircle).toBeDefined()
     expect(bobCircle).not.toBeNull()
     // Verify it matches the correct AVATAR_COLORS entry
-    expect(AVATAR_COLORS[1]).toBe('bg-sky-400')
+    expect(AVATAR_COLORS[1]).toBe('bg-[#9b6cf0]')
   })
 
   it('Test 9: when myPersonId is null, no expanded pill is shown', () => {
@@ -162,7 +170,7 @@ describe('BillViewHeader', () => {
     expect(aliceElements.length).toBe(0)
   })
 
-  it('Test 10 (D-02): Share button has min-h-[44px] class for ≥44px touch target', () => {
+  it('Test 10 (D-02): Invite button has min-h-[44px] class for ≥44px touch target', () => {
     render(
       <BillViewHeader
         session={mockSession}
@@ -171,7 +179,7 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    const shareBtn = screen.getByLabelText('Share bill link')
+    const shareBtn = screen.getByLabelText('Invite — copy bill link')
     expect(shareBtn.className).toContain('min-h-[44px]')
   })
 })
