@@ -35,7 +35,7 @@ See: .planning/PROJECT.md (updated 2026-06-24)
 Phase: Milestone v2.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-09-29 - Completed quick task 260929-kot: Edit screen: each scanned item in its own card
+Last activity: 2026-09-29 - Completed quick task 260929-kyg: Invite screen: auto-continue after share or copy
 
 ## Performance Metrics (v1.0 final)
 
@@ -133,6 +133,7 @@ None.
 | 260929-k3j | Scanned bill review: yellow in-page scan-review list replaced by a separate ScanItemsEditor screen (store step 2; auto-opens on subtotal mismatch; single Done CTA); photo card = scanned bill review container with outline Retake + Edit; photo h-24→h-48; scanCheck persisted so the edit screen survives refresh. tsc clean; 15 pre-existing test failures unchanged. | 2026-09-29 | b963aee | Needs Review | [260929-k3j-scanned-bill-review-separate-edit-screen](./quick/260929-k3j-scanned-bill-review-separate-edit-screen/) |
 | 260929-kia | Edit scanned items screen: heading follows the live gap ("Your items don't match the receipt" / "Edit scanned items"); total check moved under the heading as a summary card ("Off by X" in text-warn or "Matches the receipt"; detail line receipt vs items). tsc clean; 15 pre-existing test failures unchanged. | 2026-09-29 | 9a87b37 | | [260929-kia-edit-screen-total-check-summary-at-top-p](./quick/260929-kia-edit-screen-total-check-summary-at-top-p/) |
 | 260929-kot | Edit scanned items screen: each item (name row + price/qty/delete row) wrapped in its own Card (px-4 py-3, matching the split-screen inline edit card). tsc clean; 15 pre-existing test failures unchanged. | 2026-09-29 | f8a93e0 | | [260929-kot-edit-screen-each-scanned-item-in-its-own](./quick/260929-kot-edit-screen-each-scanned-item-in-its-own/) |
+| 260929-kyg | Invite screen: after copying the link the button keeps "Copied!" and continues to claiming after 5 s; a successful native share continues immediately; single guarded onContinue (Skip/unmount safe). tsc clean; 15 pre-existing test failures unchanged. | 2026-09-29 | fcf70f3 | | [260929-kyg-invite-screen-auto-continue-after-share-](./quick/260929-kyg-invite-screen-auto-continue-after-share-/) |
 
 ---
 
