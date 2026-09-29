@@ -11,7 +11,9 @@ import { formatCents, parseCents, computeSubtotalCents } from '@/lib/billMath'
 /**
  * Edit-scanned-items screen (store step 2). Counts as the Setup step in the
  * progress strip. Holds the per-item editing that used to live in SetupStep's
- * yellow review list. Exits via a single "Done" button back to setup (step 1).
+ * yellow review list. Opens with a problem-stating heading and a total-check
+ * summary card (derived from the live gap) above the item list. Exits via a
+ * single "Done" button back to setup (step 1).
  */
 export function ScanItemsEditor() {
   const items = useBillStore((s) => s.items)
@@ -42,6 +44,7 @@ export function ScanItemsEditor() {
   const liveSumCents = computeSubtotalCents(items)
   const targetCents = scanCheck?.targetCents ?? null
   const liveDeltaCents = targetCents != null ? targetCents - liveSumCents : 0
+  const isOff = targetCents != null && Math.abs(liveDeltaCents) > TOLERANCE_CENTS
 
   // Read the live draft for a row, defaulting to the item's current store values.
   const draftFor = (item: (typeof items)[number]) =>
@@ -96,10 +99,29 @@ export function ScanItemsEditor() {
       className="flex flex-1 flex-col gap-5"
     >
       <h1 className="text-[18px] font-semibold text-zinc-900">
-        {scanCheck?.mismatch
-          ? 'Please confirm or edit these detected items'
-          : 'Edit scanned items'}
+        {isOff ? "Your items don't match the receipt" : 'Edit scanned items'}
       </h1>
+
+      {targetCents != null && (
+        <div
+          data-testid="scan-review-gap"
+          className="flex flex-col gap-0.5 rounded-md border border-border bg-white px-3 py-2"
+        >
+          <p
+            data-testid="scan-review-gap-primary"
+            className={`text-[16px] font-semibold ${isOff ? 'text-warn' : 'text-zinc-900'}`}
+          >
+            {isOff
+              ? `Off by ${formatCents(Math.abs(liveDeltaCents), currencyCode)}`
+              : 'Matches the receipt'}
+          </p>
+          <p data-testid="scan-review-gap-detail" className="text-[13px] text-zinc-500">
+            Receipt {scanCheck?.hasSubtotal ? 'subtotal' : 'total'}{' '}
+            {formatCents(targetCents, currencyCode)} · Your items{' '}
+            {formatCents(liveSumCents, currencyCode)}
+          </p>
+        </div>
+      )}
 
       <ul className="flex flex-col gap-3">
         {items.map((item) => {
@@ -164,19 +186,6 @@ export function ScanItemsEditor() {
         <Plus size={15} aria-hidden="true" />
         Add item
       </button>
-
-      {targetCents != null && (
-        <p
-          data-testid="scan-review-gap"
-          className={`text-[13px] font-medium ${
-            Math.abs(liveDeltaCents) > TOLERANCE_CENTS ? 'text-warn' : 'text-zinc-500'
-          }`}
-        >
-          Items add up to {formatCents(liveSumCents, currencyCode)} · Receipt{' '}
-          {scanCheck?.hasSubtotal ? 'subtotal' : 'total'} {formatCents(targetCents, currencyCode)}{' '}
-          · off by {formatCents(Math.abs(liveDeltaCents), currencyCode)}
-        </p>
-      )}
 
       <div className="mt-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
         <Button onClick={handleDone} className="h-12 w-full text-base">
