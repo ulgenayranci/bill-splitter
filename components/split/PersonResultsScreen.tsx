@@ -329,8 +329,9 @@ export function PersonResultsScreen({
                         </ul>
                       )}
 
-                      {/* Service fee: locked equal share, shown even when nothing else is claimed */}
-                      {share.serviceFee > 0 && (
+                      {/* Service fee: locked equal share, shown even when nothing else is claimed.
+                          The current user's card shows it in the totals section instead. */}
+                      {share.serviceFee > 0 && !isCurrentUser && (
                         <div
                           className="mt-1 flex justify-between text-[14px]"
                           data-testid={`results-service-fee-${person.id}`}

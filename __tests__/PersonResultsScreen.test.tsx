@@ -422,7 +422,9 @@ describe('PersonResultsScreen', () => {
   describe('service fee', () => {
     it('2 people, 500 fee: 2.50 rows, totals and grand total include the fee', () => {
       render(<PersonResultsScreen session={makeSession({ serviceFeeCents: 500 })} {...defaultProps} />)
-      expect(screen.getByTestId('results-service-fee-p1').textContent).toMatch(/\$2\.50/)
+      // Current user sees the fee once, in the totals section (no duplicate item-list row)
+      expect(screen.queryByTestId('results-service-fee-p1')).toBeNull()
+      expect(screen.getAllByText('Service fee')).toHaveLength(1)
       expect(screen.getByTestId('results-service-fee').textContent).toMatch(/\$2\.50/)
       // 10.00 + 3.00 + 2.50 fee + 2.50 tip = 18.00
       expect(screen.getByTestId('results-total').textContent?.trim()).toBe('$18.00')
@@ -447,7 +449,7 @@ describe('PersonResultsScreen', () => {
       render(<PersonResultsScreen session={session} {...defaultProps} />)
       fireEvent.click(screen.getByLabelText("Bob's breakdown"))
       fireEvent.click(screen.getByLabelText("Cara's breakdown"))
-      expect(screen.getByTestId('results-service-fee-p1').textContent).toMatch(/\$1\.67/)
+      expect(screen.getByTestId('results-service-fee').textContent).toMatch(/\$1\.67/)
       expect(screen.getByTestId('results-service-fee-p2').textContent).toMatch(/\$1\.67/)
       const cara = screen.getByTestId('results-service-fee-p3')
       expect(cara.textContent).toMatch(/\$1\.66/)
