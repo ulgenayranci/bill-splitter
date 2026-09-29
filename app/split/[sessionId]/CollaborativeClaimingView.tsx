@@ -738,7 +738,7 @@ export function CollaborativeClaimingView({
                     onClick={() => setInlineForm({ kind: 'edit', itemId: item.id,
                       name: item.name, price: originalPrice, qty: String(item.quantity ?? 1),
                       originalName: item.name, originalPrice, originalQty: String(item.quantity ?? 1), error: null })}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border text-zinc-500"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-md border border-border bg-card text-zinc-500"
                     data-testid={`edit-pencil-${item.id}`}
                   >
                     <Pencil size={16} />
