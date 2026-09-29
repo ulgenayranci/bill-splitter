@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react'
 import { InvitePeopleStep } from '@/components/split/InvitePeopleStep'
 
 // AppHeader (mounted at the top of the redesigned invite screen) pulls in
@@ -76,5 +76,90 @@ describe('InvitePeopleStep (G4)', () => {
     render(<InvitePeopleStep sessionId="sess-1" onContinue={onContinue} />)
     fireEvent.click(screen.getByRole('button', { name: /^skip$/i }))
     expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('InvitePeopleStep auto-continue (quick-260929-kyg)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  async function advance(ms: number) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms)
+    })
+  }
+
+  async function clickShare() {
+    fireEvent.click(screen.getByRole('button', { name: /share link/i }))
+    await advance(0)
+  }
+
+  it('copy path: shows Copied! and continues once after 5000 ms', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const onContinue = vi.fn()
+    render(<InvitePeopleStep sessionId="sess-1" onContinue={onContinue} />)
+    await clickShare()
+    expect(screen.getByRole('button', { name: /copied!/i })).toBeDefined()
+    await advance(4999)
+    expect(onContinue).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /copied!/i })).toBeDefined()
+    await advance(1)
+    expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+
+  it('native share success continues immediately, once', async () => {
+    const share = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { share })
+    const onContinue = vi.fn()
+    render(<InvitePeopleStep sessionId="sess-1" onContinue={onContinue} />)
+    await clickShare()
+    expect(onContinue).toHaveBeenCalledTimes(1)
+    await advance(10000)
+    expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+
+  it('share cancelled falls back to copy then continues after 5000 ms', async () => {
+    const share = vi.fn().mockRejectedValue(new DOMException('Abort', 'AbortError'))
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { share, clipboard: { writeText } })
+    const onContinue = vi.fn()
+    render(<InvitePeopleStep sessionId="sess-1" onContinue={onContinue} />)
+    await clickShare()
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/split/sess-1'))
+    expect(onContinue).not.toHaveBeenCalled()
+    await advance(5000)
+    expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+
+  it('Skip during the wait proceeds once and the timer does not fire again', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const onContinue = vi.fn()
+    render(<InvitePeopleStep sessionId="sess-1" onContinue={onContinue} />)
+    await clickShare()
+    await advance(2000)
+    fireEvent.click(screen.getByRole('button', { name: /^skip$/i }))
+    expect(onContinue).toHaveBeenCalledTimes(1)
+    await advance(10000)
+    expect(onContinue).toHaveBeenCalledTimes(1)
+  })
+
+  it('unmount during the wait cancels the timer', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const onContinue = vi.fn()
+    const { unmount } = render(<InvitePeopleStep sessionId="sess-1" onContinue={onContinue} />)
+    await clickShare()
+    unmount()
+    await advance(10000)
+    expect(onContinue).not.toHaveBeenCalled()
   })
 })
