@@ -178,6 +178,7 @@ describe('CollaborativeClaimingView', () => {
     // inline edit form shows name and price inputs pre-filled
     expect(screen.getByLabelText('Item name')).toBeDefined()
     expect(screen.getByLabelText('New price')).toBeDefined()
+    expect(screen.getByLabelText('Item name').parentElement).not.toBe(screen.getByLabelText('New price').parentElement)
     // cancel closes it, item card returns
     fireEvent.click(screen.getByLabelText('Cancel edit'))
     expect(screen.queryByLabelText('Item name')).toBeNull()
