@@ -437,7 +437,7 @@ describe('CollaborativeClaimingView', () => {
 
   it('Test 26 (CLAIM-06): BillViewHeader renders with a share affordance', async () => {
     await selectAlice()
-    expect(screen.getByRole('button', { name: /share bill link/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /invite — copy bill link/i })).toBeDefined()
   })
 
   it('Test 27 (R6): the "tap to find them" scroll text is not present (banner removed)', async () => {
