@@ -138,6 +138,7 @@ None.
 | fast | Claiming screen: white fill (bg-card) on the dashed Add item button (Design Steward review review-20260929-claiming:dictated_001) | 2026-09-29 | 47f649b | Complete | — |
 | fast | Claiming screen: solid white fill (bg-card) on the item edit (pencil) buttons, previously transparent (Design Steward review review-20260929-claiming, chat: "all the edit buttons should be %100 fill no opacity") | 2026-09-29 | 879cc0f | Complete | — |
 | fast | Claiming screen: item edit (pencil) buttons top-aligned with their cards (h-[50px] self-start, was h-11 self-center); "Who are you?" rename pencils untouched per user | 2026-09-29 | 56dd472 | Complete | — |
+| fast | Results screen: Unclaimed items card fill plain white (removed 8% coral tint; coral border/ring kept). Design Steward note d5dd199b…:note_001 "card fill should be white, now it is coral somehow" | 2026-09-29 | 3565f2f | Complete | — |
 
 ---
 
