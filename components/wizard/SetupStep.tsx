@@ -390,7 +390,7 @@ export function SetupStep() {
             {items.map((item) => {
               const draft = draftFor(item)
               return (
-                <li key={item.id} className="flex items-center gap-2">
+                <li key={item.id} className="flex flex-col gap-2">
                   <Input
                     aria-label="Item name"
                     value={draft.name}
@@ -400,8 +400,9 @@ export function SetupStep() {
                       if (e.key === 'Enter') commitRow(item)
                     }}
                     maxLength={100}
-                    className="h-10 flex-1 bg-white text-base"
+                    className="h-10 w-full bg-white text-base"
                   />
+                  <div className="flex items-center gap-2">
                   <Input
                     aria-label="Price"
                     inputMode="decimal"
@@ -434,6 +435,7 @@ export function SetupStep() {
                   >
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
+                  </div>
                 </li>
               )
             })}
@@ -523,7 +525,7 @@ export function SetupStep() {
             <span className="text-[13px] text-zinc-400">
               {ocrStatus === 'error'
                 ? 'Something went wrong — tap to try again'
-                : "Point at the bill — we'll pick up every item"}
+                : "Take a photo of the receipt and I will capture all the items for you."}
             </span>
           </div>
         </button>
