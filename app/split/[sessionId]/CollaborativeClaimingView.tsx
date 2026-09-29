@@ -660,17 +660,19 @@ export function CollaborativeClaimingView({
             <li key={item.id} id={`item-${item.id}`} className="flex flex-col gap-1">
               {isEditing ? (
                 <Card className="flex flex-row items-start gap-2 px-4 py-3">
-                  <div className="flex flex-1 flex-col gap-1">
-                    <div className="flex gap-2">
+                  <div className="flex flex-1 flex-col gap-2">
+                    <div>
                       <Input
                         placeholder="Item name"
                         aria-label="Item name"
                         value={inlineForm.name}
                         onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null })}
-                        className="flex-1 h-10 text-base"
+                        className="h-10 w-full text-base"
                         maxLength={100}
                         autoFocus
                       />
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Input
                         placeholder="Price"
                         aria-label="New price"
@@ -751,17 +753,19 @@ export function CollaborativeClaimingView({
         {inlineForm?.kind === 'add' ? (
           <li>
             <Card className="flex flex-row items-start gap-2 px-4 py-3">
-              <div className="flex flex-1 flex-col gap-1">
-                <div className="flex gap-2">
+              <div className="flex flex-1 flex-col gap-2">
+                <div>
                   <Input
                     placeholder="Item name"
                     aria-label="Item name"
                     value={inlineForm.name}
                     onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null })}
-                    className="flex-1 h-10 text-base"
+                    className="h-10 w-full text-base"
                     maxLength={100}
                     autoFocus
                   />
+                </div>
+                <div className="flex items-center gap-2">
                   <Input
                     placeholder="Price"
                     value={inlineForm.price}
@@ -814,7 +818,7 @@ export function CollaborativeClaimingView({
 
       {/* Fixed "I'm done" bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 border-t border-border bg-background px-6 py-4"
+        className="fixed bottom-0 left-0 right-0 border-t border-border bg-card px-6 py-4"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         {doneError && (
