@@ -60,6 +60,16 @@ export const deriveUnitPriceCents = (priceCents: number, quantity: number): numb
 // App-default currency used until OCR detects one (CURR-01 / D-02).
 export const DEFAULT_CURRENCY_CODE = 'USD'
 
+// Result of the last scan's reconcile check. Persisted so the edit screen's
+// off-by line survives a refresh (260929-k3j).
+export interface ScanCheck {
+  correctedCount: number
+  mismatch: boolean
+  targetCents: number | null
+  // true when the receipt target is a printed subtotal (vs. total) - drives copy
+  hasSubtotal: boolean
+}
+
 interface BillState {
   step: 1 | 2 | 3 | 4
   people: Person[]
@@ -74,6 +84,8 @@ interface BillState {
   expandStatus: 'idle' | 'loading' | 'done' | 'error'
   syncStatus: 'idle' | 'results'
   sessionId: string | null
+  scanCheck: ScanCheck | null
+  setScanCheck: (check: ScanCheck | null) => void
   setBillImage: (url: string | null) => void
   setCurrencyCode: (code: string) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
@@ -106,6 +118,7 @@ const INITIAL_STATE = {
   expandStatus: 'idle' as const,
   syncStatus: 'idle' as const,
   sessionId: null,
+  scanCheck: null as ScanCheck | null,
 }
 
 export const useBillStore = create<BillState>()(
@@ -115,6 +128,7 @@ export const useBillStore = create<BillState>()(
   _hasHydrated: false,
   setHasHydrated: (v) => set({ _hasHydrated: v }),
   setStep: (step) => set({ step }),
+  setScanCheck: (check) => set({ scanCheck: check }),
   addPerson: (name) =>
     set((s) => ({
       people: [
@@ -208,6 +222,8 @@ export const useBillStore = create<BillState>()(
         currencyCode: s.currencyCode,
         syncStatus: s.syncStatus,
         sessionId: s.sessionId,
+        // keeps the edit screen's off-by line alive across refresh
+        scanCheck: s.scanCheck,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)
