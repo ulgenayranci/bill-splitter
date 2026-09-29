@@ -111,4 +111,19 @@ describe('TipScreen', () => {
     expect(tipDisplay).toContain('€')
     expect(totalDisplay).toContain('€')
   })
+
+  it('service fee share is added to the displayed total (tip base stays items-only)', () => {
+    renderTip({ serviceFeeShareCents: 250 })
+    expect(screen.getByTestId('tip-total-display').textContent?.trim()).toBe('$22.50')
+    expect(screen.getByTestId('tip-service-fee').textContent?.trim()).toBe('$2.50')
+    fireEvent.click(screen.getByRole('button', { name: /Set tip to 10%/i }))
+    // 10% of $20.00 items only = $2.00; total = 20 + 2.50 + 2
+    expect(screen.getByTestId('tip-total-display').textContent?.trim()).toBe('$24.50')
+  })
+
+  it('without serviceFeeShareCents the total is unchanged and no fee row shows', () => {
+    renderTip()
+    expect(screen.getByTestId('tip-total-display').textContent?.trim()).toBe('$20.00')
+    expect(screen.queryByTestId('tip-service-fee')).toBeNull()
+  })
 })
