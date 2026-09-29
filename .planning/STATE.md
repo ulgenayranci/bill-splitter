@@ -35,7 +35,7 @@ See: .planning/PROJECT.md (updated 2026-06-24)
 Phase: Milestone v2.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-06-23 — Milestone v2.0 completed and archived
+Last activity: 2026-09-29 - Completed quick task 260929-hll: Design Steward fixes: item name row, scan copy, done bar
 
 ## Performance Metrics (v1.0 final)
 
@@ -129,6 +129,7 @@ None.
 | 260623-plo | Mobile button polish: stripped all `hover:` utilities app-wide (button.tsx cva variants + 14 components) since touch has no hover; converted 13 borderless "ghost" icon buttons (−/+ steppers, pencil-edit, inline confirm/cancel) to the spec outline style (`border border-border bg-background`) so they're visible at rest. Kept active/focus states, coral CTA color, green settled states, dashed add controls. build passes | 2026-06-23 | 41e829a | | [260623-plo-mobile-button-polish-remove-all-hover-st](./quick/260623-plo-mobile-button-polish-remove-all-hover-st/) |
 | 260623-u9k | Implement spec §06 button fills (prior pass left buttons fill-less on paper): button.tsx outline `bg-background`→`bg-white`+ink text+n200 border; primary gained coral drop-shadow; ghost gained n100 fill (`bg-muted`). 13 custom icon buttons `bg-background`→`bg-white`. No hover reintroduced; sizes/dashed controls/inputs untouched. build passes | 2026-06-23 | 646df95 | | [260623-u9k-implement-spec-button-component-design-o](./quick/260623-u9k-implement-spec-button-component-design-o/) |
 | 260624-j9b | Delete v2.0 dead code from the milestone audit: 8 retired wizard/split components (AssignItemsStep, ResultsStep, AddItemsStep, AddPeopleStep, DisambiguationDialog, ShareLinkButton, OcrErrorToast, UnclaimedBanner) + 8 tests + the dead /api/clarify route; drop the empty OcrErrorToast/Toast.Provider mount from providers.tsx; fix 2 stale comments. ~2,980 lines removed. tsc clean, build passes. | 2026-06-24 | 2d0d5b9 | Complete | [260624-j9b-cleanup-v2-dead-code](./quick/260624-j9b-cleanup-v2-dead-code/) |
+| 260929-hll | Design Steward review fixes: item name gets its own full-width row in the split-screen edit/add forms and the post-scan list (was ~35px/~111px at 375px); scan-card copy → "Take a photo of the receipt and I will capture all the items for you."; I'm done bar bg-background → bg-card. tsc clean; 15 pre-existing test failures unchanged (verified on base). | 2026-09-29 | 711dc36 | Complete | [260929-hll-design-steward-fixes-item-name-row-scan-](./quick/260929-hll-design-steward-fixes-item-name-row-scan-/) |
 
 ---
 
