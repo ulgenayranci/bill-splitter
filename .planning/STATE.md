@@ -136,6 +136,7 @@ None.
 | 260929-kyg | Invite screen: after copying the link the button keeps "Copied!" and continues to claiming after 5 s; a successful native share continues immediately; single guarded onContinue (Skip/unmount safe). tsc clean; 15 pre-existing test failures unchanged. | 2026-09-29 | fcf70f3 | | [260929-kyg-invite-screen-auto-continue-after-share-](./quick/260929-kyg-invite-screen-auto-continue-after-share-/) |
 | 260929-l7q | Cleared the 15 long-standing test failures: all were stale assertions from the coral rebrand / Invite rename (wordmark label, progress strip classes, en-GB date, Invite button, hex avatar colours, mine-card highlight, unclaimed list colour). Only __tests__/ changed; PersonResultsScreen unclaimed section confirmed intact. Suite fully green: 387/387, tsc clean. | 2026-09-29 | 0aa08fd | | [260929-l7q-fix-15-stale-tests-investigate-results-s](./quick/260929-l7q-fix-15-stale-tests-investigate-results-s/) |
 | fast | Claiming screen: white fill (bg-card) on the dashed Add item button (Design Steward review review-20260929-claiming:dictated_001) | 2026-09-29 | 47f649b | Complete | — |
+| fast | Claiming screen: solid white fill (bg-card) on the item edit (pencil) buttons, previously transparent (Design Steward review review-20260929-claiming, chat: "all the edit buttons should be %100 fill no opacity") | 2026-09-29 | 879cc0f | Complete | — |
 
 ---
 
