@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
 import type { SessionPayload } from '@/lib/sessionSchema'
 
@@ -203,11 +203,10 @@ describe('PersonResultsScreen', () => {
     })
     render(<PersonResultsScreen session={unclaimedSession} {...defaultProps} />)
     expect(screen.getByText('Unclaimed items')).toBeDefined()
-    // Beer appears in the unclaimed section (may also appear in claimed items list — getAllByText is fine)
-    const beerElements = screen.getAllByText('Beer')
-    // At least one element should be in the unclaimed section (amber-700 li)
-    const unclaimedBeerLi = beerElements.find((el) => el.className.includes('amber-700'))
-    expect(unclaimedBeerLi).toBeDefined()
+    // Beer is listed as an <li> inside the unclaimed section (scoped by its aria-label, not a colour class)
+    const section = screen.getByLabelText(/view unclaimed items/i)
+    const unclaimedBeer = within(section).getByText('Beer')
+    expect(unclaimedBeer.tagName).toBe('LI')
   })
 
   it('D-03 (unclaimed section): does NOT render when all items fully claimed', () => {
@@ -328,13 +327,12 @@ describe('PersonResultsScreen', () => {
     render(<PersonResultsScreen session={session} {...defaultProps} />)
     // No count-collapse copy
     expect(screen.queryByText('3 items need an owner')).toBeNull()
-    // All three names listed as amber-700 <li> elements in the unclaimed section
+    // All three names listed as <li> elements in the unclaimed section
+    const section = screen.getByLabelText(/view unclaimed items/i)
     for (const name of ['Pizza', 'Beer', 'Wings']) {
-      const li = screen.getAllByText(name).find(
-        (el) => el.tagName.toLowerCase() === 'li' && el.className.includes('amber-700')
-      )
-      expect(li).toBeDefined()
+      expect(within(section).getByText(name).tagName).toBe('LI')
     }
+    expect(section.querySelectorAll('li').length).toBe(3)
   })
 
   // G5: unclaimed section tappable → dialog → onEditBill
