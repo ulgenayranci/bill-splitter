@@ -87,6 +87,28 @@ describe('ScanItemsEditor', () => {
     expect(screen.getByTestId('scan-review-gap').textContent).toContain('Matches the receipt')
   })
 
+  it('each item sits in its own card', () => {
+    seed()
+    const { container } = render(<ScanItemsEditor />)
+    const cards = container.querySelectorAll('[data-slot="card"]')
+    expect(cards).toHaveLength(2)
+    const names = screen.getAllByLabelText('Item name')
+    const prices = screen.getAllByLabelText('Price')
+    const qtys = screen.getAllByLabelText('Quantity')
+    const removes = [
+      screen.getByRole('button', { name: /remove widget/i }),
+      screen.getByRole('button', { name: /remove fries/i }),
+    ]
+    for (let i = 0; i < 2; i++) {
+      expect(names[i].closest('[data-slot="card"]')).toBe(cards[i])
+      expect(prices[i].closest('[data-slot="card"]')).toBe(cards[i])
+      expect(qtys[i].closest('[data-slot="card"]')).toBe(cards[i])
+      expect(removes[i].closest('[data-slot="card"]')).toBe(cards[i])
+    }
+    const gap = screen.getByTestId('scan-review-gap')
+    expect(gap.closest('[data-slot="card"]')).toBeNull()
+  })
+
   it('Add item and Remove work on the store', () => {
     seed()
     render(<ScanItemsEditor />)
