@@ -807,7 +807,7 @@ export function CollaborativeClaimingView({
             <button
               type="button"
               onClick={() => setInlineForm({ kind: 'add', name: '', price: '', qty: '1', error: null })}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-dashed border-border text-[14px] text-zinc-600"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-card text-[14px] text-zinc-600"
               data-testid="add-item-button"
             >
               <Plus size={16} /> Add item
