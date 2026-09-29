@@ -3,14 +3,22 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { ScanItemsEditor } from '@/components/wizard/ScanItemsEditor'
 import { useBillStore } from '@/stores/useBillStore'
 
-function seed(withCheck = true) {
+type CheckOverride = { mismatch: boolean; targetCents: number; hasSubtotal: boolean }
+
+function seed(check: Partial<CheckOverride> | false = {}) {
   const s = useBillStore.getState()
   s.setItems([
     { id: 'i1', name: 'Widget', priceCents: 1000, quantity: 1, confidence: 'high' },
     { id: 'i2', name: 'Fries', priceCents: 400, quantity: 1, confidence: 'high' },
   ])
-  if (withCheck) {
-    s.setScanCheck({ correctedCount: 0, mismatch: true, targetCents: 1500, hasSubtotal: true })
+  if (check !== false) {
+    s.setScanCheck({
+      correctedCount: 0,
+      mismatch: true,
+      targetCents: 1500,
+      hasSubtotal: true,
+      ...check,
+    })
   }
   s.setStep(2)
 }
@@ -21,7 +29,7 @@ describe('ScanItemsEditor', () => {
   })
   afterEach(() => cleanup())
 
-  it('renders edit controls and the live gap line', () => {
+  it('renders edit controls and the problem heading with summary', () => {
     seed()
     render(<ScanItemsEditor />)
     expect(screen.getAllByLabelText('Item name')).toHaveLength(2)
@@ -29,21 +37,54 @@ describe('ScanItemsEditor', () => {
     expect(screen.getAllByLabelText('Quantity')).toHaveLength(2)
     expect(screen.getByRole('button', { name: /remove widget/i })).toBeDefined()
     expect(screen.getByRole('button', { name: /add item/i })).toBeDefined()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      "Your items don't match the receipt",
+    )
     const gap = screen.getByTestId('scan-review-gap')
-    expect(gap.textContent).toContain('$14.00')
-    expect(gap.textContent).toContain('$15.00')
-    expect(gap.textContent).toContain('subtotal')
-    expect(gap.textContent).toContain('$1.00')
+    expect(gap.textContent).toContain('Off by $1.00')
+    expect(gap.textContent).toContain('Receipt subtotal $15.00')
+    expect(gap.textContent).toContain('Your items $14.00')
+    expect(screen.getByTestId('scan-review-gap-primary').className).toContain('text-warn')
   })
 
-  it('editing a price updates the store and the gap', async () => {
+  it('summary sits after the heading and before the item list', () => {
+    seed()
+    render(<ScanItemsEditor />)
+    const h1 = screen.getByRole('heading', { level: 1 })
+    const gap = screen.getByTestId('scan-review-gap')
+    const firstName = screen.getAllByLabelText('Item name')[0]
+    expect(h1.compareDocumentPosition(gap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(gap.compareDocumentPosition(firstName) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('editing a price updates the store, summary and heading', async () => {
     seed()
     render(<ScanItemsEditor />)
     const price = screen.getAllByLabelText('Price')[0]
     fireEvent.change(price, { target: { value: '11.00' } })
     fireEvent.blur(price)
     await waitFor(() => expect(useBillStore.getState().items[0].priceCents).toBe(1100))
-    expect(screen.getByTestId('scan-review-gap').textContent).toContain('off by $0.00')
+    const gap = screen.getByTestId('scan-review-gap')
+    expect(gap.textContent).toContain('Matches the receipt')
+    expect(gap.textContent).not.toContain('Off by')
+    expect(screen.getByTestId('scan-review-gap-primary').className).not.toContain('text-warn')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Edit scanned items')
+  })
+
+  it('says "total" when the receipt had no subtotal; heading follows the live gap', () => {
+    seed({ hasSubtotal: false, mismatch: false })
+    render(<ScanItemsEditor />)
+    expect(screen.getByTestId('scan-review-gap-detail').textContent).toContain('Receipt total $15.00')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      "Your items don't match the receipt",
+    )
+  })
+
+  it('clean scan shows Edit scanned items and Matches the receipt', () => {
+    seed({ targetCents: 1400, mismatch: false })
+    render(<ScanItemsEditor />)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Edit scanned items')
+    expect(screen.getByTestId('scan-review-gap').textContent).toContain('Matches the receipt')
   })
 
   it('Add item and Remove work on the store', () => {
@@ -69,5 +110,6 @@ describe('ScanItemsEditor', () => {
     render(<ScanItemsEditor />)
     expect(screen.getAllByLabelText('Item name')).toHaveLength(2)
     expect(screen.queryByTestId('scan-review-gap')).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Edit scanned items')
   })
 })
