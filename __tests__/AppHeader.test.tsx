@@ -32,9 +32,9 @@ describe('AppHeader', () => {
     expect(header.className).toMatch(/top-0/)
   })
 
-  it('renders the easy-billsy wordmark', () => {
+  it('renders the easy billsy wordmark', () => {
     render(<AppHeader />)
-    expect(screen.getByLabelText('easy-billsy')).toBeDefined()
+    expect(screen.getByLabelText('easy billsy')).toBeDefined()
   })
 
   it('renders the hamburger menu button', () => {

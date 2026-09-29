@@ -33,10 +33,10 @@ describe('InvitePeopleStep (G4)', () => {
     expect(screen.getByText('Invite your group')).toBeDefined()
     // App header present (wordmark banner).
     expect(screen.getByRole('banner')).toBeDefined()
-    // ProgressStrip: 3 segments, the first filled (amber-600).
+    // ProgressStrip: 3 segments, the first filled (coral-500).
     const segments = container.querySelectorAll('.h-\\[3px\\]')
     expect(segments.length).toBe(3)
-    expect(segments[0].className).toMatch(/amber-600/)
+    expect(segments[0].className).toMatch(/coral-500/)
     expect(segments[1].className).toMatch(/zinc-200/)
   })
 
