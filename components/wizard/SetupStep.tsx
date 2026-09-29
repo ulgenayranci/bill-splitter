@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
-import { reconcileScannedBill, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
+import { reconcileScannedBill, itemsReconcileTarget, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
 import { formatCents, computeSubtotalCents } from '@/lib/billMath'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
@@ -41,6 +41,8 @@ export function SetupStep() {
   const setItems = useBillStore((s) => s.setItems)
   const scanCheck = useBillStore((s) => s.scanCheck)
   const setScanCheck = useBillStore((s) => s.setScanCheck)
+  const serviceFeeCents = useBillStore((s) => s.serviceFeeCents)
+  const setServiceFeeCents = useBillStore((s) => s.setServiceFeeCents)
   const setStep = useBillStore((s) => s.setStep)
   const currencyCode = useBillStore((s) => s.currencyCode)
   const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
@@ -103,11 +105,11 @@ export function SetupStep() {
     setIsCreating(true)
     setSessionCreateError(null)
     try {
-      const { people: p, items: it, currencyCode } = useBillStore.getState()
+      const { people: p, items: it, currencyCode, serviceFeeCents: fee } = useBillStore.getState()
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const { sessionId } = await createSession(
-        { people: p, items: it, currencyCode },
+        { people: p, items: it, currencyCode, serviceFeeCents: fee },
         abortRef.current.signal,
       )
       setSessionId(sessionId)
@@ -127,6 +129,7 @@ export function SetupStep() {
       e.target.value = ''
       setScanError(null)
       setScanCheck(null)
+      setServiceFeeCents(null)
 
       const prevUrl = useBillStore.getState().billImageUrl
       if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
@@ -140,6 +143,7 @@ export function SetupStep() {
         | null = null
       let ocrSubtotalCents: number | null = null
       let ocrGrandTotalCents: number | null = null
+      let ocrServiceFeeCents: number | null = null
 
       try {
         const compressed = await imageCompression(file, {
@@ -172,10 +176,15 @@ export function SetupStep() {
           currencyCode?: string
           subtotalCents?: number | null
           grandTotalCents?: number | null
+          serviceFeeCents?: number | null
         }
         ocrItems = data.items
         ocrSubtotalCents = data.subtotalCents ?? null
         ocrGrandTotalCents = data.grandTotalCents ?? null
+        ocrServiceFeeCents =
+          Number.isInteger(data.serviceFeeCents) && (data.serviceFeeCents as number) > 0
+            ? (data.serviceFeeCents as number)
+            : null
         // CURR-01: store the detected ISO 4217 currency (route already defaults to USD).
         if (data.currencyCode) setCurrencyCode(data.currencyCode)
         if (ocrItems.length === 0) {
@@ -186,6 +195,7 @@ export function SetupStep() {
           setBillImage(null)
           setOcrStatus('error')
           setScanCheck(null)
+          setServiceFeeCents(null)
           setScanError('No items found — tap Scan to try a clearer photo')
           return
         }
@@ -196,6 +206,7 @@ export function SetupStep() {
         setBillImage(null)
         setOcrStatus('error')
         setScanCheck(null)
+        setServiceFeeCents(null)
         setScanError("Couldn't read the bill — tap Scan to try again")
         return
       }
@@ -208,7 +219,10 @@ export function SetupStep() {
       // Truth figure (locked decision 3): reconcile against the printed PRE-TAX
       // subtotal, falling back to the grand total. reconcileScannedBill is agnostic —
       // it just receives the chosen target as its subtotalCents option.
-      const targetCents = ocrSubtotalCents ?? ocrGrandTotalCents
+      // The service fee is not an item: the target subtracts it from the grand-total
+      // fallback so the fee neither causes nor hides an "Off by" (DD-3).
+      const targetCents = itemsReconcileTarget(ocrSubtotalCents, ocrGrandTotalCents, ocrServiceFeeCents)
+      setServiceFeeCents(ocrServiceFeeCents)
       const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: targetCents })
       const correctedCount = reconciled.items.filter((i) => i.corrected).length
 
@@ -285,7 +299,7 @@ export function SetupStep() {
         if (reconciled.completeness.mismatch && targetCents != null) setStep(2)
       }
     },
-    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setStep],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setServiceFeeCents, setStep],
   )
 
   return (
@@ -375,6 +389,7 @@ export function SetupStep() {
               variant="outline"
               onClick={() => {
                 setScanCheck(null)
+                setServiceFeeCents(null)
                 fileInputRef.current?.click()
               }}
             >
@@ -386,6 +401,11 @@ export function SetupStep() {
               Edit
             </Button>
           </div>
+          {serviceFeeCents != null && serviceFeeCents > 0 && (
+            <p data-testid="service-fee-status" className="mt-2 text-[12px] text-zinc-500">
+              Service fee {formatCents(serviceFeeCents, currencyCode)} found — split equally between everyone.
+            </p>
+          )}
         </div>
       ) : (
         <button

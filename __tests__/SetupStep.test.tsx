@@ -201,6 +201,34 @@ describe('SetupStep — scanned bill review container + auto-open edit screen', 
     fetchMock.mockRestore()
   })
 
+  it('service fee: grand-total-minus-fee reconciles (no mismatch), fee stored, status shown, cleared on retake', async () => {
+    const fetchMock = mockScan(
+      {
+        items: [{ name: 'Steak', quantity: 1, unitPriceCents: 2000, lineTotalCents: null }],
+        currencyCode: 'EUR',
+        subtotalCents: null,
+        grandTotalCents: 2500,
+        serviceFeeCents: 500,
+      },
+      [{ rawName: 'Steak', displayName: 'Steak', priceCents: 2000, confidence: 'high', quantity: 1 }],
+    )
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
+    await waitFor(() => expect(useBillStore.getState().items.length).toBe(1))
+    await screen.findByTestId('scanned-bill-review')
+    expect(useBillStore.getState().scanCheck?.mismatch).toBe(false)
+    expect(useBillStore.getState().scanCheck?.targetCents).toBe(2000)
+    expect(useBillStore.getState().step).toBe(1)
+    expect(useBillStore.getState().serviceFeeCents).toBe(500)
+    expect(screen.getByTestId('service-fee-status').textContent).toMatch(/5\.00/)
+
+    fireEvent.click(screen.getByRole('button', { name: /retake/i }))
+    expect(useBillStore.getState().serviceFeeCents).toBeNull()
+    fetchMock.mockRestore()
+  })
+
   it('Edit button opens the edit screen (step 2)', () => {
     seedPriorScan()
     renderInProvider(<SetupStep />)
@@ -337,6 +365,23 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
     await waitFor(() => expect(createSession).toHaveBeenCalled())
     await waitFor(() => expect(routerPushMock).toHaveBeenCalledWith('/split/sess-abc'))
     expect(useBillStore.getState().sessionId).toBe('sess-abc')
+  })
+
+  it('Continue passes serviceFeeCents to createSession', async () => {
+    seedPriorScan()
+    useBillStore.getState().setServiceFeeCents(500)
+    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().addPerson('Bob')
+    createSession.mockResolvedValue({
+      sessionId: 'sess-fee',
+      guestUrl: 'http://localhost/split/sess-fee',
+    })
+    renderInProvider(<SetupStep />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start splitting/i }))
+    })
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession.mock.calls[0][0]).toMatchObject({ serviceFeeCents: 500 })
   })
 
   it('failed createSession shows inline error and does NOT navigate', async () => {

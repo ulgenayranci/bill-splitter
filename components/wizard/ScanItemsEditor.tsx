@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -24,6 +24,7 @@ export function ScanItemsEditor() {
   const removeItem = useBillStore((s) => s.removeItem);
   const currencyCode = useBillStore((s) => s.currencyCode);
   const scanCheck = useBillStore((s) => s.scanCheck);
+  const serviceFeeCents = useBillStore((s) => s.serviceFeeCents);
   const setStep = useBillStore((s) => s.setStep);
 
   // Per-row edit drafts keyed by item id. Holds raw strings so the user can type
@@ -198,6 +199,19 @@ export function ScanItemsEditor() {
           );
         })}
       </ul>
+
+      {/* Read-only: the service fee is split equally and is NOT part of the items sum. */}
+      {serviceFeeCents != null && serviceFeeCents > 0 && (
+        <div
+          data-testid="editor-service-fee"
+          className="flex items-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-[13px] text-zinc-600"
+        >
+          <Lock size={14} className="shrink-0 text-zinc-400" aria-hidden="true" />
+          <span>
+            Service fee {formatCents(serviceFeeCents, currencyCode)} — split equally, not part of the items total
+          </span>
+        </div>
+      )}
 
       <button
         type="button"
