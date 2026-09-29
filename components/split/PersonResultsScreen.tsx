@@ -213,13 +213,8 @@ export function PersonResultsScreen({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)
               }}
-              className="cursor-pointer rounded-lg border border-coral-500 bg-white px-4 py-3 ring-[3px] ring-coral-200 transition-colors"
-              style={{
-                // 8% coral tint composited over a solid white base (not the paper page),
-                // so it stays readable on the cream background.
-                backgroundColor: '#ffffff',
-                backgroundImage: 'linear-gradient(#f1603f14, #f1603f14)',
-              }}
+              // Plain white fill; the coral border + ring carry the warning.
+              className="cursor-pointer rounded-lg border border-coral-500 bg-card px-4 py-3 ring-[3px] ring-coral-200 transition-colors"
             >
               <p className="text-[14px] font-semibold text-coral-700 mb-2">Unclaimed items</p>
               {/* R3-5: always list every unclaimed item (no count-collapse). */}
