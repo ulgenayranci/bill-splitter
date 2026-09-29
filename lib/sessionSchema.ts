@@ -23,6 +23,12 @@ export interface SessionPayload {
   createdAt: number
   /** ISO 4217 currency code. Defaults to 'USD' at creation. Display threading is Phase 10. */
   currencyCode: string
+  /**
+   * Bill-level service fee in integer cents, split equally across all people at render
+   * time via computeServiceFeeShares. Absent on sessions without a fee and on sessions
+   * created before this feature.
+   */
+  serviceFeeCents?: number
 }
 
 /**

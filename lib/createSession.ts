@@ -4,6 +4,8 @@ export interface CreateSessionInput {
   people: Person[]
   items: Item[]
   currencyCode: string
+  /** Bill-level service fee in integer cents; sent only when a positive number. */
+  serviceFeeCents?: number | null
 }
 
 export interface CreateSessionResult {
@@ -20,13 +22,18 @@ export interface CreateSessionResult {
  * Throws with "Session creation failed: {status}" on non-OK responses.
  */
 export async function createSession(
-  { people, items, currencyCode }: CreateSessionInput,
+  { people, items, currencyCode, serviceFeeCents }: CreateSessionInput,
   signal?: AbortSignal,
 ): Promise<CreateSessionResult> {
   const res = await fetch('/api/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ people, items, currencyCode }),
+    body: JSON.stringify({
+      people,
+      items,
+      currencyCode,
+      ...(typeof serviceFeeCents === 'number' && serviceFeeCents > 0 ? { serviceFeeCents } : {}),
+    }),
     signal,
   })
   if (!res.ok) throw new Error(`Session creation failed: ${res.status}`)

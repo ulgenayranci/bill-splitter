@@ -11,6 +11,8 @@ export interface TipScreenProps {
   sessionId: string
   personId: string
   itemSubtotalCents: number
+  /** This person's equal share of the bill's service fee (0 when none). Not part of the tip base. */
+  serviceFeeShareCents?: number
   currencyCode?: string
   onTipConfirmed: () => void
   mutate: () => Promise<unknown>
@@ -26,6 +28,7 @@ export function TipScreen({
   sessionId,
   personId,
   itemSubtotalCents,
+  serviceFeeShareCents = 0,
   currencyCode,
   onTipConfirmed,
   mutate,
@@ -78,7 +81,7 @@ export function TipScreen({
     }
   }
 
-  const personalTotal = itemSubtotalCents + tipCents
+  const personalTotal = itemSubtotalCents + serviceFeeShareCents + tipCents
 
   return (
     <div className="flex flex-col gap-6 px-6 py-4">
@@ -121,6 +124,13 @@ export function TipScreen({
       </label>
 
       <Separator />
+
+      {serviceFeeShareCents > 0 && (
+        <div className="flex justify-between text-[14px] text-zinc-600">
+          <span>Service fee</span>
+          <span data-testid="tip-service-fee">{formatCents(serviceFeeShareCents, currencyCode)}</span>
+        </div>
+      )}
 
       <div className="flex justify-between text-[16px] font-semibold">
         <span>Your total</span>

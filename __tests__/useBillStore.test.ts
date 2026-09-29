@@ -265,4 +265,14 @@ describe('scanCheck (260929-k3j)', () => {
     expect(out).toHaveProperty('scanCheck', check)
     expect(out).toHaveProperty('step')
   })
+
+  it('serviceFeeCents defaults null, is settable, persisted, and cleared by reset', () => {
+    expect(useBillStore.getState().serviceFeeCents).toBeNull()
+    useBillStore.getState().setServiceFeeCents(500)
+    expect(useBillStore.getState().serviceFeeCents).toBe(500)
+    const out = useBillStore.persist.getOptions().partialize!(useBillStore.getState()) as Record<string, unknown>
+    expect(out.serviceFeeCents).toBe(500)
+    useBillStore.getState().reset()
+    expect(useBillStore.getState().serviceFeeCents).toBeNull()
+  })
 })

@@ -497,6 +497,74 @@ describe('CollaborativeClaimingView', () => {
     expect(doneFetch).toHaveBeenCalled()
   })
 
+  it('service fee: locked card shows equal share for 2 people (2.50)', async () => {
+    await selectAlice({ session: { serviceFeeCents: 500 } })
+    expect(screen.getByTestId('service-fee-card')).toBeDefined()
+    expect(screen.getByTestId('service-fee-share').textContent).toContain('$2.50')
+  })
+
+  it('service fee: 3 people -> 1.67 for first person; 1.66 for third', async () => {
+    const people = [
+      ...SESSION_FIXTURE.people,
+      { id: 'p3', name: 'Cara', colorIndex: 2 },
+    ]
+    await selectAlice({ session: { serviceFeeCents: 500, people } })
+    expect(screen.getByTestId('service-fee-share').textContent).toContain('$1.67')
+    cleanup()
+    localStorage.clear()
+    useSWRMock.mockReturnValue({
+      data: { ...SESSION_FIXTURE, serviceFeeCents: 500, people },
+      error: undefined,
+      mutate: mutateMock,
+    })
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /claim slot cara/i }))
+    await waitFor(() => expect(screen.getByTestId('service-fee-share')).toBeDefined())
+    expect(screen.getByTestId('service-fee-share').textContent).toContain('$1.66')
+  })
+
+  it('service fee: a late joiner recalculates the share', async () => {
+    await selectAlice({ session: { serviceFeeCents: 500 } })
+    expect(screen.getByTestId('service-fee-share').textContent).toContain('$2.50')
+    useSWRMock.mockReturnValue({
+      data: {
+        ...SESSION_FIXTURE,
+        serviceFeeCents: 500,
+        people: [...SESSION_FIXTURE.people, { id: 'p3', name: 'Cara', colorIndex: 2 }],
+      },
+      error: undefined,
+      mutate: mutateMock,
+    })
+    cleanup()
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    await waitFor(() => expect(screen.getByTestId('service-fee-share')).toBeDefined())
+    expect(screen.getByTestId('service-fee-share').textContent).toContain('$1.67')
+  })
+
+  it('service fee: tapping the card triggers no fetch and is not a button', async () => {
+    const f = await selectAlice({ session: { serviceFeeCents: 500 } })
+    f.mockClear()
+    const card = screen.getByTestId('service-fee-card')
+    expect(card.getAttribute('role')).toBeNull()
+    fireEvent.click(card)
+    expect(f).not.toHaveBeenCalled()
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
+
+  it("service fee: all items claimed + fee -> I'm done goes straight to Results (fee never unclaimed)", async () => {
+    await selectAlice({ session: { claims: FULLY_CLAIMED_CLAIMS, serviceFeeCents: 500 } })
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    expect(screen.queryByText(/still unclaimed$/)).toBeNull()
+  })
+
+  it('no service fee: no service-fee-card in the DOM', async () => {
+    await selectAlice()
+    expect(screen.queryByTestId('service-fee-card')).toBeNull()
+  })
+
 })
 
 describe('CollaborativeClaimingView — G4 invite step (host, once)', () => {

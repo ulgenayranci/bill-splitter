@@ -447,4 +447,45 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(status).toBe(200)
     expect(createMock).toHaveBeenCalledTimes(1)
   })
+
+  describe('serviceFeeCents', () => {
+    const base = {
+      items: [{ name: 'Steak', quantity: 1, unitPriceCents: null, lineTotalCents: 2000 }],
+      currencyCode: 'EUR',
+      subtotalCents: null,
+      grandTotalCents: 2500,
+    }
+
+    it('includes serviceFeeCents in the response and does not change items', async () => {
+      createMock.mockResolvedValue(mockContent({ ...base, serviceFeeCents: 500 }))
+      const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      expect(status).toBe(200)
+      const out = json as { items: unknown[]; serviceFeeCents?: number }
+      expect(out.serviceFeeCents).toBe(500)
+      expect(out.items).toHaveLength(1)
+    })
+
+    it('omits serviceFeeCents when absent, zero, negative or float', async () => {
+      for (const v of [undefined, null, 0, -5, 12.5]) {
+        createMock.mockReset()
+        createMock.mockResolvedValue(mockContent({ ...base, serviceFeeCents: v }))
+        const { json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+        expect('serviceFeeCents' in (json as object)).toBe(false)
+      }
+    })
+
+    it('strict schema requires serviceFeeCents', async () => {
+      createMock.mockResolvedValue(mockContent({ ...base, serviceFeeCents: 500 }))
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      const schema = createMock.mock.calls[0][0].response_format.json_schema.schema
+      expect(schema.required).toContain('serviceFeeCents')
+      expect(schema.properties.serviceFeeCents).toEqual({ type: ['integer', 'null'] })
+    })
+
+    it('retry target subtracts the fee: items 2000, grand 2500, fee 500 -> no retry', async () => {
+      createMock.mockResolvedValue(mockContent({ ...base, serviceFeeCents: 500 }))
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      expect(createMock).toHaveBeenCalledTimes(1)
+    })
+  })
 })

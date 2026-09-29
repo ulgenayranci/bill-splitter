@@ -27,7 +27,8 @@ import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
 import { InvitePeopleStep } from '@/components/split/InvitePeopleStep'
 import { TipScreen } from '@/components/split/TipScreen'
 import { PersonResultsScreen } from '@/components/split/PersonResultsScreen'
-import { computePersonShareFromClaims } from '@/lib/billMath'
+import { computePersonShareFromClaims, computeServiceFeeShares } from '@/lib/billMath'
+import { ServiceFeeCard } from '@/components/split/ServiceFeeCard'
 import { getUnclaimedCounts, getClaimedUnitCounts } from '@/lib/sessionUtils'
 
 type InlineForm =
@@ -582,12 +583,19 @@ export function CollaborativeClaimingView({
   const me = session.people.find((p) => p.id === selectedPersonId)
   if (!me) return <SessionExpiredScreen />
 
+  // Service fee: equal split across the CURRENT people list on every render, so a late
+  // joiner is included automatically with no claim writes.
+  const feeShares = computeServiceFeeShares(session.serviceFeeCents, session.people)
+  const myFeeShare = feeShares[selectedPersonId] ?? 0
+  const hasServiceFee = typeof session.serviceFeeCents === 'number' && session.serviceFeeCents > 0
+
   // Compute the person's itemSubtotal once (used by TipScreen and PersonResultsScreen)
   const personalShare = computePersonShareFromClaims(
     selectedPersonId,
     session.items,
     session.claims?.items ?? {},
-    session.tips?.[selectedPersonId] ?? 0
+    session.tips?.[selectedPersonId] ?? 0,
+    myFeeShare
   )
 
   if (phase === 'results') {
@@ -607,6 +615,7 @@ export function CollaborativeClaimingView({
               sessionId={sessionId}
               personId={selectedPersonId}
               itemSubtotalCents={personalShare.itemSubtotal}
+              serviceFeeShareCents={myFeeShare}
               currencyCode={session.currencyCode ?? 'USD'}
               onTipConfirmed={() => setTipDialogOpen(false)}
               mutate={mutate}
@@ -750,6 +759,18 @@ export function CollaborativeClaimingView({
             </li>
           )
         })}
+
+        {hasServiceFee && (
+          <li>
+            <ServiceFeeCard
+              feeCents={session.serviceFeeCents as number}
+              myShareCents={myFeeShare}
+              peopleCount={session.people.length}
+              myColorIndex={peopleById[selectedPersonId]?.colorIndex ?? 0}
+              currencyCode={session.currencyCode ?? 'USD'}
+            />
+          </li>
+        )}
 
         {/* Inline add form or dashed add button */}
         {inlineForm?.kind === 'add' ? (

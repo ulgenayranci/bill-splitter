@@ -212,9 +212,11 @@ export function computePersonShareFromClaims(
   personId: PersonId,
   items: Item[],
   claimsItems: Record<ItemId, Record<PersonId, { qty: number }>>,
-  tipCents: number
+  tipCents: number,
+  serviceFeeShareCents = 0
 ): {
   itemSubtotal: number
+  serviceFee: number
   tip: number
   total: number
   lineItems: Array<{ item: Item; shareCents: number; claimedQty: number }>
@@ -246,11 +248,44 @@ export function computePersonShareFromClaims(
   }
 
   return {
+    // itemSubtotal stays items-only: it is the tip base (DD-4).
     itemSubtotal,
+    serviceFee: serviceFeeShareCents,
     tip: tipCents,
-    total: itemSubtotal + tipCents,
+    total: itemSubtotal + serviceFeeShareCents + tipCents,
     lineItems,
   }
+}
+
+/**
+ * Split a bill-level service fee equally across ALL current people.
+ *
+ * Deterministic: shares are handed out by largest remainder in `people` ARRAY order
+ * (join order, server-authoritative and identical on every device), so earlier people
+ * get the leftover cents: 500 over 3 people -> 167 / 167 / 166. Shares sum exactly to
+ * the fee. Derived from the live people list on every call, so a late joiner is
+ * included automatically and every share recalculates with no claim writes.
+ *
+ * Empty people -> {}. A missing / non-positive / non-integer fee -> every person 0.
+ */
+export function computeServiceFeeShares(
+  feeCents: number | null | undefined,
+  people: Person[]
+): Record<PersonId, number> {
+  const shares: Record<PersonId, number> = {}
+  const n = people.length
+  if (n === 0) return shares
+  const valid = typeof feeCents === 'number' && Number.isInteger(feeCents) && feeCents > 0
+  if (!valid) {
+    for (const p of people) shares[p.id] = 0
+    return shares
+  }
+  const base = Math.floor(feeCents / n)
+  const remainder = feeCents % n
+  people.forEach((p, idx) => {
+    shares[p.id] = base + (idx < remainder ? 1 : 0)
+  })
+  return shares
 }
 
 /**

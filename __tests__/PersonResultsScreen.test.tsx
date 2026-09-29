@@ -418,4 +418,69 @@ describe('PersonResultsScreen', () => {
     // Still collapsed (swipe-suppressed the click)
     expect(screen.queryByTestId('results-row-p2-i2')).toBeNull()
   })
+
+  describe('service fee', () => {
+    it('2 people, 500 fee: 2.50 rows, totals and grand total include the fee', () => {
+      render(<PersonResultsScreen session={makeSession({ serviceFeeCents: 500 })} {...defaultProps} />)
+      expect(screen.getByTestId('results-service-fee-p1').textContent).toMatch(/\$2\.50/)
+      expect(screen.getByTestId('results-service-fee').textContent).toMatch(/\$2\.50/)
+      // 10.00 + 3.00 + 2.50 fee + 2.50 tip = 18.00
+      expect(screen.getByTestId('results-total').textContent?.trim()).toBe('$18.00')
+      expect(screen.getByTestId('results-card-total').textContent).toMatch(/\$18\.00/)
+      // items 16.00 + fee 5.00
+      expect(screen.getByTestId('results-grand-total').textContent?.trim()).toBe('$21.00')
+      // Bob (collapsed): header 3.00 + 2.50
+      expect(screen.getByLabelText("Bob's breakdown").textContent).toMatch(/\$5\.50/)
+      fireEvent.click(screen.getByLabelText("Bob's breakdown"))
+      expect(screen.getByTestId('results-service-fee-p2').textContent).toMatch(/\$2\.50/)
+    })
+
+    it('3 people, 500 fee: 1.67 / 1.67 / 1.66 in session.people order', () => {
+      const session = makeSession({
+        serviceFeeCents: 500,
+        people: [
+          { id: 'p1', name: 'Alice', colorIndex: 0 },
+          { id: 'p2', name: 'Bob', colorIndex: 1 },
+          { id: 'p3', name: 'Cara', colorIndex: 2 },
+        ],
+      })
+      render(<PersonResultsScreen session={session} {...defaultProps} />)
+      fireEvent.click(screen.getByLabelText("Bob's breakdown"))
+      fireEvent.click(screen.getByLabelText("Cara's breakdown"))
+      expect(screen.getByTestId('results-service-fee-p1').textContent).toMatch(/\$1\.67/)
+      expect(screen.getByTestId('results-service-fee-p2').textContent).toMatch(/\$1\.67/)
+      const cara = screen.getByTestId('results-service-fee-p3')
+      expect(cara.textContent).toMatch(/\$1\.66/)
+      // Cara claimed nothing: empty-state and fee row both render
+      expect(screen.getAllByText('Nothing claimed yet').length).toBeGreaterThan(0)
+    })
+
+    it('unclaimed items section never lists the service fee', () => {
+      const session = makeSession({
+        serviceFeeCents: 500,
+        claims: { items: { i1: { p1: { qty: 1 } } }, personSlots: {}, donePeople: {} },
+      })
+      render(<PersonResultsScreen session={session} {...defaultProps} />)
+      const box = screen.getByLabelText(/View unclaimed items/i)
+      expect(box.textContent).toMatch(/Beer/)
+      expect(box.textContent).not.toMatch(/Service fee/)
+    })
+
+    it('copied share summary includes each fee share and the fee in Total', async () => {
+      render(<PersonResultsScreen session={makeSession({ serviceFeeCents: 500 })} {...defaultProps} />)
+      fireEvent.click(screen.getByRole('button', { name: /copy summary/i }))
+      await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+      const text = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+      expect(text).toContain('Alice owes $15.50')
+      expect(text).toContain('Bob owes $5.50')
+      expect(text).toContain('Total: $21.00')
+    })
+
+    it('no service fee: no fee row anywhere and totals are unchanged', () => {
+      render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+      expect(screen.queryByTestId('results-service-fee')).toBeNull()
+      expect(screen.queryByTestId('results-service-fee-p1')).toBeNull()
+      expect(screen.getByTestId('results-grand-total').textContent?.trim()).toBe('$16.00')
+    })
+  })
 })

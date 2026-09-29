@@ -136,4 +136,18 @@ describe('POST /api/session', () => {
     // Suppress unused var warnings
     void json1; void json2
   })
+
+  it('persists serviceFeeCents when valid; omits it otherwise', async () => {
+    mockSet.mockResolvedValue('OK')
+    await callPOST({ ...validBody, serviceFeeCents: 500 })
+    expect(JSON.parse(mockSet.mock.calls[0][1] as string).serviceFeeCents).toBe(500)
+    for (const bad of [undefined, 0, -1, 1.5, '500', 10_000_001]) {
+      mockSet.mockReset()
+      mockSet.mockResolvedValue('OK')
+      vi.resetModules()
+      await callPOST({ ...validBody, serviceFeeCents: bad })
+      const payload = JSON.parse(mockSet.mock.calls[0][1] as string)
+      expect('serviceFeeCents' in payload).toBe(false)
+    }
+  })
 })
