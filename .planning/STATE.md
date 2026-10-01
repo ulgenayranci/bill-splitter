@@ -154,6 +154,7 @@ None.
 | 261001-ld5 | Tax as auto-shared locked bill item (OCR taxCents added-on-top only, equal split like service fee, Tax card, results/tip/grand totals, setup status line). 458/458 tests. | 2026-10-01 | 4ac63b9 | | [261001-ld5-tax-as-auto-shared-locked-bill-item-like](./quick/261001-ld5-tax-as-auto-shared-locked-bill-item-like/) |
 | fast | Split page Items claimed label ink (foreground) + bg-border divider, matching setup Who's involved. 458/458 tests. | 2026-10-01 | 075d293 | Complete | — |
 | fast | ProgressStrip empty segments white (all pages via shared component). 458/458 tests. | 2026-10-01 | c2a2506 | Complete | — |
+| fast | Setup people count chip coral-500 fill + white bold text (matches items-found badge). 458/458 tests. | 2026-10-01 | 92d3a08 | Complete | — |
 
 ---
 
