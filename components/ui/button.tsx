@@ -9,7 +9,9 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[0_4px_14px_rgba(241,96,63,0.28)]",
+          "bg-primary text-primary-foreground shadow-[var(--eb-sh-btn)]",
+        // Coral is reserved for warning-confirm buttons (proceed despite unclaimed items, start over) per UI-SPEC rule 1.
+        warning: "bg-coral-500 text-white shadow-[var(--eb-sh-btn)]",
         outline:
           "border-border bg-muted text-foreground aria-expanded:bg-accent aria-expanded:text-foreground dark:border-input dark:bg-input/30",
         secondary:
