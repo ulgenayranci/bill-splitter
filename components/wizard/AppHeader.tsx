@@ -84,12 +84,12 @@ export function AppHeader() {
       >
         {/* Wordmark */}
         <div
-          className="relative top-0.5 select-none text-[20px] leading-none tracking-[-0.03em] text-ink"
+          className="relative top-0.5 select-none text-[20px] leading-none tracking-[-0.03em] text-coral-500"
           aria-label="easy billsy"
         >
           <span className="font-normal">easy</span>
           <span> </span>
-          <span className="font-bold text-coral-500">billsy</span>
+          <span className="font-bold">billsy</span>
         </div>
 
         {/* Menu trigger — a prominent coral "+" button (replaces the old hamburger).
