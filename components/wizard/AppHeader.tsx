@@ -80,7 +80,7 @@ export function AppHeader() {
   return (
     <>
       <header
-        className={`sticky top-0 z-50 flex h-14 flex-shrink-0 items-center justify-between bg-white px-4 transition-opacity duration-300 ${isHidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+        className={`sticky top-0 z-50 flex h-14 flex-shrink-0 items-center justify-between border-b border-border bg-white px-4 transition-opacity duration-300 ${isHidden ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       >
         {/* Wordmark */}
         <div
