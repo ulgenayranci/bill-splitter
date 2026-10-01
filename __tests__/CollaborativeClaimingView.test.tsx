@@ -157,7 +157,7 @@ describe('CollaborativeClaimingView', () => {
     })
   })
 
-  it("Test 8 (D-08): on /claim fetch rejection, the affected item shows \"Couldn't save — tap to retry\"", async () => {
+  it("Test 8 (D-08): on /claim fetch rejection, the affected item shows \"Couldn't save. Tap to retry\"", async () => {
     await selectAlice()
     // Make mutate actually invoke its async callback so rejection propagates
     mutateMock.mockImplementation(async (fn: () => Promise<unknown>) => {
@@ -269,7 +269,7 @@ describe('CollaborativeClaimingView', () => {
     await waitFor(() => expect(screen.getByTestId('delete-item-i1')).toBeDefined())
     fireEvent.click(screen.getByTestId('delete-item-i1'))
     await waitFor(() => expect(confirmMock).toHaveBeenCalled())
-    // With 2 claimants: "2 people have claimed Pizza — delete anyway?"
+    // With 2 claimants: "2 people have claimed Pizza. Delete anyway?"
     expect(confirmMock.mock.calls[0][0]).toMatch(/2 people have claimed Pizza/i)
   })
 
@@ -404,7 +404,7 @@ describe('CollaborativeClaimingView', () => {
 
   it('Test 23 (IDENT-03 change): tapping the people strip reopens the modal (dismissible)', async () => {
     await selectAlice()
-    fireEvent.click(screen.getByRole('button', { name: /people — tap to change identity/i }))
+    fireEvent.click(screen.getByRole('button', { name: /people\. tap to change identity/i }))
     await waitFor(() => expect(screen.getByText('Who are you?')).toBeDefined())
     // Change-identity mode is dismissible — a Close button is present
     expect(screen.getByRole('button', { name: /close/i })).toBeDefined()
@@ -437,7 +437,7 @@ describe('CollaborativeClaimingView', () => {
 
   it('Test 26 (CLAIM-06): BillViewHeader renders with a share affordance', async () => {
     await selectAlice()
-    expect(screen.getByRole('button', { name: /invite — copy bill link/i })).toBeDefined()
+    expect(screen.getByRole('button', { name: /invite: copy bill link/i })).toBeDefined()
   })
 
   it('Test 27 (R6): the "tap to find them" scroll text is not present (banner removed)', async () => {

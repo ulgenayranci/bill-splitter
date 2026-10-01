@@ -220,7 +220,7 @@ export function ClaimableItemCard({
             data-testid="claimed-count"
           >
             {totalClaimedQty} of {item.quantity ?? 1} claimed
-            {isOverClaimed && ' — over-claimed'}
+            {isOverClaimed && ', over-claimed'}
           </span>
         </div>
       )}

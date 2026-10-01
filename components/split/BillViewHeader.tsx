@@ -50,8 +50,8 @@ export function BillViewHeader({
     .replace(']', '')
 
   // Bill name uses the full creation date — OCR has no merchant field (RESEARCH Pitfall 7),
-  // so we name it "Bill — {DD Month YYYY}" e.g. "Bill — 23 June 2026".
-  const billTitle = `Bill — ${new Date(session.createdAt).toLocaleDateString('en-GB', {
+  // so we name it "Bill · {DD Month YYYY}" e.g. "Bill · 23 June 2026".
+  const billTitle = `Bill · ${new Date(session.createdAt).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -116,7 +116,7 @@ export function BillViewHeader({
         <div
           role="button"
           tabIndex={0}
-          aria-label="People — tap to change identity"
+          aria-label="People. Tap to change identity"
           onClick={onStripTap}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') onStripTap()
@@ -179,7 +179,7 @@ export function BillViewHeader({
         {/* Invite button — sibling of the strip so it doesn't trigger change-identity */}
         <button
           type="button"
-          aria-label="Invite — copy bill link"
+          aria-label="Invite: copy bill link"
           onClick={handleShare}
           className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white transition-colors"
         >

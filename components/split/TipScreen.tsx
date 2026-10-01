@@ -69,13 +69,13 @@ export function TipScreen({
         body: JSON.stringify({ personId, tipCents }),
       })
       if (!res.ok) {
-        setError("Couldn't save tip — try again")
+        setError("Couldn't save tip. Try again")
         return
       }
       await mutate()
       onTipConfirmed()
     } catch {
-      setError("Couldn't save tip — try again")
+      setError("Couldn't save tip. Try again")
     } finally {
       setSubmitting(false)
     }

@@ -84,7 +84,7 @@ export function PersonResultsScreen({
       else next.delete(id)
       return next
     })
-    showPaidToast(paid ? `${name} — I have paid ✓` : `${name} — marked unpaid`)
+    showPaidToast(paid ? `${name}: I have paid ✓` : `${name}: marked unpaid`)
   }
 
   function handleTouchStart(e: React.TouchEvent) {
@@ -192,7 +192,7 @@ export function PersonResultsScreen({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } else {
-      setCopyError("Couldn't copy — try again")
+      setCopyError("Couldn't copy. Try again")
     }
   }
 
@@ -207,7 +207,7 @@ export function PersonResultsScreen({
           {/* D-04: conditional headline — playful when unclaimed, positive when fully claimed */}
           <h1 className="text-[20px] font-semibold leading-[1.2]">
             {unclaimedCount > 0
-              ? `Hold up — ${unclaimedCount} item${unclaimedCount === 1 ? '' : 's'} still up for grabs!`
+              ? `Hold up! ${unclaimedCount} item${unclaimedCount === 1 ? '' : 's'} still up for grabs.`
               : "You're all set!"}
           </h1>
 
@@ -216,7 +216,7 @@ export function PersonResultsScreen({
             <div
               role="button"
               tabIndex={0}
-              aria-label="View unclaimed items — tap to edit"
+              aria-label="View unclaimed items. Tap to edit"
               onClick={() => setShowUnclaimedConfirm(true)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)

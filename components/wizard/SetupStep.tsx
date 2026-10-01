@@ -196,7 +196,7 @@ export function SetupStep() {
           setOcrStatus('error')
           setScanCheck(null)
           setServiceFeeCents(null)
-          setScanError('No items found — tap Scan to try a clearer photo')
+          setScanError('No items found. Tap Scan to try a clearer photo')
           return
         }
       } catch (err) {
@@ -207,7 +207,7 @@ export function SetupStep() {
         setOcrStatus('error')
         setScanCheck(null)
         setServiceFeeCents(null)
-        setScanError("Couldn't read the bill — tap Scan to try again")
+        setScanError("Couldn't read the bill. Tap Scan to try again")
         return
       }
 
@@ -327,7 +327,7 @@ export function SetupStep() {
           data-testid="expired-notice"
           className="flex items-start justify-between gap-2 rounded-xl border border-[#e0a400]/30 bg-[#e0a400]/10 px-3 py-2.5 text-[13px] font-medium text-warn"
         >
-          <span>That link expired — here&rsquo;s a fresh start.</span>
+          <span>That link expired. Here&rsquo;s a fresh start.</span>
           <button
             type="button"
             aria-label="Dismiss"
@@ -403,7 +403,7 @@ export function SetupStep() {
           </div>
           {serviceFeeCents != null && serviceFeeCents > 0 && (
             <p data-testid="service-fee-status" className="mt-2 text-[12px] text-zinc-500">
-              Service fee {formatCents(serviceFeeCents, currencyCode)} found — split equally between everyone.
+              Service fee {formatCents(serviceFeeCents, currencyCode)} found, split equally between everyone.
             </p>
           )}
         </div>
@@ -425,7 +425,7 @@ export function SetupStep() {
             <span className="text-[16px] font-semibold text-zinc-900">Scan your receipt</span>
             <span className="text-[13px] text-zinc-400">
               {ocrStatus === 'error'
-                ? 'Something went wrong — tap to try again'
+                ? 'Something went wrong. Tap to try again'
                 : "Take a photo of the receipt and I will capture all the items for you."}
             </span>
           </div>
@@ -532,7 +532,7 @@ export function SetupStep() {
             we only nudge with a subtle hint (locked decision 2). */}
         {canContinue && stillOff && (
           <p data-testid="scan-review-still-off" className="mt-2 text-center text-[12px] text-warn">
-            Still off by {formatCents(Math.abs(liveDeltaCents), currencyCode)} — you can confirm
+            Still off by {formatCents(Math.abs(liveDeltaCents), currencyCode)}. You can confirm
             anyway or keep editing.
           </p>
         )}

@@ -39,9 +39,9 @@ class SessionNotFoundError extends Error {}
 
 function claimErrorMessage(err: unknown, type: 'save' | 'submit'): string {
   if (!navigator.onLine || err instanceof TypeError) {
-    return "You're offline — reconnect and tap to retry"
+    return "You're offline. Reconnect and tap to retry"
   }
-  return type === 'save' ? "Couldn't save — tap to retry" : "Couldn't submit — tap to retry"
+  return type === 'save' ? "Couldn't save. Tap to retry" : "Couldn't submit. Tap to retry"
 }
 
 const fetcher = (url: string): Promise<SessionPayload> =>
@@ -482,7 +482,7 @@ export function CollaborativeClaimingView({
           body: JSON.stringify({ op: 'add',
             name: trimmed, priceCents, quantity: Math.max(1, parseInt(inlineForm.qty, 10) || 1) }),
         })
-        if (!res.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save — try again" }); return }
+        if (!res.ok) { setInlineForm({ ...inlineForm, error: "Couldn't save. Try again" }); return }
       } else {
         // Send edit_name and/or edit_price/edit_quantity for whatever changed
         const trimmedName = inlineForm.name.trim()
@@ -523,7 +523,7 @@ export function CollaborativeClaimingView({
           await mutate()
           const savedMsg = saved.length > 0 ? ` Saved: ${saved.join(', ')}.` : ''
           setInlineForm((f) =>
-            f ? { ...f, error: `Couldn't save ${failed.join(', ')} — try again.${savedMsg}` } : f
+            f ? { ...f, error: `Couldn't save ${failed.join(', ')}. Try again.${savedMsg}` } : f
           )
           return
         }
@@ -531,7 +531,7 @@ export function CollaborativeClaimingView({
       await mutate()
       setInlineForm(null)
     } catch {
-      setInlineForm((f) => f ? { ...f, error: "Couldn't save — try again" } : f)
+      setInlineForm((f) => f ? { ...f, error: "Couldn't save. Try again" } : f)
     } finally {
       setInlineSubmitting(false)
     }
@@ -542,7 +542,7 @@ export function CollaborativeClaimingView({
     const claimantCount = Object.keys(session.claims?.items?.[itemId] ?? {}).length
     const itemName = session.items.find((i) => i.id === itemId)?.name ?? 'this item'
     const confirmMessage = claimantCount > 0
-      ? `${claimantCount} ${claimantCount === 1 ? 'person has' : 'people have'} claimed ${itemName} — delete anyway?`
+      ? `${claimantCount} ${claimantCount === 1 ? 'person has' : 'people have'} claimed ${itemName}. Delete anyway?`
       : `Delete ${itemName}?`
     if (!window.confirm(confirmMessage)) return
     try {

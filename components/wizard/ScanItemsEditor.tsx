@@ -208,7 +208,7 @@ export function ScanItemsEditor() {
         >
           <Lock size={14} className="shrink-0 text-zinc-400" aria-hidden="true" />
           <span>
-            Service fee {formatCents(serviceFeeCents, currencyCode)} — split equally, not part of the items total
+            Service fee {formatCents(serviceFeeCents, currencyCode)}, split equally and not part of the items total
           </span>
         </div>
       )}

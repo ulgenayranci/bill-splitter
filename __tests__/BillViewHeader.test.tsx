@@ -24,7 +24,7 @@ const mockSession: SessionPayload = {
 describe('BillViewHeader', () => {
   afterEach(() => cleanup())
 
-  it('Test 1: renders bill title containing "Bill —" and a date derived from session.createdAt', () => {
+  it('Test 1: renders bill title containing "Bill ·" and a date derived from session.createdAt', () => {
     render(
       <BillViewHeader
         session={mockSession}
@@ -33,8 +33,8 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    // Title must contain "Bill —"
-    const titleEl = screen.getByText(/Bill —/)
+    // Title must contain "Bill ·"
+    const titleEl = screen.getByText(/Bill ·/)
     expect(titleEl).toBeDefined()
     // Must contain the en-GB long date derived from session.createdAt (same formatter as the component)
     const expected = new Date(mockSession.createdAt).toLocaleDateString('en-GB', {
@@ -42,8 +42,8 @@ describe('BillViewHeader', () => {
       month: 'long',
       year: 'numeric',
     })
-    expect(titleEl.textContent).toBe(`Bill — ${expected}`)
-    expect(titleEl.textContent).toMatch(/Bill — \d{1,2} June \d{4}/)
+    expect(titleEl.textContent).toBe(`Bill · ${expected}`)
+    expect(titleEl.textContent).toMatch(/Bill · \d{1,2} June \d{4}/)
   })
 
   it('Test 2: own identity (myPersonId) renders as an expanded pill showing the person name', () => {
@@ -102,7 +102,7 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    const strip = screen.getByLabelText('People — tap to change identity')
+    const strip = screen.getByLabelText('People. Tap to change identity')
     fireEvent.click(strip)
     expect(onStripTap).toHaveBeenCalledTimes(1)
   })
@@ -116,7 +116,7 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    const shareBtn = screen.getByLabelText('Invite — copy bill link')
+    const shareBtn = screen.getByLabelText('Invite: copy bill link')
     expect(shareBtn).toBeDefined()
   })
 
@@ -179,7 +179,7 @@ describe('BillViewHeader', () => {
         sessionId="test-session-id"
       />
     )
-    const shareBtn = screen.getByLabelText('Invite — copy bill link')
+    const shareBtn = screen.getByLabelText('Invite: copy bill link')
     expect(shareBtn.className).toContain('min-h-[44px]')
   })
 })
