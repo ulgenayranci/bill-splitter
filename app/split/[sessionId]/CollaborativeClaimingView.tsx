@@ -847,7 +847,7 @@ export function CollaborativeClaimingView({
         {doneError && (
           <p className="mb-2 text-center text-sm text-red-600">{doneError}</p>
         )}
-        <Button onClick={handleDone} className="h-12 w-full bg-coral-500">
+        <Button onClick={handleDone} className="h-12 w-full">
           I&rsquo;m done
         </Button>
       </div>
@@ -892,7 +892,8 @@ export function CollaborativeClaimingView({
                 setShowUnclaimedWarning(false)
                 void submitDone()
               }}
-              className="flex-1 h-12 bg-coral-500"
+              variant="warning"
+              className="flex-1 h-12"
             >
               Show my result
             </Button>

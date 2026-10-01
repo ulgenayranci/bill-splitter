@@ -84,7 +84,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                     <Button
                       type="button"
                       size="sm"
-                      className="flex-1 bg-coral-500 text-[13px]"
+                      className="flex-1 text-[13px]"
                       onClick={() => handleRenameConfirm(person.id)}
                     >
                       Save
@@ -152,7 +152,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
           />
           <Button
             type="button"
-            className="h-12 w-full bg-coral-500"
+            className="h-12 w-full"
             onClick={handleAddMe}
           >
             Add me

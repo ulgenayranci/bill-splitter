@@ -453,7 +453,7 @@ export function PersonResultsScreen({
             {/* Share summary (coral, right) */}
             <Button
               type="button"
-              className="h-12 flex-1 bg-coral-500"
+              className="h-12 flex-1"
               onClick={handleShareSummary}
               aria-label={copied ? 'Summary copied' : 'Copy summary to clipboard'}
             >
@@ -475,7 +475,8 @@ export function PersonResultsScreen({
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
-              className="h-12 w-full bg-coral-500"
+              variant="warning"
+              className="h-12 w-full"
               onClick={() => {
                 setShowUnclaimedConfirm(false)
                 onEditBill()

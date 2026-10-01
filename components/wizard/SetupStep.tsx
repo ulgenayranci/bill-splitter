@@ -478,7 +478,7 @@ export function SetupStep() {
               nameInputRef.current?.focus()
             }}
             className={`absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
-              name.trim() ? 'bg-coral-500 text-white' : 'text-zinc-400'
+              name.trim() ? 'bg-stone text-white' : 'text-zinc-400'
             }`}
           >
             <Plus size={18} aria-hidden="true" />
@@ -518,7 +518,7 @@ export function SetupStep() {
         <Button
           onClick={handleContinue}
           disabled={!canContinue || isCreating}
-          className="h-12 w-full bg-coral-500 text-base"
+          className="h-12 w-full text-base"
         >
           {isCreating ? (
             <LoaderCircle size={16} className="animate-spin" />
