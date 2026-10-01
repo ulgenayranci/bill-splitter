@@ -13,7 +13,7 @@ afterEach(() => { cleanup(); useBillStore.getState().reset() })
 describe('WizardShell — Phase 7 (3 segments)', () => {
   it('renders 3 progress strip segments (Setup / Bill View / Results, D-07)', () => {
     const { container } = render(<WizardShell><div data-testid="content" /></WizardShell>)
-    const segments = container.querySelectorAll('div.flex-1.bg-coral-500, div.flex-1.bg-n400')
+    const segments = container.querySelectorAll('div.flex-1.bg-coral-500, div.flex-1.bg-white')
     expect(segments.length).toBe(3)
   })
 

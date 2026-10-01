@@ -37,7 +37,7 @@ describe('InvitePeopleStep (G4)', () => {
     const segments = container.querySelectorAll('.h-\\[3px\\]')
     expect(segments.length).toBe(3)
     expect(segments[0].className).toMatch(/coral-500/)
-    expect(segments[1].className).toMatch(/bg-n400/)
+    expect(segments[1].className).toMatch(/bg-white/)
   })
 
   it('shows exactly two action buttons: Skip and Share link', () => {
