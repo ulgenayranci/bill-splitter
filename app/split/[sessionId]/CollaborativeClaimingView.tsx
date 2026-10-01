@@ -719,10 +719,10 @@ export function CollaborativeClaimingView({
                       type="button"
                       aria-label={`Delete ${item.name}`}
                       onClick={() => { void handleDeleteItem(inlineForm.itemId); setInlineForm(null) }}
-                      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[13px] text-danger"
+                      className="flex h-10 items-center gap-1.5 self-start rounded-md border border-danger/30 bg-white px-3 text-[14px] font-medium text-danger"
                       data-testid={`delete-item-${item.id}`}
                     >
-                      <Trash2 size={14} aria-hidden="true" />
+                      <Trash2 size={16} aria-hidden="true" />
                       Delete
                     </button>
                   </div>
