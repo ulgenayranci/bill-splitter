@@ -67,6 +67,13 @@ export async function POST(request: Request) {
       ? rawFee
       : undefined
 
+  // T-ld5-01: same rule as the service fee.
+  const rawTax = b.taxCents
+  const taxCents =
+    typeof rawTax === 'number' && Number.isInteger(rawTax) && rawTax > 0 && rawTax <= 10_000_000
+      ? rawTax
+      : undefined
+
   try {
     const sessionId = nanoid()
     // Flat model: claims start empty — no host pre-assignment, no approval queue (CLAIM-01/03)
@@ -78,6 +85,7 @@ export async function POST(request: Request) {
       currencyCode,
       createdAt: Date.now(),
       ...(serviceFeeCents !== undefined ? { serviceFeeCents } : {}),
+      ...(taxCents !== undefined ? { taxCents } : {}),
     }
     await redis.set(`session:${sessionId}`, JSON.stringify(payload), { ex: 86400 })
     // Pitfall 6: response is { sessionId } only — flat model has no host secret

@@ -9,6 +9,7 @@ import {
   computeEqualShareCents,
   computeQtyWeightedShares,
   computeServiceFeeShares,
+  computeEqualChargeShares,
 } from '@/lib/billMath'
 import type { Item, Person } from '@/stores/useBillStore'
 
@@ -583,6 +584,42 @@ describe('computePersonShareFromClaims with service fee share', () => {
   it('without the 5th arg serviceFee is 0 and total is unchanged', () => {
     const r = computePersonShareFromClaims('p1', items, claims, 100)
     expect(r.serviceFee).toBe(0)
+    expect(r.total).toBe(1100)
+  })
+})
+
+describe('computeEqualChargeShares', () => {
+  const mk = (n: number): Person[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, name: `P${i + 1}` }) as Person)
+
+  it('splits 800 over 3 as 267/267/266 in people order', () => {
+    expect(computeEqualChargeShares(800, mk(3))).toEqual({ p1: 267, p2: 267, p3: 266 })
+  })
+  it('invalid charge gives zero for everyone, empty people gives {}', () => {
+    for (const v of [null, 0, -5, 12.5, undefined]) {
+      expect(computeEqualChargeShares(v as number | null, mk(2))).toEqual({ p1: 0, p2: 0 })
+    }
+    expect(computeEqualChargeShares(800, [])).toEqual({})
+  })
+  it('computeServiceFeeShares gives identical results', () => {
+    expect(computeServiceFeeShares(800, mk(3))).toEqual(computeEqualChargeShares(800, mk(3)))
+  })
+})
+
+describe('computePersonShareFromClaims with tax share', () => {
+  const items: Item[] = [{ id: 'i1', name: 'Burger', priceCents: 1000, quantity: 1 }]
+  const claims = { i1: { p1: { qty: 1 } } }
+
+  it('adds tax to total but not itemSubtotal', () => {
+    const r = computePersonShareFromClaims('p1', items, claims, 200, 100, 300)
+    expect(r.tax).toBe(300)
+    expect(r.serviceFee).toBe(100)
+    expect(r.itemSubtotal).toBe(1000)
+    expect(r.total).toBe(1000 + 100 + 300 + 200)
+  })
+  it('without the 6th arg tax is 0 and total is unchanged', () => {
+    const r = computePersonShareFromClaims('p1', items, claims, 100)
+    expect(r.tax).toBe(0)
     expect(r.total).toBe(1100)
   })
 })

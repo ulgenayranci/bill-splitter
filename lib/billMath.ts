@@ -213,10 +213,12 @@ export function computePersonShareFromClaims(
   items: Item[],
   claimsItems: Record<ItemId, Record<PersonId, { qty: number }>>,
   tipCents: number,
-  serviceFeeShareCents = 0
+  serviceFeeShareCents = 0,
+  taxShareCents = 0
 ): {
   itemSubtotal: number
   serviceFee: number
+  tax: number
   tip: number
   total: number
   lineItems: Array<{ item: Item; shareCents: number; claimedQty: number }>
@@ -251,42 +253,48 @@ export function computePersonShareFromClaims(
     // itemSubtotal stays items-only: it is the tip base (DD-4).
     itemSubtotal,
     serviceFee: serviceFeeShareCents,
+    // Equal share of the bill's tax (not part of the tip base).
+    tax: taxShareCents,
     tip: tipCents,
-    total: itemSubtotal + serviceFeeShareCents + tipCents,
+    total: itemSubtotal + serviceFeeShareCents + taxShareCents + tipCents,
     lineItems,
   }
 }
 
 /**
- * Split a bill-level service fee equally across ALL current people.
+ * Split any bill-level charge (service fee, tax) equally across ALL current people,
+ * with base + remainder handed out in people-array (join) order.
  *
  * Deterministic: shares are handed out by largest remainder in `people` ARRAY order
  * (join order, server-authoritative and identical on every device), so earlier people
  * get the leftover cents: 500 over 3 people -> 167 / 167 / 166. Shares sum exactly to
- * the fee. Derived from the live people list on every call, so a late joiner is
+ * the charge. Derived from the live people list on every call, so a late joiner is
  * included automatically and every share recalculates with no claim writes.
  *
- * Empty people -> {}. A missing / non-positive / non-integer fee -> every person 0.
+ * Empty people -> {}. A missing / non-positive / non-integer charge -> every person 0.
  */
-export function computeServiceFeeShares(
-  feeCents: number | null | undefined,
+export function computeEqualChargeShares(
+  chargeCents: number | null | undefined,
   people: Person[]
 ): Record<PersonId, number> {
   const shares: Record<PersonId, number> = {}
   const n = people.length
   if (n === 0) return shares
-  const valid = typeof feeCents === 'number' && Number.isInteger(feeCents) && feeCents > 0
+  const valid = typeof chargeCents === 'number' && Number.isInteger(chargeCents) && chargeCents > 0
   if (!valid) {
     for (const p of people) shares[p.id] = 0
     return shares
   }
-  const base = Math.floor(feeCents / n)
-  const remainder = feeCents % n
+  const base = Math.floor(chargeCents / n)
+  const remainder = chargeCents % n
   people.forEach((p, idx) => {
     shares[p.id] = base + (idx < remainder ? 1 : 0)
   })
   return shares
 }
+
+/** Service-fee alias of computeEqualChargeShares (kept for existing callers). */
+export const computeServiceFeeShares = computeEqualChargeShares
 
 /**
  * Equal share in cents for one sharer, using largest-remainder.

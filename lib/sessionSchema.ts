@@ -29,6 +29,12 @@ export interface SessionPayload {
    * created before this feature.
    */
   serviceFeeCents?: number
+  /**
+   * Bill-level tax ADDED ON TOP of item prices, in integer cents, split equally across all
+   * people at render time via computeEqualChargeShares. Absent on sessions without tax and
+   * on sessions created before this feature, so old sessions load unchanged.
+   */
+  taxCents?: number
 }
 
 /**

@@ -275,4 +275,14 @@ describe('scanCheck (260929-k3j)', () => {
     useBillStore.getState().reset()
     expect(useBillStore.getState().serviceFeeCents).toBeNull()
   })
+
+  it('taxCents defaults null, is settable, persisted, and cleared by reset', () => {
+    expect(useBillStore.getState().taxCents).toBeNull()
+    useBillStore.getState().setTaxCents(800)
+    expect(useBillStore.getState().taxCents).toBe(800)
+    const out = useBillStore.persist.getOptions().partialize!(useBillStore.getState()) as Record<string, unknown>
+    expect(out.taxCents).toBe(800)
+    useBillStore.getState().reset()
+    expect(useBillStore.getState().taxCents).toBeNull()
+  })
 })

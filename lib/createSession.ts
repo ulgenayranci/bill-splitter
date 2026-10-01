@@ -6,6 +6,7 @@ export interface CreateSessionInput {
   currencyCode: string
   /** Bill-level service fee in integer cents; sent only when a positive number. */
   serviceFeeCents?: number | null
+  taxCents?: number | null
 }
 
 export interface CreateSessionResult {
@@ -22,7 +23,7 @@ export interface CreateSessionResult {
  * Throws with "Session creation failed: {status}" on non-OK responses.
  */
 export async function createSession(
-  { people, items, currencyCode, serviceFeeCents }: CreateSessionInput,
+  { people, items, currencyCode, serviceFeeCents, taxCents }: CreateSessionInput,
   signal?: AbortSignal,
 ): Promise<CreateSessionResult> {
   const res = await fetch('/api/session', {
@@ -33,6 +34,7 @@ export async function createSession(
       items,
       currencyCode,
       ...(typeof serviceFeeCents === 'number' && serviceFeeCents > 0 ? { serviceFeeCents } : {}),
+      ...(typeof taxCents === 'number' && taxCents > 0 ? { taxCents } : {}),
     }),
     signal,
   })

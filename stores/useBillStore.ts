@@ -89,6 +89,8 @@ interface BillState {
   // Printed service fee (integer cents) split equally among everyone; null when none.
   serviceFeeCents: number | null
   setServiceFeeCents: (cents: number | null) => void
+  taxCents: number | null
+  setTaxCents: (cents: number | null) => void
   setBillImage: (url: string | null) => void
   setCurrencyCode: (code: string) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
@@ -123,6 +125,7 @@ const INITIAL_STATE = {
   sessionId: null,
   scanCheck: null as ScanCheck | null,
   serviceFeeCents: null as number | null,
+  taxCents: null as number | null,
 }
 
 export const useBillStore = create<BillState>()(
@@ -134,6 +137,7 @@ export const useBillStore = create<BillState>()(
   setStep: (step) => set({ step }),
   setScanCheck: (check) => set({ scanCheck: check }),
   setServiceFeeCents: (cents) => set({ serviceFeeCents: cents }),
+  setTaxCents: (cents) => set({ taxCents: cents }),
   addPerson: (name) =>
     set((s) => ({
       people: [
@@ -230,6 +234,7 @@ export const useBillStore = create<BillState>()(
         // keeps the edit screen's off-by line alive across refresh
         scanCheck: s.scanCheck,
         serviceFeeCents: s.serviceFeeCents,
+        taxCents: s.taxCents,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)

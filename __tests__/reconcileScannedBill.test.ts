@@ -165,3 +165,18 @@ describe('itemsReconcileTarget', () => {
     expect(itemsReconcileTarget(null, null, 500)).toBeNull()
   })
 })
+
+describe('itemsReconcileTarget with tax', () => {
+  it('grand total minus tax when no subtotal', () => {
+    expect(itemsReconcileTarget(null, 10800, null, 800)).toBe(10000)
+  })
+  it('grand total minus fee and tax', () => {
+    expect(itemsReconcileTarget(null, 11300, 500, 800)).toBe(10000)
+  })
+  it('printed subtotal wins, tax ignored', () => {
+    expect(itemsReconcileTarget(10000, 10800, null, 800)).toBe(10000)
+  })
+  it('null when non-positive after subtracting', () => {
+    expect(itemsReconcileTarget(null, 800, null, 800)).toBeNull()
+  })
+})
