@@ -544,7 +544,7 @@ export function SetupStep() {
           </p>
         )}
         {sessionCreateError && (
-          <p className="mt-2 text-center text-[14px] text-danger">{sessionCreateError}</p>
+          <p role="alert" className="mt-2 text-center text-[14px] text-danger">{sessionCreateError}</p>
         )}
       </div>
 

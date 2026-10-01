@@ -713,7 +713,7 @@ export function CollaborativeClaimingView({
                         <X size={18} />
                       </button>
                     </div>
-                    {inlineForm.error && <p className="text-[14px] text-danger">{inlineForm.error}</p>}
+                    {inlineForm.error && <p role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>}
                     {/* Delete control inside the edit form */}
                     <button
                       type="button"
@@ -820,7 +820,7 @@ export function CollaborativeClaimingView({
                   </button>
                 </div>
                 {inlineForm.error && (
-                  <p className="text-[14px] text-danger">{inlineForm.error}</p>
+                  <p role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>
                 )}
               </div>
             </Card>
@@ -845,7 +845,7 @@ export function CollaborativeClaimingView({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         {doneError && (
-          <p className="mb-2 text-center text-[14px] text-danger">{doneError}</p>
+          <p role="alert" className="mb-2 text-center text-[14px] text-danger">{doneError}</p>
         )}
         <Button onClick={handleDone} className="h-12 w-full bg-coral-500">
           I&rsquo;m done
