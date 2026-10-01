@@ -150,7 +150,7 @@ export default function ButtonGalleryPage() {
           </button>
         </Sample>
         <Sample id="C2" name="Header menu (+ circle)" where="AppHeader">
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-stone text-white transition-colors">
+          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-coral-500 text-white transition-colors">
             <Plus size={22} />
           </button>
         </Sample>

@@ -30,7 +30,7 @@
 | `coral-50` | `#fff3ef` | soft tints, claimed-item background |
 | `coral-100` | `#ffe1d8` | soft fills, input focus ring |
 | `coral-200` | `#ffc7b6` | soft borders |
-| `coral-500` | `#f1603f` | **warning-confirm buttons and the Invite button only**; also claimed tints/badges as documented |
+| `coral-500` | `#f1603f` | **warning-confirm buttons, the Invite button and the header New Split + only**; also claimed tints/badges as documented |
 | `coral-600` `--eb-primary-press` | `#dc4827` | CTA hover/press, accent text & totals (`text-coral-600`) |
 
 ### Color — Warm neutrals
@@ -86,9 +86,10 @@
 
 ## 2. Global Rules (the ones that get violated → inconsistency)
 
-1. **Coral is for warnings and Invite only.** Primary actions are stone (`<Button>` default).
+1. **Coral is for warnings, Invite and the header New Split + only.** Primary actions are stone (`<Button>` default).
    Coral fills are allowed only on warning-confirm buttons (`variant="warning"`: New Split
-   start-over confirm) and the Invite button on the split header. Any other
+   start-over confirm), the Invite button on the split header and the round
+   New Split + menu button in the app header. Any other
    coral button is a bug. `variant="warning"` fills with `bg-warn`, the same coral as warning banners.
 2. **Green means money is settled** — and nothing else. Don't use green for "done",
    "success", "selected", or decoration.
