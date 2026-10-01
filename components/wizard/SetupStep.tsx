@@ -43,6 +43,8 @@ export function SetupStep() {
   const setScanCheck = useBillStore((s) => s.setScanCheck)
   const serviceFeeCents = useBillStore((s) => s.serviceFeeCents)
   const setServiceFeeCents = useBillStore((s) => s.setServiceFeeCents)
+  const taxCents = useBillStore((s) => s.taxCents)
+  const setTaxCents = useBillStore((s) => s.setTaxCents)
   const setStep = useBillStore((s) => s.setStep)
   const currencyCode = useBillStore((s) => s.currencyCode)
   const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
@@ -105,11 +107,11 @@ export function SetupStep() {
     setIsCreating(true)
     setSessionCreateError(null)
     try {
-      const { people: p, items: it, currencyCode, serviceFeeCents: fee } = useBillStore.getState()
+      const { people: p, items: it, currencyCode, serviceFeeCents: fee, taxCents: tax } = useBillStore.getState()
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const { sessionId } = await createSession(
-        { people: p, items: it, currencyCode, serviceFeeCents: fee },
+        { people: p, items: it, currencyCode, serviceFeeCents: fee, taxCents: tax },
         abortRef.current.signal,
       )
       setSessionId(sessionId)
@@ -130,6 +132,7 @@ export function SetupStep() {
       setScanError(null)
       setScanCheck(null)
       setServiceFeeCents(null)
+      setTaxCents(null)
 
       const prevUrl = useBillStore.getState().billImageUrl
       if (prevUrl?.startsWith('blob:')) URL.revokeObjectURL(prevUrl)
@@ -144,6 +147,7 @@ export function SetupStep() {
       let ocrSubtotalCents: number | null = null
       let ocrGrandTotalCents: number | null = null
       let ocrServiceFeeCents: number | null = null
+      let ocrTaxCents: number | null = null
 
       try {
         const compressed = await imageCompression(file, {
@@ -177,6 +181,7 @@ export function SetupStep() {
           subtotalCents?: number | null
           grandTotalCents?: number | null
           serviceFeeCents?: number | null
+          taxCents?: number | null
         }
         ocrItems = data.items
         ocrSubtotalCents = data.subtotalCents ?? null
@@ -184,6 +189,10 @@ export function SetupStep() {
         ocrServiceFeeCents =
           Number.isInteger(data.serviceFeeCents) && (data.serviceFeeCents as number) > 0
             ? (data.serviceFeeCents as number)
+            : null
+        ocrTaxCents =
+          Number.isInteger(data.taxCents) && (data.taxCents as number) > 0
+            ? (data.taxCents as number)
             : null
         // CURR-01: store the detected ISO 4217 currency (route already defaults to USD).
         if (data.currencyCode) setCurrencyCode(data.currencyCode)
@@ -196,6 +205,7 @@ export function SetupStep() {
           setOcrStatus('error')
           setScanCheck(null)
           setServiceFeeCents(null)
+          setTaxCents(null)
           setScanError('No items found. Tap Scan to try a clearer photo')
           return
         }
@@ -207,6 +217,7 @@ export function SetupStep() {
         setOcrStatus('error')
         setScanCheck(null)
         setServiceFeeCents(null)
+        setTaxCents(null)
         setScanError("Couldn't read the bill. Tap Scan to try again")
         return
       }
@@ -219,10 +230,11 @@ export function SetupStep() {
       // Truth figure (locked decision 3): reconcile against the printed PRE-TAX
       // subtotal, falling back to the grand total. reconcileScannedBill is agnostic —
       // it just receives the chosen target as its subtotalCents option.
-      // The service fee is not an item: the target subtracts it from the grand-total
-      // fallback so the fee neither causes nor hides an "Off by" (DD-3).
-      const targetCents = itemsReconcileTarget(ocrSubtotalCents, ocrGrandTotalCents, ocrServiceFeeCents)
+      // The service fee and tax are not items: the target subtracts them from the grand-total
+      // fallback so they neither cause nor hide an "Off by" (DD-3).
+      const targetCents = itemsReconcileTarget(ocrSubtotalCents, ocrGrandTotalCents, ocrServiceFeeCents, ocrTaxCents)
       setServiceFeeCents(ocrServiceFeeCents)
+      setTaxCents(ocrTaxCents)
       const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: targetCents })
       const correctedCount = reconciled.items.filter((i) => i.corrected).length
 
@@ -299,7 +311,7 @@ export function SetupStep() {
         if (reconciled.completeness.mismatch && targetCents != null) setStep(2)
       }
     },
-    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setServiceFeeCents, setStep],
+    [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setServiceFeeCents, setTaxCents, setStep],
   )
 
   return (
@@ -391,6 +403,7 @@ export function SetupStep() {
               onClick={() => {
                 setScanCheck(null)
                 setServiceFeeCents(null)
+                setTaxCents(null)
                 fileInputRef.current?.click()
               }}
             >
@@ -405,6 +418,11 @@ export function SetupStep() {
           {serviceFeeCents != null && serviceFeeCents > 0 && (
             <p data-testid="service-fee-status" className="mt-2 text-[12px] text-n600">
               Service fee {formatCents(serviceFeeCents, currencyCode)} found, split equally between everyone.
+            </p>
+          )}
+          {taxCents != null && taxCents > 0 && (
+            <p data-testid="tax-status" className="mt-2 text-[12px] text-zinc-500">
+              Tax {formatCents(taxCents, currencyCode)} found, split equally between everyone.
             </p>
           )}
         </div>

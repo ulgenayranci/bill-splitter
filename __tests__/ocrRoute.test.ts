@@ -488,4 +488,45 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
       expect(createMock).toHaveBeenCalledTimes(1)
     })
   })
+  describe('taxCents', () => {
+    const base = {
+      items: [{ name: 'Steak', quantity: 1, unitPriceCents: null, lineTotalCents: 10000 }],
+      currencyCode: 'USD',
+      subtotalCents: null,
+      grandTotalCents: 10800,
+      serviceFeeCents: null,
+    }
+
+    it('includes taxCents in the response and does not change items', async () => {
+      createMock.mockResolvedValue(mockContent({ ...base, taxCents: 800 }))
+      const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      expect(status).toBe(200)
+      const out = json as { items: unknown[]; taxCents?: number }
+      expect(out.taxCents).toBe(800)
+      expect(out.items).toHaveLength(1)
+    })
+
+    it('omits taxCents when absent, null, zero, negative or float', async () => {
+      for (const v of [undefined, null, 0, -5, 12.5]) {
+        createMock.mockReset()
+        createMock.mockResolvedValue(mockContent({ ...base, taxCents: v }))
+        const { json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+        expect('taxCents' in (json as object)).toBe(false)
+      }
+    })
+
+    it('strict schema requires taxCents', async () => {
+      createMock.mockResolvedValue(mockContent({ ...base, taxCents: 800 }))
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      const schema = createMock.mock.calls[0][0].response_format.json_schema.schema
+      expect(schema.required).toContain('taxCents')
+      expect(schema.properties.taxCents).toEqual({ type: ['integer', 'null'] })
+    })
+
+    it('retry target subtracts tax: items 10000, grand 10800, tax 800 -> no retry', async () => {
+      createMock.mockResolvedValue(mockContent({ ...base, taxCents: 800 }))
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      expect(createMock).toHaveBeenCalledTimes(1)
+    })
+  })
 })

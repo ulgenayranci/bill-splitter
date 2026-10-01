@@ -15,7 +15,7 @@ function getOpenAI(): OpenAI {
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
-{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null, "serviceFeeCents": number | null }
+{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null, "serviceFeeCents": number | null, "taxCents": number | null }
 Rules:
 - All cents values must be integers (e.g. $12.99 -> 1299). NEVER use floats.
 - quantity must be a positive integer (default 1 if not shown).
@@ -23,11 +23,12 @@ Rules:
 - lineTotalCents: the extended/line total for ALL units of this line (e.g. "2 × Beer 4.50 ... 9.00" -> lineTotalCents 900). If only a per-unit price is shown, set lineTotalCents to null.
 - Provide whichever of unitPriceCents / lineTotalCents the receipt actually prints; set the other to null. Provide BOTH when both are printed. Do NOT compute or guess the missing one — leave it null.
 - name should be a short readable description (3-6 words max).
-- Exclude subtotals, tax, tip, service charge / service fee / coperto / cover charge, and total lines from "items".
+- Exclude subtotals, tax / VAT lines, tip, service charge / service fee / coperto / cover charge, and total lines from "items".
 - Include EVERY line the receipt prints, in order — including repeated identical items (e.g. several separate "AYRAN" lines). Never skip, drop, or silently lose a duplicate. If you combine identical lines into one, raise its quantity so the line total still covers all of them.
 - subtotalCents (top level): the printed PRE-TAX items subtotal — the figure the line items themselves should sum to, BEFORE any tax, service charge, or tip is added. Capture it only when the receipt prints a distinct pre-tax subtotal line; null if no separate subtotal is printed. Do not invent it.
 - grandTotalCents (top level): the final printed total the customer pays, AFTER tax, service charge, and tip are added. Capture it whenever a final total line is printed; null only if the receipt prints no total at all. Do not invent it.
 - serviceFeeCents (top level): the printed service charge, service fee, coperto or cover charge AMOUNT (if printed as a percentage, use the printed money amount next to it). Never put it in items. null if none is printed. Do not invent it.
+- taxCents (top level) is ONLY tax that is ADDED ON TOP of the item prices, i.e. a separate tax line that increases the total beyond the items subtotal (e.g. "Subtotal 100.00, Tax 8.00, Total 108.00" -> 800). If several tax lines are added on top (e.g. state tax + city tax), sum them. If tax or VAT is only shown as INCLUDED in the prices (e.g. "VAT incl.", "incl. VAT", "KDV dahil", "inkl. MwSt", "TVA incluse", or a tax breakdown whose amount is already inside the total), set taxCents to null, because charging it again would double-charge people. Many receipts (Turkey, Europe) include tax in prices, so when in doubt whether tax was added on top, use null. Never put tax in items. Do not invent it.
 - Self-check before answering: the sum of all line totals (lineTotalCents, or unitPriceCents × quantity) should equal subtotalCents (the pre-tax items subtotal). If it does not, you have missed or miscounted a line — re-read and correct it.
 - If you cannot read an item clearly, include your best guess.
 - currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
@@ -52,6 +53,8 @@ interface OcrParsed {
   grandTotalCents: number | null
   /** Printed service charge / fee / coperto amount in integer cents (never inside items). */
   serviceFeeCents: number | null
+  /** Tax ADDED ON TOP of item prices (summed), in integer cents. null when tax is included in prices or absent. */
+  taxCents: number | null
 }
 
 /**
@@ -60,7 +63,7 @@ interface OcrParsed {
  * this target as its `subtotalCents` option (locked decision 3).
  */
 function reconcileTarget(pass: OcrParsed): number | null {
-  return itemsReconcileTarget(pass.subtotalCents, pass.grandTotalCents, pass.serviceFeeCents)
+  return itemsReconcileTarget(pass.subtotalCents, pass.grandTotalCents, pass.serviceFeeCents, pass.taxCents)
 }
 
 // Coerce a candidate to a positive integer cents value, else null.
@@ -115,7 +118,9 @@ function parseOcrResponse(content: string | null | undefined): OcrParsed | null 
 
   const serviceFeeCents = toIntCentsOrNull((parsed as { serviceFeeCents?: unknown }).serviceFeeCents)
 
-  return { items, currencyCode, subtotalCents, grandTotalCents, serviceFeeCents }
+  const taxCents = toIntCentsOrNull((parsed as { taxCents?: unknown }).taxCents)
+
+  return { items, currencyCode, subtotalCents, grandTotalCents, serviceFeeCents, taxCents }
 }
 
 /**
@@ -173,8 +178,9 @@ async function runOcrPass(
             subtotalCents: { type: ['integer', 'null'] },
             grandTotalCents: { type: ['integer', 'null'] },
             serviceFeeCents: { type: ['integer', 'null'] },
+            taxCents: { type: ['integer', 'null'] },
           },
-          required: ['items', 'currencyCode', 'subtotalCents', 'grandTotalCents', 'serviceFeeCents'],
+          required: ['items', 'currencyCode', 'subtotalCents', 'grandTotalCents', 'serviceFeeCents', 'taxCents'],
           additionalProperties: false,
         },
       },
@@ -268,6 +274,7 @@ export async function POST(request: Request) {
       grandTotalCents: best.grandTotalCents,
       // Omitted from the JSON when null/undefined (back-compat for no-fee receipts).
       serviceFeeCents: best.serviceFeeCents ?? undefined,
+      taxCents: best.taxCents ?? undefined,
     })
   } catch (err) {
     // Log server-side only. Do NOT echo OpenAI internals to the client.

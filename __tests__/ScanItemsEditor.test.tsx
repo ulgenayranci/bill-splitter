@@ -134,4 +134,20 @@ describe('ScanItemsEditor', () => {
     expect(screen.queryByTestId('scan-review-gap')).toBeNull()
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Edit scanned items')
   })
+
+  it('shows a read-only tax note when the store has taxCents', () => {
+    seed()
+    useBillStore.getState().setTaxCents(800)
+    render(<ScanItemsEditor />)
+    const note = screen.getByTestId('editor-tax')
+    expect(note.textContent).toMatch(/Tax .*8\.00, split equally and not part of the items total/)
+    expect(note.textContent).not.toContain('\u2014')
+    expect(screen.getAllByLabelText('Item name')).toHaveLength(2)
+  })
+
+  it('no tax note when taxCents is null', () => {
+    seed()
+    render(<ScanItemsEditor />)
+    expect(screen.queryByTestId('editor-tax')).toBeNull()
+  })
 })

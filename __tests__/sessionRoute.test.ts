@@ -150,4 +150,18 @@ describe('POST /api/session', () => {
       expect('serviceFeeCents' in payload).toBe(false)
     }
   })
+
+  it('persists taxCents when valid; omits it otherwise', async () => {
+    mockSet.mockResolvedValue('OK')
+    await callPOST({ ...validBody, taxCents: 800 })
+    expect(JSON.parse(mockSet.mock.calls[0][1] as string).taxCents).toBe(800)
+    for (const bad of [undefined, 0, -1, 1.5, '800', 10_000_001]) {
+      mockSet.mockReset()
+      mockSet.mockResolvedValue('OK')
+      vi.resetModules()
+      await callPOST({ ...validBody, taxCents: bad })
+      const payload = JSON.parse(mockSet.mock.calls[0][1] as string)
+      expect('taxCents' in payload).toBe(false)
+    }
+  })
 })

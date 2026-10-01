@@ -126,4 +126,17 @@ describe('TipScreen', () => {
     expect(screen.getByTestId('tip-total-display').textContent?.trim()).toBe('$20.00')
     expect(screen.queryByTestId('tip-service-fee')).toBeNull()
   })
+
+  it('tax share is added to the total, tip base stays items-only', () => {
+    renderTip({ taxShareCents: 300 })
+    expect(screen.getByTestId('tip-total-display').textContent?.trim()).toBe('$23.00')
+    expect(screen.getByTestId('tip-tax').textContent?.trim()).toBe('$3.00')
+    fireEvent.click(screen.getByRole('button', { name: /Set tip to 10%/i }))
+    expect(screen.getByTestId('tip-total-display').textContent?.trim()).toBe('$25.00')
+  })
+
+  it('without taxShareCents no tax row shows', () => {
+    renderTip()
+    expect(screen.queryByTestId('tip-tax')).toBeNull()
+  })
 })
