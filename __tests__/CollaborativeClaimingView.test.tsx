@@ -579,6 +579,52 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByTestId('service-fee-card')).toBeNull()
   })
 
+  it('tax: locked card shows equal share for 3 people (3.00 of 9.00)', async () => {
+    const people = [...SESSION_FIXTURE.people, { id: 'p3', name: 'Cara', colorIndex: 2 }]
+    await selectAlice({ session: { taxCents: 900, people } })
+    expect(screen.getByTestId('tax-card')).toBeDefined()
+    expect(screen.getByTestId('tax-share').textContent).toContain('$3.00')
+  })
+
+  it('tax: with a service fee both cards render, fee first then tax', async () => {
+    await selectAlice({ session: { serviceFeeCents: 500, taxCents: 800 } })
+    const fee = screen.getByTestId('service-fee-card')
+    const tax = screen.getByTestId('tax-card')
+    expect(fee.compareDocumentPosition(tax) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('tax: a late joiner recalculates the share', async () => {
+    await selectAlice({ session: { taxCents: 900 } })
+    expect(screen.getByTestId('tax-share').textContent).toContain('$4.50')
+    useSWRMock.mockReturnValue({
+      data: {
+        ...SESSION_FIXTURE,
+        taxCents: 900,
+        people: [...SESSION_FIXTURE.people, { id: 'p3', name: 'Cara', colorIndex: 2 }],
+      },
+      error: undefined,
+      mutate: mutateMock,
+    })
+    cleanup()
+    render(<CollaborativeClaimingView sessionId="s1" />)
+    await waitFor(() => expect(screen.getByTestId('tax-share')).toBeDefined())
+    expect(screen.getByTestId('tax-share').textContent).toContain('$3.00')
+  })
+
+  it("tax: all items claimed + tax -> I'm done goes straight to Results (tax never unclaimed)", async () => {
+    await selectAlice({ session: { claims: FULLY_CLAIMED_CLAIMS, taxCents: 800 } })
+    const doneFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', doneFetch)
+    fireEvent.click(screen.getByRole('button', { name: /i.?m done/i }))
+    await waitFor(() => expect(screen.getByText('Add a tip?')).toBeDefined())
+    expect(screen.queryByText(/still unclaimed$/)).toBeNull()
+  })
+
+  it('no tax: no tax-card in the DOM', async () => {
+    await selectAlice()
+    expect(screen.queryByTestId('tax-card')).toBeNull()
+  })
+
 })
 
 describe('CollaborativeClaimingView — G4 invite step (host, once)', () => {

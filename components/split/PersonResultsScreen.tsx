@@ -17,6 +17,7 @@ import {
   computePersonShareFromClaims,
   computeSubtotalCents,
   computeServiceFeeShares,
+  computeEqualChargeShares,
   formatCents,
 } from '@/lib/billMath'
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
@@ -111,7 +112,10 @@ export function PersonResultsScreen({
     typeof session.serviceFeeCents === 'number' && session.serviceFeeCents > 0
       ? session.serviceFeeCents
       : 0
-  const grandTotal = computeSubtotalCents(session.items) + serviceFeeTotal
+  const taxShares = computeEqualChargeShares(session.taxCents, session.people)
+  const taxTotal =
+    typeof session.taxCents === 'number' && session.taxCents > 0 ? session.taxCents : 0
+  const grandTotal = computeSubtotalCents(session.items) + serviceFeeTotal + taxTotal
 
   // Unclaimed detection (D-03, D-04)
   const { unclaimed: unclaimedCount } = getUnclaimedCounts(session)
@@ -149,9 +153,10 @@ export function PersonResultsScreen({
         session.items,
         session.claims?.items ?? {},
         0,  // item share only (D-04) — no tip in summary
-        feeShares[p.id] ?? 0
+        feeShares[p.id] ?? 0,
+        taxShares[p.id] ?? 0
       )
-      return `${p.name} owes ${formatCents(share.itemSubtotal + share.serviceFee, currencyCode)}`
+      return `${p.name} owes ${formatCents(share.itemSubtotal + share.serviceFee + share.tax, currencyCode)}`
     })
     lines.push(`Total: ${formatCents(grandTotal, currencyCode)}`)
     const text = lines.join('\n')
@@ -243,7 +248,8 @@ export function PersonResultsScreen({
                 session.items,
                 session.claims?.items ?? {},
                 tipCents,
-                feeShares[person.id] ?? 0
+                feeShares[person.id] ?? 0,
+                taxShares[person.id] ?? 0
               )
               const isCurrentUser = person.id === personId
               // Current user expanded by default; everyone else collapsed (R3-2).
@@ -299,7 +305,7 @@ export function PersonResultsScreen({
                       >
                         {isCurrentUser
                           ? formatCents(share.total, currencyCode)
-                          : formatCents(share.itemSubtotal + share.serviceFee, currencyCode)}
+                          : formatCents(share.itemSubtotal + share.serviceFee + share.tax, currencyCode)}
                       </span>
                     </div>
                   </div>
@@ -345,6 +351,20 @@ export function PersonResultsScreen({
                         </div>
                       )}
 
+                      {share.tax > 0 && !isCurrentUser && (
+                        <div
+                          className="mt-1 flex justify-between text-[14px]"
+                          data-testid={`results-tax-${person.id}`}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            Tax
+                            <Lock size={12} className="text-zinc-400" aria-hidden="true" />
+                            <span className="text-[12px] text-zinc-400">shared by everyone</span>
+                          </span>
+                          <span>{formatCents(share.tax, currencyCode)}</span>
+                        </div>
+                      )}
+
                       {/* Current user: Subtotal (items only) + tip + in-card Total rows */}
                       {isCurrentUser && (
                         <>
@@ -364,6 +384,15 @@ export function PersonResultsScreen({
                               >
                                 <span>Service fee</span>
                                 <span>{formatCents(share.serviceFee, currencyCode)}</span>
+                              </div>
+                            )}
+                            {share.tax > 0 && (
+                              <div
+                                className="flex justify-between text-[14px]"
+                                data-testid="results-tax"
+                              >
+                                <span>Tax</span>
+                                <span>{formatCents(share.tax, currencyCode)}</span>
                               </div>
                             )}
                             <div
@@ -406,7 +435,7 @@ export function PersonResultsScreen({
             })}
           </div>
 
-          {/* Grand total row (items + service fee) */}
+          {/* Grand total row (items + service fee + tax) */}
           <div className="my-8 flex justify-between border-t border-border pt-4 text-[16px] font-semibold">
             <span>Total</span>
             <span data-testid="results-grand-total">

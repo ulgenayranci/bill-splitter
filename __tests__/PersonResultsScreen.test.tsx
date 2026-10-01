@@ -485,4 +485,35 @@ describe('PersonResultsScreen', () => {
       expect(screen.getByTestId('results-grand-total').textContent?.trim()).toBe('$16.00')
     })
   })
+
+  describe('tax', () => {
+    it('2 people, 500 tax: row, totals and grand total include tax', () => {
+      render(<PersonResultsScreen session={makeSession({ taxCents: 500 })} {...defaultProps} />)
+      expect(screen.queryByTestId('results-tax-p1')).toBeNull()
+      expect(screen.getAllByText('Tax')).toHaveLength(1)
+      expect(screen.getByTestId('results-tax').textContent).toMatch(/\$2\.50/)
+      expect(screen.getByTestId('results-total').textContent?.trim()).toBe('$18.00')
+      expect(screen.getByTestId('results-card-total').textContent).toMatch(/\$18\.00/)
+      expect(screen.getByTestId('results-grand-total').textContent?.trim()).toBe('$21.00')
+      expect(screen.getByLabelText("Bob's breakdown").textContent).toMatch(/\$5\.50/)
+      fireEvent.click(screen.getByLabelText("Bob's breakdown"))
+      expect(screen.getByTestId('results-tax-p2').textContent).toMatch(/\$2\.50/)
+    })
+
+    it('copied share summary includes tax', async () => {
+      render(<PersonResultsScreen session={makeSession({ taxCents: 500 })} {...defaultProps} />)
+      fireEvent.click(screen.getByRole('button', { name: /copy summary/i }))
+      await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+      const text = (navigator.clipboard.writeText as ReturnType<typeof vi.fn>).mock.calls[0][0] as string
+      expect(text).toContain('Alice owes $15.50')
+      expect(text).toContain('Bob owes $5.50')
+      expect(text).toContain('Total: $21.00')
+    })
+
+    it('no tax: no tax row and totals unchanged', () => {
+      render(<PersonResultsScreen session={makeSession()} {...defaultProps} />)
+      expect(screen.queryByTestId('results-tax')).toBeNull()
+      expect(screen.getByTestId('results-grand-total').textContent?.trim()).toBe('$16.00')
+    })
+  })
 })
