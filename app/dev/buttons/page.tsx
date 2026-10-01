@@ -107,11 +107,7 @@ export default function ButtonGalleryPage() {
             <Button className="h-12 flex-1"><Copy size={16} className="mr-2" />Share summary</Button>
           </div>
         </Sample>
-        <Sample id="B4w" name="Warning confirm (coral)" where="CollaborativeClaimingView Show my result · PersonResultsScreen Go back · AppHeader New Split">
-          <div className="flex w-full gap-2">
-            <Button variant="outline" className="h-12 flex-1">Cancel</Button>
-            <Button variant="warning" className="h-12 flex-1">Show my result</Button>
-          </div>
+        <Sample id="B4w" name="Warning confirm (coral)" where="PersonResultsScreen Go back · AppHeader New Split">
           <Button variant="warning" className="h-12 w-full">Go back</Button>
         </Sample>
         <Sample id="B5" name="Full-width outline" where="PersonResultsScreen confirm Cancel">

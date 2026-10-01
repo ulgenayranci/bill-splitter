@@ -892,7 +892,6 @@ export function CollaborativeClaimingView({
                 setShowUnclaimedWarning(false)
                 void submitDone()
               }}
-              variant="warning"
               className="flex-1 h-12"
             >
               Show my result
