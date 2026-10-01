@@ -151,6 +151,7 @@ None.
 | fast | Setup screen visibility: progress empty bars n400, Who's involved label 13px ink, zinc-400 text/icons to muted-foreground. 426/426 tests. | 2026-10-01 | c5f07f5 | Complete | — |
 | fast | Setup scan review: Retake and Edit buttons same width (w-24). | 2026-10-01 | 180c23a | Complete | — |
 | fast | Setup screen helper/status text darker (n600). 426/426 tests. | 2026-10-01 | 53e2bae | Complete | — |
+| 261001-ld5 | Tax as auto-shared locked bill item (OCR taxCents added-on-top only, equal split like service fee, Tax card, results/tip/grand totals, setup status line). 458/458 tests. | 2026-10-01 | 4ac63b9 | | [261001-ld5-tax-as-auto-shared-locked-bill-item-like](./quick/261001-ld5-tax-as-auto-shared-locked-bill-item-like/) |
 
 ---
 
