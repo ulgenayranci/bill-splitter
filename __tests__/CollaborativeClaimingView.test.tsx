@@ -180,7 +180,7 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.getByLabelText('New price')).toBeDefined()
     expect(screen.getByLabelText('Item name').parentElement).not.toBe(screen.getByLabelText('New price').parentElement)
     // cancel closes it, item card returns
-    fireEvent.click(screen.getByLabelText('Cancel edit'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
@@ -189,9 +189,9 @@ describe('CollaborativeClaimingView', () => {
     fireEvent.click(screen.getByTestId('add-item-button'))
     // inline add form appears with name + confirm + cancel
     expect(screen.getByLabelText('Item name')).toBeDefined()
-    expect(screen.getByLabelText('Confirm')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDefined()
     // cancel closes it
-    fireEvent.click(screen.getByLabelText('Cancel'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
@@ -202,7 +202,7 @@ describe('CollaborativeClaimingView', () => {
     fireEvent.change(editInput, { target: { value: 'Margherita' } })
     const editFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', editFetch)
-    fireEvent.click(screen.getByLabelText('Confirm edit'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(editFetch).toHaveBeenCalled())
     const [url] = editFetch.mock.calls[0]
     // Must call /edit, NOT /edit-request
@@ -219,7 +219,7 @@ describe('CollaborativeClaimingView', () => {
     fireEvent.change(screen.getByPlaceholderText('Price'), { target: { value: '5.00' } })
     const addFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
     vi.stubGlobal('fetch', addFetch)
-    fireEvent.click(screen.getByLabelText('Confirm'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     await waitFor(() => expect(addFetch).toHaveBeenCalled())
     const [url] = addFetch.mock.calls[0]
     expect(url).toMatch(/\/api\/session\/s1\/edit$/)

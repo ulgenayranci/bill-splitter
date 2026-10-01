@@ -668,8 +668,8 @@ export function CollaborativeClaimingView({
           return (
             <li key={item.id} id={`item-${item.id}`} className="flex flex-col gap-1">
               {isEditing ? (
-                <Card className="flex flex-row items-start gap-2 px-4 py-3">
-                  <div className="flex flex-1 flex-col gap-2">
+                <Card className="flex flex-col gap-2 px-4 py-3">
+                  <div className="flex flex-col gap-2">
                     <div>
                       <Input
                         placeholder="Item name"
@@ -689,7 +689,7 @@ export function CollaborativeClaimingView({
                         inputMode="decimal"
                         onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null })}
                         onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
-                        className="h-10 w-24 text-base"
+                        className="h-10 min-w-0 flex-1 text-base"
                         maxLength={9}
                       />
                       <Input
@@ -702,29 +702,29 @@ export function CollaborativeClaimingView({
                         max={99}
                         onChange={(e) => setInlineForm({ ...inlineForm, qty: e.target.value, error: null })}
                         onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
-                        className="h-10 w-14 text-base text-center"
+                        className="h-10 w-20 text-base text-center"
                       />
-                      <button type="button" aria-label="Confirm edit" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-700">
-                        <Check size={18} />
-                      </button>
-                      <button type="button" aria-label="Cancel edit" onClick={() => setInlineForm(null)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-400">
-                        <X size={18} />
-                      </button>
                     </div>
                     {inlineForm.error && <p role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>}
-                    {/* Delete control inside the edit form */}
+                  </div>
+                  {/* Action footer: destructive Delete on the left, away from Save; Cancel + Save on the right. */}
+                  <div className="mt-1 flex items-center gap-2 border-t border-border pt-3">
                     <button
                       type="button"
                       aria-label={`Delete ${item.name}`}
                       onClick={() => { void handleDeleteItem(inlineForm.itemId); setInlineForm(null) }}
-                      className="flex h-10 items-center gap-1.5 self-start rounded-md border border-danger/30 bg-white px-3 text-[14px] font-medium text-danger"
+                      className="flex h-11 items-center gap-1.5 rounded-md border border-danger/30 bg-white px-3 text-[14px] font-medium text-danger"
                       data-testid={`delete-item-${item.id}`}
                     >
                       <Trash2 size={16} aria-hidden="true" />
                       Delete
                     </button>
+                    <Button type="button" variant="outline" onClick={() => setInlineForm(null)} className="ml-auto h-11 px-4">
+                      Cancel
+                    </Button>
+                    <Button type="button" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting} className="h-11 bg-coral-500 px-5">
+                      Save
+                    </Button>
                   </div>
                 </Card>
               ) : (
@@ -775,8 +775,8 @@ export function CollaborativeClaimingView({
         {/* Inline add form or dashed add button */}
         {inlineForm?.kind === 'add' ? (
           <li>
-            <Card className="flex flex-row items-start gap-2 px-4 py-3">
-              <div className="flex flex-1 flex-col gap-2">
+            <Card className="flex flex-col gap-2 px-4 py-3">
+              <div className="flex flex-col gap-2">
                 <div>
                   <Input
                     placeholder="Item name"
@@ -795,7 +795,7 @@ export function CollaborativeClaimingView({
                     inputMode="decimal"
                     onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null })}
                     onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
-                    className="h-10 w-24 text-base"
+                    className="h-10 min-w-0 flex-1 text-base"
                     maxLength={9}
                   />
                   <Input
@@ -807,21 +807,21 @@ export function CollaborativeClaimingView({
                     max={99}
                     onChange={(e) => setInlineForm({ ...inlineForm, qty: e.target.value })}
                     onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
-                    className="h-10 w-14 text-center text-base"
+                    className="h-10 w-20 text-center text-base"
                     aria-label="Quantity"
                   />
-                  <button type="button" aria-label="Confirm" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-700">
-                    <Check size={18} />
-                  </button>
-                  <button type="button" aria-label="Cancel" onClick={() => setInlineForm(null)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-400">
-                    <X size={18} />
-                  </button>
                 </div>
                 {inlineForm.error && (
                   <p role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>
                 )}
+              </div>
+              <div className="mt-1 flex items-center justify-end gap-2 border-t border-border pt-3">
+                <Button type="button" variant="outline" onClick={() => setInlineForm(null)} className="h-11 px-4">
+                  Cancel
+                </Button>
+                <Button type="button" onClick={() => void handleInlineSubmit()} disabled={inlineSubmitting} className="h-11 bg-coral-500 px-5">
+                  Add
+                </Button>
               </div>
             </Card>
           </li>
