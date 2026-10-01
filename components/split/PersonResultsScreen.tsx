@@ -475,7 +475,6 @@ export function PersonResultsScreen({
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
-              variant="warning"
               className="h-12 w-full"
               onClick={() => {
                 setShowUnclaimedConfirm(false)

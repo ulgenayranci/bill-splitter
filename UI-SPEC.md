@@ -85,8 +85,8 @@
 ## 2. Global Rules (the ones that get violated → inconsistency)
 
 1. **Coral is for warnings and Invite only.** Primary actions are stone (`<Button>` default).
-   Coral fills are allowed only on warning-confirm buttons (`variant="warning"`: Go back on
-   the unclaimed confirm, New Split) and the Invite button on the split header. Any other
+   Coral fills are allowed only on warning-confirm buttons (`variant="warning"`: New Split
+   start-over confirm) and the Invite button on the split header. Any other
    coral button is a bug. Note: `variant="warning"` (coral) is different from the amber `warn`
    used for banners.
 2. **Green means money is settled** — and nothing else. Don't use green for "done",
