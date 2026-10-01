@@ -423,7 +423,7 @@ export function SetupStep() {
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-[16px] font-semibold text-zinc-900">Scan your receipt</span>
-            <span className="text-[13px] text-zinc-400">
+            <span className="text-[13px] text-muted-foreground">
               {ocrStatus === 'error'
                 ? 'Something went wrong. Tap to try again'
                 : "Take a photo of the receipt and I will capture all the items for you."}
@@ -436,10 +436,10 @@ export function SetupStep() {
           from the scan hero, on top of the container's gap-5. */}
       <div className="mt-1.5 flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-zinc-400">
+          <span className="text-[13px] font-semibold uppercase tracking-[0.07em] text-foreground">
             Who&apos;s involved in the split?
           </span>
-          <span className="h-px flex-1 bg-zinc-200" />
+          <span className="h-px flex-1 bg-border" />
           {/* GAP 4: count chip bound to people.length */}
           <span
             data-testid="people-count-chip"
@@ -478,7 +478,7 @@ export function SetupStep() {
               nameInputRef.current?.focus()
             }}
             className={`absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
-              name.trim() ? 'bg-stone text-white' : 'text-zinc-400'
+              name.trim() ? 'bg-stone text-white' : 'text-muted-foreground'
             }`}
           >
             <Plus size={18} aria-hidden="true" />
@@ -503,7 +503,7 @@ export function SetupStep() {
                   type="button"
                   aria-label={`Remove ${person.name}`}
                   onClick={() => removePerson(person.id)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-white text-zinc-400"
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-white text-muted-foreground"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -537,7 +537,7 @@ export function SetupStep() {
           </p>
         )}
         {!canContinue && (
-          <p className="mt-2 text-center text-[12px] text-zinc-400">
+          <p className="mt-2 text-center text-[12px] text-muted-foreground">
             {billScanned
               ? 'Add at least two people to continue'
               : 'Scan a receipt and add at least two people to continue'}
