@@ -202,3 +202,4 @@ Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 b
 | 2026-10-01 | fast | Dev button gallery page at /dev/buttons | ✅ |
 | 2026-10-01 | fast | Wordmark 20px, ink colour, coral "billsy" (a77e9ad) | ✅ |
 | 2026-10-01 | fast | Remove header bottom border (0b4a9a0) | ✅ |
+| 2026-10-01 | fast | Header border = footer warm border-border (3657ad2) | ✅ |
