@@ -181,12 +181,13 @@ export function BillViewHeader({
           type="button"
           aria-label="Invite: copy bill link"
           onClick={handleShare}
-          className="flex min-h-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white transition-colors"
+          // Looks 32px tall (h-8) like Retake/Edit; the ::after layer extends the tap area to 44px.
+          className="relative flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-coral-500 px-3 text-white transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
         >
           {copied ? (
-            <Check size={18} aria-hidden="true" />
+            <Check size={14} aria-hidden="true" />
           ) : (
-            <Share2 size={18} aria-hidden="true" />
+            <Share2 size={14} aria-hidden="true" />
           )}
           <span className="text-[13px] font-medium whitespace-nowrap">{copied ? 'Copied!' : 'Invite'}</span>
         </button>

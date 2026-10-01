@@ -170,7 +170,7 @@ describe('BillViewHeader', () => {
     expect(aliceElements.length).toBe(0)
   })
 
-  it('Test 10 (D-02): Invite button has min-h-[44px] class for ≥44px touch target', () => {
+  it('Test 10 (D-02): Invite button looks 32px but keeps a ≥44px touch target', () => {
     render(
       <BillViewHeader
         session={mockSession}
@@ -180,6 +180,8 @@ describe('BillViewHeader', () => {
       />
     )
     const shareBtn = screen.getByLabelText('Invite: copy bill link')
-    expect(shareBtn.className).toContain('min-h-[44px]')
+    expect(shareBtn.className).toContain('h-8')
+    // ::after extends 6px above and below: 32 + 12 = 44px tap area
+    expect(shareBtn.className).toContain('after:-inset-y-1.5')
   })
 })
