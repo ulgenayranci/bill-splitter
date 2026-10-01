@@ -104,7 +104,6 @@
 | `outline` | `n100` fill, border, ink text | secondary actions |
 | `secondary` | `n50` fill, ink text | tertiary |
 | `ghost` | muted fill, muted text | low-emphasis / icon |
-| `destructive` | danger tint fill, danger text | delete/remove |
 | `link` | coral text, underline on hover | inline text actions |
 
 Sizes: `xs h6 · sm h7 · default h8 · lg h9` + icon variants. Default height is **h-8**.
@@ -125,7 +124,7 @@ White · `rounded-xl` · `ring-1 ring-foreground/10` · `py-4` · footer gets `b
 > -
 
 ### Badge (`components/ui/badge.tsx`)
-Pill (`rounded-4xl`), `h-5`, `text-xs`. Variants: `default` (coral), `secondary`, `destructive`, `outline`, `ghost`, `link`.
+Pill (`rounded-4xl`), `h-5`, `text-xs`. Variants: `default` (coral), `secondary`, `outline`, `ghost`, `link`.
 
 > 🔴 **Badges with hand-rolled colors instead of variants:**
 > -

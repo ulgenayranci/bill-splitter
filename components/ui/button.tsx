@@ -16,8 +16,6 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "bg-muted text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
-        destructive:
-          "bg-destructive/10 text-destructive focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4",
       },
       size: {
