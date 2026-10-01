@@ -29,6 +29,8 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
   const [newName, setNewName] = useState('')
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [renaming, setRenaming] = useState(false)
 
   // Pitfall 4 guard: if the person being renamed/edited is removed by another client
   // on SWR refresh, clear editingPersonId so we don't show a stale form.
@@ -44,11 +46,26 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
     onAddPerson?.(trimmed)
   }
 
-  const handleRenameConfirm = (personId: string) => {
+  const startRename = (personId: string, name: string) => {
+    setRenameValue(name)
+    setRenameError(null)
+    setEditingPersonId(personId)
+  }
+
+  // Keep the form open until the save resolves so a failure can be shown in place.
+  const handleRenameConfirm = async (personId: string) => {
+    if (renaming) return
     const trimmed = renameValue.trim()
-    if (!trimmed) return
-    void onRenamePerson?.(personId as PersonId, trimmed)
-    setEditingPersonId(null)
+    if (!trimmed) { setRenameError('Enter a name'); return }
+    setRenaming(true)
+    try {
+      await onRenamePerson?.(personId as PersonId, trimmed)
+      setEditingPersonId(null)
+    } catch {
+      setRenameError("Couldn't save. Try again")
+    } finally {
+      setRenaming(false)
+    }
   }
 
   return (
@@ -62,30 +79,38 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                 <Card className="flex flex-col gap-2 px-3 py-3">
                   <Input
                     placeholder="Name"
+                    aria-label="Name"
                     maxLength={50}
                     value={renameValue}
                     autoFocus
-                    onChange={(e) => setRenameValue(e.target.value)}
+                    aria-invalid={renameError === 'Enter a name' || undefined}
+                    aria-describedby={renameError ? `rename-error-${person.id}` : undefined}
+                    className="h-10 text-base"
+                    onChange={(e) => { setRenameValue(e.target.value); setRenameError(null) }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleRenameConfirm(person.id)
+                      if (e.key === 'Enter') void handleRenameConfirm(person.id)
                       if (e.key === 'Escape') setEditingPersonId(null)
                     }}
                   />
+                  {renameError && (
+                    <p id={`rename-error-${person.id}`} role="alert" className="text-[14px] text-danger">
+                      {renameError}
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <Button
                       type="button"
-                      size="sm"
                       variant="outline"
-                      className="flex-1 text-[13px]"
+                      className="h-11 flex-1 text-[14px]"
                       onClick={() => setEditingPersonId(null)}
                     >
                       Cancel
                     </Button>
                     <Button
                       type="button"
-                      size="sm"
-                      className="flex-1 bg-coral-500 text-[13px]"
-                      onClick={() => handleRenameConfirm(person.id)}
+                      className="h-11 flex-1 bg-coral-500 text-[14px]"
+                      disabled={renaming}
+                      onClick={() => void handleRenameConfirm(person.id)}
                     >
                       Save
                     </Button>
@@ -106,8 +131,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                         aria-label={`Rename ${person.name}`}
                         onClick={(e) => {
                           e.stopPropagation()
-                          setRenameValue(person.name)
-                          setEditingPersonId(person.id)
+                          startRename(person.id, person.name)
                         }}
                         className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-white text-zinc-500"
                       >

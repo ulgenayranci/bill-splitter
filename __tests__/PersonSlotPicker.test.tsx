@@ -171,6 +171,24 @@ describe('PersonSlotPicker', () => {
     fireEvent.change(input, { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
     expect(onRenamePerson).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toBe('Enter a name')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('Test 14b: a failed rename keeps the form open and shows an error', async () => {
+    const onRenamePerson = vi.fn().mockRejectedValue(new Error('rename_failed'))
+    render(
+      <PersonSlotPicker
+        session={mockSession}
+        onSelect={vi.fn()}
+        onRenamePerson={onRenamePerson}
+      />
+    )
+    fireEvent.click(screen.getByLabelText('Rename Alice'))
+    fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Alicia' } })
+    fireEvent.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe("Couldn't save. Try again"))
+    expect(screen.getByPlaceholderText('Name')).toBeDefined()
   })
 
   it('Test 16 (D-05): clicking rename does NOT trigger onSelect (stopPropagation)', () => {

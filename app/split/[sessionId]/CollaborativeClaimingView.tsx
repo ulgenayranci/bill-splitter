@@ -259,6 +259,7 @@ export function CollaborativeClaimingView({
   }
 
   // D-05: Rename a person via the /edit rename_person op.
+  // Re-syncs either way, then rethrows on failure so the rename form can show an error.
   async function handleRenamePerson(personId: PersonId, newName: string) {
     try {
       const res = await fetch(`/api/session/${sessionId}/edit`, {
@@ -266,12 +267,8 @@ export function CollaborativeClaimingView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ op: 'rename_person', personId, newName }),
       })
-      if (!res.ok) {
-        await mutate()
-        return
-      }
-      await mutate()
-    } catch {
+      if (!res.ok) throw new Error('rename_failed')
+    } finally {
       await mutate()
     }
   }
