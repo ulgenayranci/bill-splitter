@@ -150,6 +150,7 @@ None.
 | fast | Header New Split + menu button coral (was stone); UI-SPEC coral rule updated. 426/426 tests. | 2026-10-01 | 0281cc1 | Complete | — |
 | fast | Setup screen visibility: progress empty bars n400, Who's involved label 13px ink, zinc-400 text/icons to muted-foreground. 426/426 tests. | 2026-10-01 | c5f07f5 | Complete | — |
 | fast | Setup scan review: Retake and Edit buttons same width (w-24). | 2026-10-01 | 180c23a | Complete | — |
+| fast | Setup screen helper/status text darker (n600). 426/426 tests. | 2026-10-01 | 53e2bae | Complete | — |
 
 ---
 
