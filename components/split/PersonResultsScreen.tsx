@@ -221,10 +221,10 @@ export function PersonResultsScreen({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setShowUnclaimedConfirm(true)
               }}
-              // Plain white fill; the coral border + ring carry the warning.
-              className="cursor-pointer rounded-lg border border-coral-500 bg-card px-4 py-3 ring-[3px] ring-coral-200 transition-colors"
+              // Plain white fill; the warn border + ring carry the warning.
+              className="cursor-pointer rounded-lg border border-warn bg-card px-4 py-3 ring-[3px] ring-warn-soft transition-colors"
             >
-              <p className="text-[14px] font-semibold text-coral-700 mb-2">Unclaimed items</p>
+              <p className="text-[14px] font-semibold text-warn-strong mb-2">Unclaimed items</p>
               {/* R3-5: always list every unclaimed item (no count-collapse). */}
               <ul className="flex flex-col gap-1">
                 {unclaimedItems.map((item) => (

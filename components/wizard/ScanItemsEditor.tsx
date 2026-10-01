@@ -124,7 +124,7 @@ export function ScanItemsEditor() {
         >
           <p
             data-testid="scan-review-gap-primary"
-            className={`text-[16px] font-semibold ${isOff ? "text-warn" : "text-zinc-900"}`}
+            className={`text-[16px] font-semibold ${isOff ? "text-warn-strong" : "text-zinc-900"}`}
           >
             {isOff
               ? `Off by ${formatCents(Math.abs(liveDeltaCents), currencyCode)}`

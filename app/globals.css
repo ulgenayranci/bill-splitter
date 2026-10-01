@@ -39,7 +39,11 @@
   /* Semantic */
   --eb-settle: #2f9e6a;
   --eb-settle-soft: #d8f0e3;
-  --eb-warn: #e0a400;
+  /* Warnings use the brand coral: -warn for borders, -warn-soft for rings/fills,
+     -warn-strong for text (coral-500 is too light for small text on white). */
+  --eb-warn: var(--eb-coral-500);
+  --eb-warn-soft: var(--eb-coral-200);
+  --eb-warn-strong: var(--eb-coral-700);
   --eb-danger: #d8493a;
 
   /* Avatars (in order, never coral) */
@@ -164,6 +168,8 @@
   --color-settle: var(--eb-settle);
   --color-settle-soft: var(--eb-settle-soft);
   --color-warn: var(--eb-warn);
+  --color-warn-soft: var(--eb-warn-soft);
+  --color-warn-strong: var(--eb-warn-strong);
   --color-danger: var(--eb-danger);
   --color-av-blue: var(--eb-av-blue);
   --color-av-violet: var(--eb-av-violet);

@@ -325,14 +325,14 @@ export function SetupStep() {
         <div
           role="status"
           data-testid="expired-notice"
-          className="flex items-start justify-between gap-2 rounded-xl border border-[#e0a400]/30 bg-[#e0a400]/10 px-3 py-2.5 text-[13px] font-medium text-warn"
+          className="flex items-start justify-between gap-2 rounded-lg border border-warn bg-card px-3 py-2.5 text-[14px] font-medium text-warn-strong ring-[3px] ring-warn-soft"
         >
           <span>That link expired. Here&rsquo;s a fresh start.</span>
           <button
             type="button"
             aria-label="Dismiss"
             onClick={() => setExpiredNotice(false)}
-            className="shrink-0 text-warn"
+            className="shrink-0 text-warn-strong"
           >
             <X size={16} aria-hidden="true" />
           </button>
@@ -531,7 +531,7 @@ export function SetupStep() {
         {/* Soft gate: in review mode the user may still proceed while a gap remains;
             we only nudge with a subtle hint (locked decision 2). */}
         {canContinue && stillOff && (
-          <p data-testid="scan-review-still-off" className="mt-2 text-center text-[12px] text-warn">
+          <p data-testid="scan-review-still-off" className="mt-2 text-center text-[12px] text-warn-strong">
             Still off by {formatCents(Math.abs(liveDeltaCents), currencyCode)}. You can confirm
             anyway or keep editing.
           </p>
