@@ -655,7 +655,7 @@ export function CollaborativeClaimingView({
         <span className="h-px flex-1 bg-border" />
         <span
           data-testid="items-claimed-chip"
-          className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-coral-100 px-3 py-0.5 text-[14px] font-bold text-coral-700"
+          className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-coral-500 px-3 py-0.5 text-[14px] font-bold text-white"
         >
           {claimedUnits}/{totalUnits}
         </span>
