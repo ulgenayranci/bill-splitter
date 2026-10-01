@@ -147,6 +147,7 @@ None.
 | fast | Outline buttons white fill (bg-card) everywhere; PersonResults Go back override removed; gallery labels loading state. Review 20261001 notes 002-005. 423/423 tests. | 2026-10-01 | 307e62c | Complete | — |
 | fast | Removed unused secondary Button variant (button.tsx, UI-SPEC, gallery). 426/426 tests. | 2026-10-01 | 430d258 | Complete | — |
 | fast | All close X icons coral: ghost variant = no fill + coral-600 (dialog close), lightbox close coral-500. 426/426 tests. | 2026-10-01 | 29ab947 | Complete | — |
+| fast | Header New Split + menu button coral (was stone); UI-SPEC coral rule updated. 426/426 tests. | 2026-10-01 | 0281cc1 | Complete | — |
 
 ---
 
