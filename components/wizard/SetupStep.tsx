@@ -421,7 +421,7 @@ export function SetupStep() {
             </p>
           )}
           {taxCents != null && taxCents > 0 && (
-            <p data-testid="tax-status" className="mt-2 text-[12px] text-zinc-500">
+            <p data-testid="tax-status" className="mt-2 text-[12px] text-n600">
               Tax {formatCents(taxCents, currencyCode)} found, split equally between everyone.
             </p>
           )}
