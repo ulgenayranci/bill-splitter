@@ -229,6 +229,61 @@ describe('SetupStep — scanned bill review container + auto-open edit screen', 
     fetchMock.mockRestore()
   })
 
+  it('tax: grand-total-minus-tax reconciles (no mismatch), tax stored, status shown, cleared on retake', async () => {
+    const fetchMock = mockScan(
+      {
+        items: [{ name: 'Steak', quantity: 1, unitPriceCents: 10000, lineTotalCents: null }],
+        currencyCode: 'USD',
+        subtotalCents: null,
+        grandTotalCents: 10800,
+        taxCents: 800,
+      },
+      [{ rawName: 'Steak', displayName: 'Steak', priceCents: 10000, confidence: 'high', quantity: 1 }],
+    )
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
+    await waitFor(() => expect(useBillStore.getState().items.length).toBe(1))
+    await screen.findByTestId('scanned-bill-review')
+    expect(useBillStore.getState().scanCheck?.mismatch).toBe(false)
+    expect(useBillStore.getState().scanCheck?.targetCents).toBe(10000)
+    expect(useBillStore.getState().taxCents).toBe(800)
+    expect(screen.getByTestId('tax-status').textContent).toBe(
+      'Tax $8.00 found, split equally between everyone.',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /retake/i }))
+    expect(useBillStore.getState().taxCents).toBeNull()
+    fetchMock.mockRestore()
+  })
+
+  it('tax: null / absent / zero / float from OCR leave taxCents null and no status line', async () => {
+    for (const v of [null, undefined, 0, 12.5]) {
+      useBillStore.getState().reset()
+      const fetchMock = mockScan(
+        {
+          items: [{ name: 'Steak', quantity: 1, unitPriceCents: 2000, lineTotalCents: null }],
+          currencyCode: 'USD',
+          subtotalCents: 2000,
+          grandTotalCents: 2000,
+          taxCents: v,
+        },
+        [{ rawName: 'Steak', displayName: 'Steak', priceCents: 2000, confidence: 'high', quantity: 1 }],
+      )
+      renderInProvider(<SetupStep />)
+      fireEvent.change(screen.getByTestId('ocr-file-input'), {
+        target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+      })
+      await waitFor(() => expect(useBillStore.getState().items.length).toBe(1))
+      await screen.findByTestId('scanned-bill-review')
+      expect(useBillStore.getState().taxCents).toBeNull()
+      expect(screen.queryByTestId('tax-status')).toBeNull()
+      fetchMock.mockRestore()
+      cleanup()
+    }
+  })
+
   it('Edit button opens the edit screen (step 2)', () => {
     seedPriorScan()
     renderInProvider(<SetupStep />)
@@ -382,6 +437,23 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
     })
     await waitFor(() => expect(createSession).toHaveBeenCalled())
     expect(createSession.mock.calls[0][0]).toMatchObject({ serviceFeeCents: 500 })
+  })
+
+  it('Continue passes taxCents to createSession', async () => {
+    seedPriorScan()
+    useBillStore.getState().setTaxCents(800)
+    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().addPerson('Bob')
+    createSession.mockResolvedValue({
+      sessionId: 'sess-tax',
+      guestUrl: 'http://localhost/split/sess-tax',
+    })
+    renderInProvider(<SetupStep />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start splitting/i }))
+    })
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    expect(createSession.mock.calls[0][0]).toMatchObject({ taxCents: 800 })
   })
 
   it('failed createSession shows inline error and does NOT navigate', async () => {

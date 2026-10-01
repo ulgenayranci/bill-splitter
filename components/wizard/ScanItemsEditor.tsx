@@ -25,6 +25,7 @@ export function ScanItemsEditor() {
   const currencyCode = useBillStore((s) => s.currencyCode);
   const scanCheck = useBillStore((s) => s.scanCheck);
   const serviceFeeCents = useBillStore((s) => s.serviceFeeCents);
+  const taxCents = useBillStore((s) => s.taxCents);
   const setStep = useBillStore((s) => s.setStep);
 
   // Per-row edit drafts keyed by item id. Holds raw strings so the user can type
@@ -209,6 +210,18 @@ export function ScanItemsEditor() {
           <Lock size={14} className="shrink-0 text-zinc-400" aria-hidden="true" />
           <span>
             Service fee {formatCents(serviceFeeCents, currencyCode)}, split equally and not part of the items total
+          </span>
+        </div>
+      )}
+
+      {taxCents != null && taxCents > 0 && (
+        <div
+          data-testid="editor-tax"
+          className="flex items-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-[13px] text-zinc-600"
+        >
+          <Lock size={14} className="shrink-0 text-zinc-400" aria-hidden="true" />
+          <span>
+            Tax {formatCents(taxCents, currencyCode)}, split equally and not part of the items total
           </span>
         </div>
       )}
