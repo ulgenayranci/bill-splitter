@@ -649,10 +649,10 @@ export function CollaborativeClaimingView({
 
       {/* R3-1: items-claimed progress bar — non-interactive x/N chip (units, not rows). */}
       <div className="mt-4 flex items-center gap-3 border-b border-zinc-100 bg-background px-6 py-2">
-        <span className="text-[14px] font-semibold uppercase tracking-[0.07em] text-zinc-400">
+        <span className="text-[14px] font-semibold uppercase tracking-[0.07em] text-foreground">
           Items claimed
         </span>
-        <span className="h-px flex-1 bg-zinc-200" />
+        <span className="h-px flex-1 bg-border" />
         <span
           data-testid="items-claimed-chip"
           className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-coral-100 px-3 py-0.5 text-[14px] font-bold text-coral-700"
