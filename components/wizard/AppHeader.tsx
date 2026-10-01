@@ -101,7 +101,7 @@ export function AppHeader() {
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-coral-500 text-white transition-colors"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-stone text-white transition-colors"
         >
           <Plus size={22} aria-hidden="true" />
         </button>
@@ -161,7 +161,7 @@ export function AppHeader() {
               Cancel
             </Button>
             <Button
-              className="bg-coral-500"
+              variant="warning"
               onClick={() => {
                 setConfirmReset(false)
                 startNewSplit()

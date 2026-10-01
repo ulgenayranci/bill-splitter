@@ -141,6 +141,10 @@ None.
 | fast | Results screen: Unclaimed items card fill plain white (removed 8% coral tint; coral border/ring kept). Design Steward note d5dd199b…:note_001 "card fill should be white, now it is coral somehow" | 2026-09-29 | 3565f2f | Complete | — |
 | 260929-lxp | Service fee: OCR captures serviceFeeCents separately; bill-level fee split equally across all current people (base+remainder in join order), shown as a locked selected ServiceFeeCard on the claiming screen, included in per-person results/totals/grand total and tip-screen total; excluded from items reconciliation (grand total minus fee when no subtotal); late joiners included automatically; backward compatible. 423/423 tests, tsc clean. | 2026-09-29 | dcebacb | Needs Review | [260929-lxp-service-fee-as-auto-shared-locked-bill-i](./quick/260929-lxp-service-fee-as-auto-shared-locked-bill-i/) |
 | fast | Results: service fee no longer listed twice on the current user's card (item-list row hidden for the current user; totals-section row kept). 423/423 tests. | 2026-09-29 | 89e78a1 | Complete | — |
+| 261001-j4c | Primary buttons stone (#6b6157); coral only for warning confirms and Invite | 2026-10-01 | 5618ca0 | | [261001-j4c-primary-buttons-stone-coral-only-for-war](./quick/261001-j4c-primary-buttons-stone-coral-only-for-war/) |
+| fast | Unclaimed-items warning: Show my result is stone (default), not coral; coral warnings now Go back + New Split only. 423/423 tests. | 2026-10-01 | 1593297 | Complete | — |
+| fast | Results unclaimed confirm: Go back is stone (default), not coral; coral warning now New Split only. 423/423 tests. | 2026-10-01 | 512f369 | Complete | — |
+| fast | Outline buttons white fill (bg-card) everywhere; PersonResults Go back override removed; gallery labels loading state. Review 20261001 notes 002-005. 423/423 tests. | 2026-10-01 | 307e62c | Complete | — |
 
 ---
 
@@ -183,3 +187,4 @@ Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 b
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+| 2026-10-01 | fast | Dev button gallery page at /dev/buttons | ✅ |

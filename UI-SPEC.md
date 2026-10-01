@@ -19,13 +19,18 @@
 
 ## 1. Design Tokens (canonical — do not guess, these are the real values)
 
-### Color — Coral (brand primary)
+### Color — Stone (primary CTA)
+| Token | Hex | Use |
+|-------|-----|-----|
+| `stone` `--eb-stone` `--primary` `--eb-primary` | `#6b6157` | **primary CTA fill (white text, about 6:1 contrast)** |
+
+### Color — Coral (brand accent)
 | Token | Hex | Use |
 |-------|-----|-----|
 | `coral-50` | `#fff3ef` | soft tints, claimed-item background |
 | `coral-100` | `#ffe1d8` | soft fills, input focus ring |
 | `coral-200` | `#ffc7b6` | soft borders |
-| `coral-500` `--eb-primary` | `#f1603f` | **primary CTA fill, the one coral action per screen** |
+| `coral-500` | `#f1603f` | **warning-confirm buttons and the Invite button only**; also claimed tints/badges as documented |
 | `coral-600` `--eb-primary-press` | `#dc4827` | CTA hover/press, accent text & totals (`text-coral-600`) |
 
 ### Color — Warm neutrals
@@ -34,7 +39,7 @@
 | `paper` / `--background` | `#faf5f1` | app background (cream) |
 | `surface` / `card` | `#ffffff` | cards, inputs, sheets |
 | `n50` / `secondary` | `#f6f1ec` | subtle fills |
-| `n100` / `muted` | `#efe8e1` | outline-button fill, muted surfaces |
+| `n100` / `muted` | `#efe8e1` | muted surfaces |
 | `n200` / `border` `input` | `#e6ddd3` | default borders & input borders |
 | `n500` / `muted-foreground` | `#7d7466` | secondary text |
 | `ink` / `foreground` | `#2a2420` | primary text |
@@ -44,7 +49,9 @@
 |-------|-----|-----|
 | `settle` | `#2f9e6a` | **settled / paid money states only** (e.g. "Paid" chip) |
 | `settle-soft` | `#d8f0e3` | settled background tint |
-| `warn` | `#e0a400` | **review / unclaimed / needs-attention** states |
+| `warn` (`--eb-warn` = coral-500) | `#f1603f` | **review / unclaimed / needs-attention** states: borders and warning-confirm button fill |
+| `warn-soft` (coral-200) | `#ffc7b6` | 3px ring around warning cards/banners |
+| `warn-strong` (coral-700) | `#b8381c` | warning text (coral-500 is too light for small text) |
 | `danger` / `destructive` | `#d8493a` | errors, destructive actions |
 
 ### Color — Person avatars (assigned in this order, NEVER coral)
@@ -73,17 +80,19 @@
 |-------|-----|
 | `--eb-sh-card` | resting cards |
 | `--eb-sh-pop` | popovers, dialogs |
-| `--eb-sh-btn` `0 4px 14px rgba(241,96,63,.28)` | primary coral button glow |
+| `--eb-sh-btn` `0 2px 8px rgba(42,36,32,.16)` | soft neutral button shadow (no coral glow) |
 
 ---
 
 ## 2. Global Rules (the ones that get violated → inconsistency)
 
-1. **One coral action per screen.** Exactly one `bg-coral-500` CTA. Everything else is
-   neutral/outline. If two buttons are both coral, that's a bug.
+1. **Coral is for warnings and Invite only.** Primary actions are stone (`<Button>` default).
+   Coral fills are allowed only on warning-confirm buttons (`variant="warning"`: New Split
+   start-over confirm) and the Invite button on the split header. Any other
+   coral button is a bug. `variant="warning"` fills with `bg-warn`, the same coral as warning banners.
 2. **Green means money is settled** — and nothing else. Don't use green for "done",
    "success", "selected", or decoration.
-3. **Warn (amber) = needs attention** — unclaimed items, review prompts, expiry notices.
+3. **Warn (coral) = needs attention** — unclaimed items, review prompts, expiry notices. Pattern: white card, `border-warn`, `ring-[3px] ring-warn-soft`, `text-warn-strong`. No amber/yellow.
 4. **Avatars are never coral** and always follow the 6-color order above.
 5. **Inputs:** white fill, `1.5px` `border-input`, coral focus ring (`ring-coral-100`).
 6. **Cards:** white surface, `rounded-xl`, `ring-1 ring-foreground/10`. No ad-hoc shadows.
@@ -100,8 +109,9 @@
 ### Button (`components/ui/button.tsx`)
 | Variant | Looks like | When to use |
 |---------|-----------|-------------|
-| `default` | coral-500 fill, white text, coral glow shadow | the one primary CTA |
-| `outline` | `n100` fill, border, ink text | secondary actions |
+| `default` | stone fill, white text, soft neutral shadow | primary actions |
+| `warning` | coral-500 fill, white text | confirm a risky step (warning dialogs only) |
+| `outline` | white fill (`bg-card`), `border` border, ink text | secondary actions |
 | `secondary` | `n50` fill, ink text | tertiary |
 | `ghost` | muted fill, muted text | low-emphasis / icon |
 | `link` | coral text, underline on hover | inline text actions |
@@ -148,7 +158,7 @@ Pill (`rounded-4xl`), `h-5`, `text-xs`. Variants: `default` (coral), `secondary`
 ### 4.1 Landing / Home — `app/page.tsx`
 Status: ☐
 - Background is paper? ✅/🔴
-- Single coral CTA (scan/start)? ✅/🔴
+- Single stone CTA (scan/start)? ✅/🔴
 - Wordmark rendered as `easy **billsy**`? ✅/🔴
 > 🔴 What's wrong:
 > -
@@ -170,7 +180,7 @@ Status: ☐
 Status: ☐
 - Dialog styling matches primitive? ✅/🔴
 - Avatar colors follow the 6-color order? ✅/🔴
-- One coral confirm button? ✅/🔴
+- One warning (coral) confirm button? ✅/🔴
 > 🔴 What's wrong:
 > -
 

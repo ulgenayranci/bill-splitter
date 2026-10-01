@@ -27,7 +27,7 @@ export function SessionExpiredScreen() {
       <p className="text-[16px] text-zinc-500">
         The link you opened is no longer active. Ask the person who shared it to create a new one.
       </p>
-      <Button type="button" onClick={startNewSplit} className="mt-2 h-12 w-full max-w-xs bg-coral-500">
+      <Button type="button" onClick={startNewSplit} className="mt-2 h-12 w-full max-w-xs">
         Start a new split
       </Button>
     </main>

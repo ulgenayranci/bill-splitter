@@ -20,7 +20,7 @@
   --eb-coral-700: #b8381c;
   --eb-coral-800: #8f2d18;
   --eb-coral-900: #5e2113;
-  --eb-primary: var(--eb-coral-500);
+  --eb-primary: var(--eb-stone);
   --eb-primary-press: var(--eb-coral-600);
   --eb-primary-soft: var(--eb-coral-100);
 
@@ -35,6 +35,7 @@
   --eb-n500: #7d7466;
   --eb-n600: #5a5249;
   --eb-ink: #2a2420;
+  --eb-stone: #6b6157;              /* warm stone — primary CTA fill (white text ≈ 6:1) */
 
   /* Semantic */
   --eb-settle: #2f9e6a;
@@ -65,7 +66,7 @@
   /* Shadows */
   --eb-sh-card: 0 1px 0 rgba(0, 0, 0, 0.02), 0 18px 40px -28px rgba(42, 36, 32, 0.22);
   --eb-sh-pop: 0 8px 30px rgba(42, 36, 32, 0.18);
-  --eb-sh-btn: 0 4px 14px rgba(241, 96, 63, 0.28);
+  --eb-sh-btn: 0 2px 8px rgba(42, 36, 32, 0.16);
 
   /* Fonts */
   --eb-font: 'Archivo';
@@ -82,7 +83,7 @@
     --card-foreground: 30 14% 14%;   /* ink */
     --popover: 0 0% 100%;            /* surface white */
     --popover-foreground: 30 14% 14%;/* ink */
-    --primary: 11 86% 60%;           /* coral-500 #f1603f */
+    --primary: 30 10% 38%;           /* stone #6b6157 */
     --primary-foreground: 0 0% 100%; /* white */
     --secondary: 33 33% 95%;         /* n50 #f6f1ec */
     --secondary-foreground: 30 14% 14%;
@@ -165,6 +166,8 @@
   --color-n400: var(--eb-n400);
   --color-n500: var(--eb-n500);
   --color-n600: var(--eb-n600);
+  /* bare `stone` key; Tailwind's built-in stone-50..950 scale is unaffected */
+  --color-stone: var(--eb-stone);
   --color-settle: var(--eb-settle);
   --color-settle-soft: var(--eb-settle-soft);
   --color-warn: var(--eb-warn);
@@ -227,7 +230,7 @@
   --card-foreground: #2a2420;       /* ink */
   --popover: #ffffff;               /* surface */
   --popover-foreground: #2a2420;    /* ink */
-  --primary: #f1603f;               /* coral-500 */
+  --primary: #6b6157;               /* stone */
   --primary-foreground: #ffffff;    /* white */
   --secondary: #f6f1ec;             /* n50 */
   --secondary-foreground: #2a2420;  /* ink */

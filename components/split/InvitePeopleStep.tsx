@@ -122,7 +122,7 @@ export function InvitePeopleStep({ sessionId, onContinue }: InvitePeopleStepProp
           <Button variant="outline" onClick={proceed} className="h-12 flex-1">
             Skip
           </Button>
-          <Button onClick={handleShare} className="h-12 flex-1 bg-coral-500">
+          <Button onClick={handleShare} className="h-12 flex-1">
             <Share2 size={18} className="mr-2" aria-hidden="true" />
             {copied ? 'Copied!' : 'Share link'}
           </Button>
