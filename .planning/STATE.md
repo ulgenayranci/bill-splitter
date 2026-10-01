@@ -183,3 +183,4 @@ Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 b
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+| 2026-10-01 | fast | Dev button gallery page at /dev/buttons | ✅ |
