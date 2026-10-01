@@ -143,6 +143,7 @@ None.
 | fast | Results: service fee no longer listed twice on the current user's card (item-list row hidden for the current user; totals-section row kept). 423/423 tests. | 2026-09-29 | 89e78a1 | Complete | — |
 | 261001-j4c | Primary buttons stone (#6b6157); coral only for warning confirms and Invite | 2026-10-01 | 5618ca0 | | [261001-j4c-primary-buttons-stone-coral-only-for-war](./quick/261001-j4c-primary-buttons-stone-coral-only-for-war/) |
 | fast | Unclaimed-items warning: Show my result is stone (default), not coral; coral warnings now Go back + New Split only. 423/423 tests. | 2026-10-01 | 1593297 | Complete | — |
+| fast | Results unclaimed confirm: Go back is stone (default), not coral; coral warning now New Split only. 423/423 tests. | 2026-10-01 | 512f369 | Complete | — |
 
 ---
 
