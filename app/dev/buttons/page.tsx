@@ -120,8 +120,8 @@ export default function ButtonGalleryPage() {
           <Button variant="outline" size="icon" className="h-11 w-11"><Plus size={16} /></Button>
         </Sample>
         <Sample id="B8" name="Small outline with icon" where="SetupStep Retake / Edit">
-          <Button variant="outline"><RotateCcw size={13} />Retake</Button>
-          <Button variant="outline"><Pencil size={13} />Edit</Button>
+          <Button variant="outline" className="w-24"><RotateCcw size={13} />Retake</Button>
+          <Button variant="outline" className="w-24"><Pencil size={13} />Edit</Button>
         </Sample>
         <Sample id="B9" name="Paired form actions" where="PersonSlotPicker rename Cancel / Save · item form footer Delete / Cancel / Save">
           <div className="flex w-full gap-2">

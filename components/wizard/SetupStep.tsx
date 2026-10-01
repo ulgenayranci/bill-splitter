@@ -387,6 +387,7 @@ export function SetupStep() {
             <Button
               type="button"
               variant="outline"
+              className="w-24"
               onClick={() => {
                 setScanCheck(null)
                 setServiceFeeCents(null)
@@ -396,7 +397,7 @@ export function SetupStep() {
               <RotateCcw size={13} aria-hidden="true" />
               Retake
             </Button>
-            <Button type="button" variant="outline" onClick={() => setStep(2)}>
+            <Button type="button" variant="outline" className="w-24" onClick={() => setStep(2)}>
               <Pencil size={13} aria-hidden="true" />
               Edit
             </Button>
