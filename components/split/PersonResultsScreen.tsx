@@ -435,7 +435,7 @@ export function PersonResultsScreen({
         <div className="flex flex-col gap-2">
           {/* Copy error inline */}
           {copyError && (
-            <p role="alert" className="text-[14px] text-red-600">{copyError}</p>
+            <p role="alert" className="text-[14px] text-danger">{copyError}</p>
           )}
 
           {/* G2+G4: Two half-width buttons in a row */}

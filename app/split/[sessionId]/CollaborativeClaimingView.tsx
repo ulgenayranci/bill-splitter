@@ -713,13 +713,13 @@ export function CollaborativeClaimingView({
                         <X size={18} />
                       </button>
                     </div>
-                    {inlineForm.error && <p className="text-[13px] text-red-600">{inlineForm.error}</p>}
+                    {inlineForm.error && <p className="text-[13px] text-danger">{inlineForm.error}</p>}
                     {/* Delete control inside the edit form */}
                     <button
                       type="button"
                       aria-label={`Delete ${item.name}`}
                       onClick={() => { void handleDeleteItem(inlineForm.itemId); setInlineForm(null) }}
-                      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[13px] text-red-600"
+                      className="flex items-center gap-1.5 self-start rounded-md px-2 py-1 text-[13px] text-danger"
                       data-testid={`delete-item-${item.id}`}
                     >
                       <Trash2 size={14} aria-hidden="true" />
@@ -820,7 +820,7 @@ export function CollaborativeClaimingView({
                   </button>
                 </div>
                 {inlineForm.error && (
-                  <p className="text-[13px] text-red-600">{inlineForm.error}</p>
+                  <p className="text-[13px] text-danger">{inlineForm.error}</p>
                 )}
               </div>
             </Card>
@@ -845,7 +845,7 @@ export function CollaborativeClaimingView({
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
       >
         {doneError && (
-          <p className="mb-2 text-center text-sm text-red-600">{doneError}</p>
+          <p className="mb-2 text-center text-sm text-danger">{doneError}</p>
         )}
         <Button onClick={handleDone} className="h-12 w-full bg-coral-500">
           I&rsquo;m done

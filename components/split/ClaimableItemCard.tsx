@@ -216,7 +216,7 @@ export function ClaimableItemCard({
             </Button>
           </div>
           <span
-            className={`text-[14px] ${isOverClaimed ? 'text-red-600' : 'text-zinc-400'}`}
+            className={`text-[14px] ${isOverClaimed ? 'text-danger' : 'text-zinc-400'}`}
             data-testid="claimed-count"
           >
             {totalClaimedQty} of {item.quantity ?? 1} claimed
@@ -265,7 +265,7 @@ export function ClaimableItemCard({
       )}
 
       {errorMessage && (
-        <span className="text-sm text-red-600">{errorMessage}</span>
+        <span className="text-sm text-danger">{errorMessage}</span>
       )}
     </Card>
   )

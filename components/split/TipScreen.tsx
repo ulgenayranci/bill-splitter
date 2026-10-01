@@ -138,7 +138,7 @@ export function TipScreen({
       </div>
 
       {error && (
-        <p role="alert" className="text-[14px] text-red-600">
+        <p role="alert" className="text-[14px] text-danger">
           {error}
         </p>
       )}
