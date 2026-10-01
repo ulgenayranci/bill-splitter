@@ -200,3 +200,4 @@ Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 b
 
 - Start the next milestone with /gsd-new-milestone
 | 2026-10-01 | fast | Dev button gallery page at /dev/buttons | ✅ |
+| 2026-10-01 | fast | Wordmark 20px, ink colour, coral "billsy" (a77e9ad) | ✅ |
