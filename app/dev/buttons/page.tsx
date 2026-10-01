@@ -53,6 +53,10 @@ export default function ButtonGalleryPage() {
           <Button>Default</Button>
           <Button disabled>Disabled</Button>
         </Sample>
+        <Sample id="A1w" name="warning (coral)" where="variant=&quot;warning&quot; — warning confirms only">
+          <Button variant="warning">Warning</Button>
+          <Button variant="warning" disabled>Disabled</Button>
+        </Sample>
         <Sample id="A2" name="outline" where="variant=&quot;outline&quot;">
           <Button variant="outline">Outline</Button>
           <Button variant="outline" disabled>Disabled</Button>
@@ -84,24 +88,31 @@ export default function ButtonGalleryPage() {
       </Section>
 
       <Section title="Shared button — as used in screens">
-        <Sample id="B1" name="Primary full-width (coral)" where="SetupStep Continue · TipScreen Confirm · CollaborativeClaimingView I'm done · PersonSlotPicker Add me · PersonResultsScreen Go back">
-          <Button className="h-12 w-full bg-coral-500 text-base">Continue</Button>
-          <Button className="h-12 w-full bg-coral-500" disabled><LoaderCircle size={16} className="animate-spin" /></Button>
+        <Sample id="B1" name="Primary full-width (stone)" where="SetupStep Continue · TipScreen Confirm · CollaborativeClaimingView I'm done · PersonSlotPicker Add me">
+          <Button className="h-12 w-full text-base">Continue</Button>
+          <Button className="h-12 w-full" disabled><LoaderCircle size={16} className="animate-spin" /></Button>
         </Sample>
-        <Sample id="B2" name="Primary full-width (no coral override)" where="ScanItemsEditor Done">
+        <Sample id="B2" name="Primary full-width" where="ScanItemsEditor Done">
           <Button className="h-12 w-full text-base">Done</Button>
         </Sample>
         <Sample id="B3" name="Paired bottom actions" where="InvitePeopleStep Skip/Share · CollaborativeClaimingView warning Share/Show my result">
           <div className="flex w-full gap-2">
             <Button variant="outline" className="h-12 flex-1">Skip</Button>
-            <Button className="h-12 flex-1 bg-coral-500"><Share2 size={18} className="mr-2" />Share link</Button>
+            <Button className="h-12 flex-1"><Share2 size={18} className="mr-2" />Share link</Button>
           </div>
         </Sample>
         <Sample id="B4" name="Paired results actions" where="PersonResultsScreen Go back / Share summary">
           <div className="flex w-full gap-2">
             <Button variant="outline" className="h-12 flex-1 border-zinc-200 bg-white">Go back</Button>
-            <Button className="h-12 flex-1 bg-coral-500"><Copy size={16} className="mr-2" />Share summary</Button>
+            <Button className="h-12 flex-1"><Copy size={16} className="mr-2" />Share summary</Button>
           </div>
+        </Sample>
+        <Sample id="B4w" name="Warning confirm (coral)" where="CollaborativeClaimingView Show my result · PersonResultsScreen Go back · AppHeader New Split">
+          <div className="flex w-full gap-2">
+            <Button variant="outline" className="h-12 flex-1">Cancel</Button>
+            <Button variant="warning" className="h-12 flex-1">Show my result</Button>
+          </div>
+          <Button variant="warning" className="h-12 w-full">Go back</Button>
         </Sample>
         <Sample id="B5" name="Full-width outline" where="PersonResultsScreen confirm Cancel">
           <Button variant="outline" className="h-12 w-full">Cancel</Button>
@@ -125,12 +136,12 @@ export default function ButtonGalleryPage() {
         <Sample id="B9" name="Small paired (sm)" where="PersonSlotPicker rename Cancel / Save">
           <div className="flex w-full gap-2">
             <Button size="sm" variant="outline" className="flex-1 text-[13px]">Cancel</Button>
-            <Button size="sm" className="flex-1 bg-coral-500 text-[13px]">Save</Button>
+            <Button size="sm" className="flex-1 text-[13px]">Save</Button>
           </div>
         </Sample>
         <Sample id="B10" name="Dialog confirm" where="AppHeader New Split confirm Cancel / New Split">
           <Button variant="outline">Cancel</Button>
-          <Button className="bg-coral-500">New Split</Button>
+          <Button variant="warning">New Split</Button>
         </Sample>
         <Sample id="B11" name="Dialog close (X)" where="components/ui/dialog.tsx">
           <Button variant="ghost" size="icon-sm"><XIcon /></Button>
@@ -144,7 +155,7 @@ export default function ButtonGalleryPage() {
           </button>
         </Sample>
         <Sample id="C2" name="Header menu (+ circle)" where="AppHeader">
-          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-coral-500 text-white transition-colors">
+          <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full bg-stone text-white transition-colors">
             <Plus size={22} />
           </button>
         </Sample>
@@ -170,7 +181,7 @@ export default function ButtonGalleryPage() {
         <Sample id="C5" name="Add person (+ inside input)" where="SetupStep (active / empty)">
           {[true, false].map((active) => (
             <div key={String(active)} className="relative h-11 w-full rounded-md border border-border bg-white">
-              <button type="button" className={`absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${active ? 'bg-coral-500 text-white' : 'text-zinc-400'}`}>
+              <button type="button" className={`absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${active ? 'bg-stone text-white' : 'text-zinc-400'}`}>
                 <Plus size={18} />
               </button>
             </div>

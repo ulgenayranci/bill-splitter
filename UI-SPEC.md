@@ -19,13 +19,18 @@
 
 ## 1. Design Tokens (canonical — do not guess, these are the real values)
 
-### Color — Coral (brand primary)
+### Color — Stone (primary CTA)
+| Token | Hex | Use |
+|-------|-----|-----|
+| `stone` `--eb-stone` `--primary` `--eb-primary` | `#6b6157` | **primary CTA fill (white text, about 6:1 contrast)** |
+
+### Color — Coral (brand accent)
 | Token | Hex | Use |
 |-------|-----|-----|
 | `coral-50` | `#fff3ef` | soft tints, claimed-item background |
 | `coral-100` | `#ffe1d8` | soft fills, input focus ring |
 | `coral-200` | `#ffc7b6` | soft borders |
-| `coral-500` `--eb-primary` | `#f1603f` | **primary CTA fill, the one coral action per screen** |
+| `coral-500` | `#f1603f` | **warning-confirm buttons and the Invite button only**; also claimed tints/badges as documented |
 | `coral-600` `--eb-primary-press` | `#dc4827` | CTA hover/press, accent text & totals (`text-coral-600`) |
 
 ### Color — Warm neutrals
@@ -73,14 +78,17 @@
 |-------|-----|
 | `--eb-sh-card` | resting cards |
 | `--eb-sh-pop` | popovers, dialogs |
-| `--eb-sh-btn` `0 4px 14px rgba(241,96,63,.28)` | primary coral button glow |
+| `--eb-sh-btn` `0 2px 8px rgba(42,36,32,.16)` | soft neutral button shadow (no coral glow) |
 
 ---
 
 ## 2. Global Rules (the ones that get violated → inconsistency)
 
-1. **One coral action per screen.** Exactly one `bg-coral-500` CTA. Everything else is
-   neutral/outline. If two buttons are both coral, that's a bug.
+1. **Coral is for warnings and Invite only.** Primary actions are stone (`<Button>` default).
+   Coral fills are allowed only on warning-confirm buttons (`variant="warning"`: Show my result,
+   Go back on unclaimed confirm, New Split) and the Invite button on the split header. Any other
+   coral button is a bug. Note: `variant="warning"` (coral) is different from the amber `warn`
+   used for banners.
 2. **Green means money is settled** — and nothing else. Don't use green for "done",
    "success", "selected", or decoration.
 3. **Warn (amber) = needs attention** — unclaimed items, review prompts, expiry notices.
@@ -100,7 +108,8 @@
 ### Button (`components/ui/button.tsx`)
 | Variant | Looks like | When to use |
 |---------|-----------|-------------|
-| `default` | coral-500 fill, white text, coral glow shadow | the one primary CTA |
+| `default` | stone fill, white text, soft neutral shadow | primary actions |
+| `warning` | coral-500 fill, white text | confirm a risky step (warning dialogs only) |
 | `outline` | `n100` fill, border, ink text | secondary actions |
 | `secondary` | `n50` fill, ink text | tertiary |
 | `ghost` | muted fill, muted text | low-emphasis / icon |
@@ -149,7 +158,7 @@ Pill (`rounded-4xl`), `h-5`, `text-xs`. Variants: `default` (coral), `secondary`
 ### 4.1 Landing / Home — `app/page.tsx`
 Status: ☐
 - Background is paper? ✅/🔴
-- Single coral CTA (scan/start)? ✅/🔴
+- Single stone CTA (scan/start)? ✅/🔴
 - Wordmark rendered as `easy **billsy**`? ✅/🔴
 > 🔴 What's wrong:
 > -
@@ -171,7 +180,7 @@ Status: ☐
 Status: ☐
 - Dialog styling matches primitive? ✅/🔴
 - Avatar colors follow the 6-color order? ✅/🔴
-- One coral confirm button? ✅/🔴
+- One warning (coral) confirm button? ✅/🔴
 > 🔴 What's wrong:
 > -
 
