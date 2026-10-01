@@ -145,6 +145,7 @@ None.
 | fast | Unclaimed-items warning: Show my result is stone (default), not coral; coral warnings now Go back + New Split only. 423/423 tests. | 2026-10-01 | 1593297 | Complete | — |
 | fast | Results unclaimed confirm: Go back is stone (default), not coral; coral warning now New Split only. 423/423 tests. | 2026-10-01 | 512f369 | Complete | — |
 | fast | Outline buttons white fill (bg-card) everywhere; PersonResults Go back override removed; gallery labels loading state. Review 20261001 notes 002-005. 423/423 tests. | 2026-10-01 | 307e62c | Complete | — |
+| fast | Removed unused secondary Button variant (button.tsx, UI-SPEC, gallery). 426/426 tests. | 2026-10-01 | 430d258 | Complete | — |
 
 ---
 
