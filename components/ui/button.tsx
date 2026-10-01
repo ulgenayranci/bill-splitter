@@ -14,8 +14,8 @@ const buttonVariants = cva(
         warning: "bg-warn text-white shadow-[var(--eb-sh-btn)]",
         outline:
           "border-border bg-card text-foreground aria-expanded:bg-accent aria-expanded:text-foreground dark:border-input dark:bg-input/30",
-        ghost:
-          "bg-muted text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
+        // Ghost = no fill, coral icon. Used for every close ✕ (dialog corner close).
+        ghost: "bg-transparent text-coral-600",
         link: "text-primary underline-offset-4",
       },
       size: {

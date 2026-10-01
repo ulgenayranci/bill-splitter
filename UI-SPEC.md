@@ -112,7 +112,7 @@
 | `default` | stone fill, white text, soft neutral shadow | primary actions |
 | `warning` | coral-500 fill, white text | confirm a risky step (warning dialogs only) |
 | `outline` | white fill (`bg-card`), `border` border, ink text | secondary actions |
-| `ghost` | muted fill, muted text | low-emphasis / icon |
+| `ghost` | no fill, coral-600 icon | close ✕ buttons (all ✕ icons are coral) |
 | `link` | coral text, underline on hover | inline text actions |
 
 Sizes: `xs h6 · sm h7 · default h8 · lg h9` + icon variants. Default height is **h-8**.

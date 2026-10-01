@@ -61,7 +61,7 @@ export default function ButtonGalleryPage() {
           <Button variant="outline">Outline</Button>
           <Button variant="outline" disabled>Disabled</Button>
         </Sample>
-        <Sample id="A4" name="ghost" where="variant=&quot;ghost&quot;">
+        <Sample id="A4" name="ghost" where="variant=&quot;ghost&quot; (dialog close ✕ only)">
           <Button variant="ghost">Ghost</Button>
         </Sample>
         <Sample id="A6" name="link" where="variant=&quot;link&quot; (not used yet)">
@@ -182,9 +182,7 @@ export default function ButtonGalleryPage() {
             </div>
           ))}
         </Sample>
-        <Sample id="C6" name="Square icon buttons (white, bordered)" where="CollaborativeClaimingView ✓/✕ (h-10) · ScanItemsEditor trash (h-10) · SetupStep remove person (h-9) · PersonSlotPicker rename (h-11)">
-          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-700"><Check size={18} /></button>
-          <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-400"><X size={18} /></button>
+        <Sample id="C6" name="Square icon buttons (white, bordered)" where="ScanItemsEditor trash (h-10) · SetupStep remove person (h-9) · PersonSlotPicker rename (h-11)">
           <button type="button" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-white text-zinc-400"><Trash2 size={16} /></button>
           <button type="button" className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-white text-zinc-400"><Trash2 size={16} /></button>
           <button type="button" className="flex h-11 w-11 items-center justify-center rounded-md border border-border bg-white text-zinc-500"><Pencil size={16} /></button>
@@ -206,7 +204,7 @@ export default function ButtonGalleryPage() {
         </Sample>
         <Sample id="C11" name="Photo lightbox close" where="BillPhotoLightbox" dark>
           <div className="h-16 w-full" />
-          <button type="button" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white"><X size={20} /></button>
+          <button type="button" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-coral-500"><X size={20} /></button>
         </Sample>
       </Section>
     </main>
