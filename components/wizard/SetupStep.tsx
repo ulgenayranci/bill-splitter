@@ -350,7 +350,7 @@ export function SetupStep() {
         <p
           role="status"
           data-testid="guardrail-corrected"
-          className="text-[12px] text-zinc-500"
+          className="text-[12px] text-n600"
         >
           {scanCheck.correctedCount === 1
             ? '1 price was adjusted to match the receipt total.'
@@ -403,7 +403,7 @@ export function SetupStep() {
             </Button>
           </div>
           {serviceFeeCents != null && serviceFeeCents > 0 && (
-            <p data-testid="service-fee-status" className="mt-2 text-[12px] text-zinc-500">
+            <p data-testid="service-fee-status" className="mt-2 text-[12px] text-n600">
               Service fee {formatCents(serviceFeeCents, currencyCode)} found, split equally between everyone.
             </p>
           )}
@@ -424,7 +424,7 @@ export function SetupStep() {
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-[16px] font-semibold text-zinc-900">Scan your receipt</span>
-            <span className="text-[13px] text-muted-foreground">
+            <span className="text-[13px] text-n600">
               {ocrStatus === 'error'
                 ? 'Something went wrong. Tap to try again'
                 : "Take a photo of the receipt and I will capture all the items for you."}
@@ -538,7 +538,7 @@ export function SetupStep() {
           </p>
         )}
         {!canContinue && (
-          <p className="mt-2 text-center text-[12px] text-muted-foreground">
+          <p className="mt-2 text-center text-[12px] text-n600">
             {billScanned
               ? 'Add at least two people to continue'
               : 'Scan a receipt and add at least two people to continue'}
