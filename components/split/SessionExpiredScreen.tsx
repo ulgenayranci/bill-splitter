@@ -1,8 +1,22 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { Link2Off } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useBillStore } from '@/stores/useBillStore'
 
 export function SessionExpiredScreen() {
+  const router = useRouter()
+  const reset = useBillStore((s) => s.reset)
+  const setStep = useBillStore((s) => s.setStep)
+
+  // Same reset as AppHeader's "New split": clear the local bill and land on step 1.
+  const startNewSplit = () => {
+    reset()
+    setStep(1)
+    router.push('/')
+  }
+
   return (
     <main
       role="alert"
@@ -13,6 +27,9 @@ export function SessionExpiredScreen() {
       <p className="text-[16px] text-zinc-500">
         The link you opened is no longer active. Ask the person who shared it to create a new one.
       </p>
+      <Button type="button" onClick={startNewSplit} className="mt-2 h-12 w-full max-w-xs bg-coral-500">
+        Start a new split
+      </Button>
     </main>
   )
 }
