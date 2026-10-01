@@ -32,8 +32,8 @@ import { ServiceFeeCard } from '@/components/split/ServiceFeeCard'
 import { getUnclaimedCounts, getClaimedUnitCounts } from '@/lib/sessionUtils'
 
 type InlineForm =
-  | { kind: 'add'; name: string; price: string; qty: string; error: string | null }
-  | { kind: 'edit'; itemId: ItemId; name: string; price: string; qty: string; originalName: string; originalPrice: string; originalQty: string; error: string | null }
+  | { kind: 'add'; name: string; price: string; qty: string; error: string | null; errorField?: 'name' | 'price' }
+  | { kind: 'edit'; itemId: ItemId; name: string; price: string; qty: string; originalName: string; originalPrice: string; originalQty: string; error: string | null; errorField?: 'name' | 'price' }
 
 class SessionNotFoundError extends Error {}
 
@@ -473,9 +473,9 @@ export function CollaborativeClaimingView({
     try {
       if (inlineForm.kind === 'add') {
         const trimmed = inlineForm.name.trim()
-        if (!trimmed) { setInlineForm({ ...inlineForm, error: 'Enter a name' }); return }
+        if (!trimmed) { setInlineForm({ ...inlineForm, error: 'Enter a name', errorField: 'name' }); return }
         const priceCents = parseCents(inlineForm.price)
-        if (!priceCents || priceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price' }); return }
+        if (!priceCents || priceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price', errorField: 'price' }); return }
         const res = await fetch(`/api/session/${sessionId}/edit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -486,9 +486,9 @@ export function CollaborativeClaimingView({
       } else {
         // Send edit_name and/or edit_price/edit_quantity for whatever changed
         const trimmedName = inlineForm.name.trim()
-        if (!trimmedName) { setInlineForm({ ...inlineForm, error: 'Enter a name' }); return }
+        if (!trimmedName) { setInlineForm({ ...inlineForm, error: 'Enter a name', errorField: 'name' }); return }
         const newPriceCents = parseCents(inlineForm.price)
-        if (!newPriceCents || newPriceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price' }); return }
+        if (!newPriceCents || newPriceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price', errorField: 'price' }); return }
         const nameChanged = trimmedName !== inlineForm.originalName
         const priceChanged = inlineForm.price.trim() !== inlineForm.originalPrice
         const newQty = Math.max(1, Math.min(99, parseInt(inlineForm.qty, 10) || 1))
@@ -674,8 +674,10 @@ export function CollaborativeClaimingView({
                       <Input
                         placeholder="Item name"
                         aria-label="Item name"
+                        aria-invalid={inlineForm.errorField === 'name' || undefined}
+                        aria-describedby={inlineForm.error ? 'inline-form-error' : undefined}
                         value={inlineForm.name}
-                        onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null })}
+                        onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null, errorField: undefined })}
                         className="h-10 w-full text-base"
                         maxLength={100}
                         autoFocus
@@ -685,9 +687,11 @@ export function CollaborativeClaimingView({
                       <Input
                         placeholder="Price"
                         aria-label="New price"
+                        aria-invalid={inlineForm.errorField === 'price' || undefined}
+                        aria-describedby={inlineForm.error ? 'inline-form-error' : undefined}
                         value={inlineForm.price}
                         inputMode="decimal"
-                        onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null })}
+                        onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null, errorField: undefined })}
                         onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
                         className="h-10 min-w-0 flex-1 text-base"
                         maxLength={9}
@@ -705,7 +709,7 @@ export function CollaborativeClaimingView({
                         className="h-10 w-20 text-base text-center"
                       />
                     </div>
-                    {inlineForm.error && <p role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>}
+                    {inlineForm.error && <p id="inline-form-error" role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>}
                   </div>
                   {/* Action footer: destructive Delete on the left, away from Save; Cancel + Save on the right. */}
                   <div className="mt-1 flex items-center gap-2 border-t border-border pt-3">
@@ -781,8 +785,10 @@ export function CollaborativeClaimingView({
                   <Input
                     placeholder="Item name"
                     aria-label="Item name"
+                    aria-invalid={inlineForm.errorField === 'name' || undefined}
+                    aria-describedby={inlineForm.error ? 'inline-form-error' : undefined}
                     value={inlineForm.name}
-                    onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null })}
+                    onChange={(e) => setInlineForm({ ...inlineForm, name: e.target.value, error: null, errorField: undefined })}
                     className="h-10 w-full text-base"
                     maxLength={100}
                     autoFocus
@@ -791,9 +797,12 @@ export function CollaborativeClaimingView({
                 <div className="flex items-center gap-2">
                   <Input
                     placeholder="Price"
+                    aria-label="Price"
+                    aria-invalid={inlineForm.errorField === 'price' || undefined}
+                    aria-describedby={inlineForm.error ? 'inline-form-error' : undefined}
                     value={inlineForm.price}
                     inputMode="decimal"
-                    onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null })}
+                    onChange={(e) => setInlineForm({ ...inlineForm, price: e.target.value, error: null, errorField: undefined })}
                     onKeyDown={(e) => { if (e.key === 'Enter') void handleInlineSubmit() }}
                     className="h-10 min-w-0 flex-1 text-base"
                     maxLength={9}
@@ -812,7 +821,7 @@ export function CollaborativeClaimingView({
                   />
                 </div>
                 {inlineForm.error && (
-                  <p role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>
+                  <p id="inline-form-error" role="alert" className="text-[14px] text-danger">{inlineForm.error}</p>
                 )}
               </div>
               <div className="mt-1 flex items-center justify-end gap-2 border-t border-border pt-3">

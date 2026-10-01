@@ -195,6 +195,20 @@ describe('CollaborativeClaimingView', () => {
     expect(screen.queryByLabelText('Item name')).toBeNull()
   })
 
+  it('Test 10b (add form validation marks the invalid field)', async () => {
+    await selectAlice()
+    fireEvent.click(screen.getByTestId('add-item-button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    const nameInput = screen.getByLabelText('Item name')
+    await waitFor(() => expect(nameInput.getAttribute('aria-invalid')).toBe('true'))
+    expect(nameInput.getAttribute('aria-describedby')).toBe('inline-form-error')
+    expect(screen.getByText('Enter a name')).toBeDefined()
+    fireEvent.change(nameInput, { target: { value: 'Tea' } })
+    expect(nameInput.getAttribute('aria-invalid')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    await waitFor(() => expect(screen.getByLabelText('Price').getAttribute('aria-invalid')).toBe('true'))
+  })
+
   it('Test 11 (handleInlineSubmit — edit): calls /api/session/[id]/edit (not /edit-request)', async () => {
     await selectAlice()
     fireEvent.click(screen.getByTestId('edit-pencil-i1'))
