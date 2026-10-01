@@ -155,6 +155,7 @@ None.
 | fast | Split page Items claimed label ink (foreground) + bg-border divider, matching setup Who's involved. 458/458 tests. | 2026-10-01 | 075d293 | Complete | — |
 | fast | ProgressStrip empty segments white (all pages via shared component). 458/458 tests. | 2026-10-01 | c2a2506 | Complete | — |
 | fast | Setup people count chip coral-500 fill + white bold text (matches items-found badge). 458/458 tests. | 2026-10-01 | 92d3a08 | Complete | — |
+| fast | Split page items-claimed chip coral-500 fill + white bold text. 458/458 tests. | 2026-10-01 | 6fd46ce | Complete | — |
 
 ---
 
