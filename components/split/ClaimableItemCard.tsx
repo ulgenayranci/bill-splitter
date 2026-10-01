@@ -265,7 +265,7 @@ export function ClaimableItemCard({
       )}
 
       {errorMessage && (
-        <span className="text-sm text-danger">{errorMessage}</span>
+        <span className="text-[14px] text-danger">{errorMessage}</span>
       )}
     </Card>
   )

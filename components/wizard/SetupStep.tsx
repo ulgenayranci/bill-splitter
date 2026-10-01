@@ -341,7 +341,7 @@ export function SetupStep() {
 
       {/* GAP 7: inline scan error near the scan tile (not a bottom toast) */}
       {scanError && (
-        <p role="alert" data-testid="scan-error" className="text-[13px] text-danger">
+        <p role="alert" data-testid="scan-error" className="text-[14px] text-danger">
           {scanError}
         </p>
       )}
@@ -544,7 +544,7 @@ export function SetupStep() {
           </p>
         )}
         {sessionCreateError && (
-          <p className="mt-2 text-center text-[12px] text-danger">{sessionCreateError}</p>
+          <p className="mt-2 text-center text-[14px] text-danger">{sessionCreateError}</p>
         )}
       </div>
 
