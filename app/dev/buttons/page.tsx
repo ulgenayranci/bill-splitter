@@ -88,7 +88,7 @@ export default function ButtonGalleryPage() {
       </Section>
 
       <Section title="Shared button — as used in screens">
-        <Sample id="B1" name="Primary full-width (stone)" where="SetupStep Continue · TipScreen Confirm · CollaborativeClaimingView I'm done · PersonSlotPicker Add me">
+        <Sample id="B1" name="Primary full-width (stone) + loading state" where="Second button = loading state: shown while the app is working, e.g. after tapping Continue (SetupStep) or Confirm tip (TipScreen). Used by SetupStep Continue · TipScreen Confirm · CollaborativeClaimingView I'm done · PersonSlotPicker Add me">
           <Button className="h-12 w-full text-base">Continue</Button>
           <Button className="h-12 w-full" disabled><LoaderCircle size={16} className="animate-spin" /></Button>
         </Sample>
@@ -103,7 +103,7 @@ export default function ButtonGalleryPage() {
         </Sample>
         <Sample id="B4" name="Paired results actions" where="PersonResultsScreen Go back / Share summary">
           <div className="flex w-full gap-2">
-            <Button variant="outline" className="h-12 flex-1 border-zinc-200 bg-white">Go back</Button>
+            <Button variant="outline" className="h-12 flex-1">Go back</Button>
             <Button className="h-12 flex-1"><Copy size={16} className="mr-2" />Share summary</Button>
           </div>
         </Sample>

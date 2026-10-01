@@ -13,7 +13,7 @@ const buttonVariants = cva(
         // Coral is reserved for warning-confirm buttons (New Split start-over confirm) per UI-SPEC rule 1.
         warning: "bg-coral-500 text-white shadow-[var(--eb-sh-btn)]",
         outline:
-          "border-border bg-muted text-foreground aria-expanded:bg-accent aria-expanded:text-foreground dark:border-input dark:bg-input/30",
+          "border-border bg-card text-foreground aria-expanded:bg-accent aria-expanded:text-foreground dark:border-input dark:bg-input/30",
         secondary:
           "bg-secondary text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

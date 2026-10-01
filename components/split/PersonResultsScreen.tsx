@@ -444,7 +444,7 @@ export function PersonResultsScreen({
             <Button
               type="button"
               variant="outline"
-              className="h-12 flex-1 border-zinc-200 bg-white"
+              className="h-12 flex-1"
               onClick={onEditBill}
             >
               Go back

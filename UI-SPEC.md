@@ -39,7 +39,7 @@
 | `paper` / `--background` | `#faf5f1` | app background (cream) |
 | `surface` / `card` | `#ffffff` | cards, inputs, sheets |
 | `n50` / `secondary` | `#f6f1ec` | subtle fills |
-| `n100` / `muted` | `#efe8e1` | outline-button fill, muted surfaces |
+| `n100` / `muted` | `#efe8e1` | muted surfaces |
 | `n200` / `border` `input` | `#e6ddd3` | default borders & input borders |
 | `n500` / `muted-foreground` | `#7d7466` | secondary text |
 | `ink` / `foreground` | `#2a2420` | primary text |
@@ -110,7 +110,7 @@
 |---------|-----------|-------------|
 | `default` | stone fill, white text, soft neutral shadow | primary actions |
 | `warning` | coral-500 fill, white text | confirm a risky step (warning dialogs only) |
-| `outline` | `n100` fill, border, ink text | secondary actions |
+| `outline` | white fill (`bg-card`), `border` border, ink text | secondary actions |
 | `secondary` | `n50` fill, ink text | tertiary |
 | `ghost` | muted fill, muted text | low-emphasis / icon |
 | `destructive` | danger tint fill, danger text | delete/remove |
