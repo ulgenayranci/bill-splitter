@@ -84,7 +84,7 @@ export function AppHeader() {
       >
         {/* Wordmark */}
         <div
-          className="relative top-0.5 select-none text-[20px] leading-none tracking-[-0.03em] text-coral-500"
+          className="relative top-0.5 select-none text-[20px] leading-none tracking-[-0.03em] text-stone"
           aria-label="easy billsy"
         >
           <span className="font-normal">easy</span>
