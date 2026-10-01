@@ -112,7 +112,6 @@
 | `default` | stone fill, white text, soft neutral shadow | primary actions |
 | `warning` | coral-500 fill, white text | confirm a risky step (warning dialogs only) |
 | `outline` | white fill (`bg-card`), `border` border, ink text | secondary actions |
-| `secondary` | `n50` fill, ink text | tertiary |
 | `ghost` | muted fill, muted text | low-emphasis / icon |
 | `link` | coral text, underline on hover | inline text actions |
 

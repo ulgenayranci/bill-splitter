@@ -61,9 +61,6 @@ export default function ButtonGalleryPage() {
           <Button variant="outline">Outline</Button>
           <Button variant="outline" disabled>Disabled</Button>
         </Sample>
-        <Sample id="A3" name="secondary" where="variant=&quot;secondary&quot; (not used yet)">
-          <Button variant="secondary">Secondary</Button>
-        </Sample>
         <Sample id="A4" name="ghost" where="variant=&quot;ghost&quot;">
           <Button variant="ghost">Ghost</Button>
         </Sample>

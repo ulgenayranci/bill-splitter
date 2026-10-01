@@ -14,8 +14,6 @@ const buttonVariants = cva(
         warning: "bg-warn text-white shadow-[var(--eb-sh-btn)]",
         outline:
           "border-border bg-card text-foreground aria-expanded:bg-accent aria-expanded:text-foreground dark:border-input dark:bg-input/30",
-        secondary:
-          "bg-secondary text-secondary-foreground aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "bg-muted text-muted-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         link: "text-primary underline-offset-4",
