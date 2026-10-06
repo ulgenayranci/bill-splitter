@@ -63,8 +63,8 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     expect(status).toBe(200)
     expect(json).toEqual({
       items: [
-        { name: 'Burger', quantity: 1, unitPriceCents: 1299, lineTotalCents: null },
-        { name: 'Fries', quantity: 2, unitPriceCents: 499, lineTotalCents: 998 },
+        { name: 'Burger', quantity: 1, unitPriceCents: 1299, lineTotalCents: null, confidence: 'high' },
+        { name: 'Fries', quantity: 2, unitPriceCents: 499, lineTotalCents: 998, confidence: 'high' },
       ],
       currencyCode: 'EUR',
       subtotalCents: 2297,
@@ -83,6 +83,42 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
     const itemRequired = callArgs.response_format.json_schema.schema.properties.items.items.required
     expect(itemRequired).toContain('unitPriceCents')
     expect(itemRequired).toContain('lineTotalCents')
+    expect(itemRequired).toContain('confidence')
+  })
+
+  describe('per-line confidence', () => {
+    async function confidenceFor(raw: unknown[]): Promise<unknown[]> {
+      createMock.mockResolvedValue({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                items: raw.map((c) => ({
+                  name: 'X',
+                  quantity: 1,
+                  unitPriceCents: null,
+                  lineTotalCents: 500,
+                  ...(c === undefined ? {} : { confidence: c }),
+                })),
+                currencyCode: 'USD',
+                subtotalCents: null,
+                grandTotalCents: null,
+              }),
+            },
+          },
+        ],
+      })
+      const { json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      return (json as { items: { confidence: unknown }[] }).items.map((i) => i.confidence)
+    }
+
+    it('passes low and high through', async () => {
+      expect(await confidenceFor(['low', 'high'])).toEqual(['low', 'high'])
+    })
+
+    it('defaults missing/garbage confidence to high without dropping lines', async () => {
+      expect(await confidenceFor(['maybe', 3, undefined])).toEqual(['high', 'high', 'high'])
+    })
   })
 
   it('drops a line only when BOTH unitPriceCents and lineTotalCents are null', async () => {

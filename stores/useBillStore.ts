@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
+import type { ScanFlagReason } from '@/lib/scanSanityChecks'
 
 // randomId() requires a secure context (HTTPS/localhost).
 // Plain-HTTP LAN dev (e.g. http://192.168.x.x) exposes an undefined API.
@@ -45,6 +46,11 @@ export interface Item {
   unitPriceCents?: number
   rawName?: string
   confidence?: 'high' | 'low' | 'ambiguous'
+  /**
+   * Set at scan time from the OCR guardrails (lib/scanSanityChecks) and shown on the
+   * review screen. Cleared when the user edits the line (updateItem).
+   */
+  scanFlag?: ScanFlagReason
 }
 
 /**
@@ -190,6 +196,7 @@ export const useBillStore = create<BillState>()(
           quantity: nextQty,
           unitPriceCents: deriveUnitPriceCents(priceCents, nextQty),
           confidence: 'high' as const,
+          scanFlag: undefined,
         }
       }),
     })),

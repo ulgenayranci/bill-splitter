@@ -201,6 +201,106 @@ describe('SetupStep — scanned bill review container + auto-open edit screen', 
     fetchMock.mockRestore()
   })
 
+  /** Scan with custom OCR lines (all line totals) + expand passthrough. */
+  function scanLines(
+    lines: { name: string; cents: number; confidence?: 'high' | 'low' }[],
+    totals: { subtotalCents: number | null; grandTotalCents: number | null },
+    expandOk = true,
+  ) {
+    const fetchMock = vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url
+      if (url.includes('/api/ocr')) {
+        return new Response(
+          JSON.stringify({
+            items: lines.map((l) => ({
+              name: l.name,
+              quantity: 1,
+              unitPriceCents: null,
+              lineTotalCents: l.cents,
+              confidence: l.confidence,
+            })),
+            currencyCode: 'USD',
+            ...totals,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      if (url.includes('/api/expand')) {
+        if (!expandOk) return new Response('', { status: 500 })
+        return new Response(
+          JSON.stringify({
+            items: lines.map((l) => ({
+              rawName: l.name,
+              displayName: l.name,
+              priceCents: l.cents,
+              confidence: 'high',
+              quantity: 1,
+            })),
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return new Response('', { status: 404 })
+    })
+    renderInProvider(<SetupStep />)
+    fireEvent.change(screen.getByTestId('ocr-file-input'), {
+      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
+    })
+    return fetchMock
+  }
+
+  it('OCR guardrails: totals match but a low-confidence line forces review with a flag', async () => {
+    const fetchMock = scanLines(
+      [
+        { name: 'Burger', cents: 1000 },
+        { name: 'Fries', cents: 500, confidence: 'low' },
+      ],
+      { subtotalCents: 1500, grandTotalCents: 1500 },
+    )
+    await waitFor(() => expect(useBillStore.getState().step).toBe(2))
+    const [burger, fries] = useBillStore.getState().items
+    expect(burger.scanFlag).toBeUndefined()
+    expect(fries.scanFlag).toBe('Hard to read')
+    fetchMock.mockRestore()
+  })
+
+  it('OCR guardrails: no printed subtotal or total forces review (targetCents null)', async () => {
+    const fetchMock = scanLines([{ name: 'Burger', cents: 1000 }], {
+      subtotalCents: null,
+      grandTotalCents: null,
+    })
+    await waitFor(() => expect(useBillStore.getState().step).toBe(2))
+    expect(useBillStore.getState().scanCheck?.targetCents).toBeNull()
+    fetchMock.mockRestore()
+  })
+
+  it('OCR guardrails: a line named TOTAL is flagged as a total/tax line', async () => {
+    const fetchMock = scanLines(
+      [
+        { name: 'Burger', cents: 1000 },
+        { name: 'TOTAL', cents: 500 },
+      ],
+      { subtotalCents: 1500, grandTotalCents: 1500 },
+    )
+    await waitFor(() => expect(useBillStore.getState().step).toBe(2))
+    expect(useBillStore.getState().items[1].scanFlag).toBe('Looks like a total/tax line')
+    fetchMock.mockRestore()
+  })
+
+  it('OCR guardrails: the expand-failure fallback applies the same flags and routing', async () => {
+    const fetchMock = scanLines(
+      [
+        { name: 'Burger', cents: 1000 },
+        { name: 'Fries', cents: 500, confidence: 'low' },
+      ],
+      { subtotalCents: 1500, grandTotalCents: 1500 },
+      false,
+    )
+    await waitFor(() => expect(useBillStore.getState().step).toBe(2))
+    expect(useBillStore.getState().items[1].scanFlag).toBe('Hard to read')
+    fetchMock.mockRestore()
+  })
+
   it('service fee: grand-total-minus-fee reconciles (no mismatch), fee stored, status shown, cleared on retake', async () => {
     const fetchMock = mockScan(
       {

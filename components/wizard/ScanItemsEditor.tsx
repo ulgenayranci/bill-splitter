@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, Plus, Lock } from "lucide-react";
+import { Trash2, Plus, Lock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -53,6 +53,9 @@ export function ScanItemsEditor() {
   const liveDeltaCents = targetCents != null ? targetCents - liveSumCents : 0;
   const isOff =
     targetCents != null && Math.abs(liveDeltaCents) > TOLERANCE_CENTS;
+
+  const noTotal = scanCheck != null && targetCents == null;
+  const anyFlagged = items.some((i) => i.scanFlag);
 
   // Read the live draft for a row, defaulting to the item's current store values.
   const draftFor = (item: (typeof items)[number]) =>
@@ -115,8 +118,23 @@ export function ScanItemsEditor() {
       className="flex flex-1 flex-col gap-5"
     >
       <h1 className="text-[18px] font-semibold text-zinc-900">
-        {isOff ? "Your items don't match the receipt" : "Edit scanned items"}
+        {isOff
+          ? "Your items don't match the receipt"
+          : anyFlagged || noTotal
+            ? "Please check these items"
+            : "Edit scanned items"}
       </h1>
+
+      {noTotal && (
+        <div
+          data-testid="scan-review-no-total"
+          className="rounded-md border border-border bg-white px-3 py-2"
+        >
+          <p className="text-[15px] font-semibold text-warn-strong">
+            No total found on the receipt — please check the items
+          </p>
+        </div>
+      )}
 
       {targetCents != null && (
         <div
@@ -147,7 +165,20 @@ export function ScanItemsEditor() {
           const draft = draftFor(item);
           return (
             <li key={item.id}>
-              <Card className="flex flex-col gap-2 px-4 py-3">
+              <Card
+                className={`flex flex-col gap-2 px-4 py-3 ${item.scanFlag ? "border-warn ring-[3px] ring-warn-soft" : ""}`}
+                aria-describedby={item.scanFlag ? `scan-flag-${item.id}` : undefined}
+              >
+                {item.scanFlag && (
+                  <span
+                    id={`scan-flag-${item.id}`}
+                    data-testid="scan-line-flag"
+                    className="inline-flex items-center gap-1 self-start rounded-full bg-coral-50 px-2 py-0.5 text-[12px] font-semibold text-warn-strong"
+                  >
+                    <AlertTriangle size={12} aria-hidden="true" />
+                    {item.scanFlag}
+                  </span>
+                )}
                 <Input
                   aria-label="Item name"
                   value={draft.name}

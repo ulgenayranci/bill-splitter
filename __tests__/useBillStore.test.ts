@@ -285,4 +285,12 @@ describe('scanCheck (260929-k3j)', () => {
     useBillStore.getState().reset()
     expect(useBillStore.getState().taxCents).toBeNull()
   })
+
+  it('updateItem clears scanFlag', () => {
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Burger', priceCents: 1000, quantity: 1, scanFlag: 'Unusual price' },
+    ])
+    useBillStore.getState().updateItem('i1', 'Burger', 1000)
+    expect(useBillStore.getState().items[0].scanFlag).toBeUndefined()
+  })
 })

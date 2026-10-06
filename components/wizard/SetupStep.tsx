@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
 import { reconcileScannedBill, itemsReconcileTarget, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
+import { flagScannedLines, shouldForceScanReview } from '@/lib/scanSanityChecks'
 import { formatCents, computeSubtotalCents } from '@/lib/billMath'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
@@ -21,7 +22,8 @@ import { BillPhotoLightbox } from './BillPhotoLightbox'
  * item entry.
  * After a scan: the "scanned bill review container" - thumbnail + "N items found"
  * badge + Retake / Edit buttons, no item list (D-10). Items are edited on the
- * separate ScanItemsEditor screen (store step 2), auto-opened after a mismatched scan.
+ * separate ScanItemsEditor screen (store step 2), auto-opened after a doubtful scan
+ * (mismatch, no printed total, or flagged lines).
  * Continue is gated on a scanned bill AND ≥2 people (D-11), then bridges to
  * the existing Assign flow as a stopgap (D-12).
  */
@@ -176,7 +178,7 @@ export function SetupStep() {
         })
         if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
         const data = (await res.json()) as {
-          items: { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null }[]
+          items: { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null; confidence?: 'high' | 'low' }[]
           currencyCode?: string
           subtotalCents?: number | null
           grandTotalCents?: number | null
@@ -237,6 +239,15 @@ export function SetupStep() {
       setTaxCents(ocrTaxCents)
       const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: targetCents })
       const correctedCount = reconciled.items.filter((i) => i.corrected).length
+      // OCR guardrails: flag doubtful lines and decide, in one place, whether to force
+      // the review screen (mismatch, no printed total, or any flagged line).
+      const { lineFlags, flaggedCount } = flagScannedLines(reconciled.items)
+      const decision = shouldForceScanReview({
+        itemCount: reconciled.items.length,
+        mismatch: reconciled.completeness.mismatch,
+        targetCents,
+        flaggedCount,
+      })
 
       // OCR succeeded. Chain into name expansion.
       setScanError(null)
@@ -274,6 +285,7 @@ export function SetupStep() {
             // Re-attach unitPriceCents by index — expand drops it.
             unitPriceCents: reconciled.items[idx]?.unitPriceCents,
             confidence: ei.confidence,
+            scanFlag: lineFlags[idx] ?? undefined,
           })),
         )
         // Write items BEFORE opening the edit screen: app/page.tsx falls back to
@@ -284,7 +296,7 @@ export function SetupStep() {
           targetCents,
           hasSubtotal: reconciled.completeness.subtotalCents != null,
         })
-        if (reconciled.completeness.mismatch && targetCents != null) setStep(2)
+        if (decision.forceReview) setStep(2)
         setExpandStatus('done')
       } catch (err) {
         console.error(err)
@@ -292,12 +304,13 @@ export function SetupStep() {
         // Fallback: build items directly from the reconciled OCR lines so the scan
         // still counts (names editable in Bill View later).
         setItems(
-          reconciled.items.map((i) => ({
+          reconciled.items.map((i, idx) => ({
             id: randomId(),
             name: i.name,
             priceCents: i.priceCents,
             quantity: i.quantity,
             unitPriceCents: i.unitPriceCents,
+            scanFlag: lineFlags[idx] ?? undefined,
           })),
         )
         // Write items BEFORE opening the edit screen: app/page.tsx falls back to
@@ -308,7 +321,7 @@ export function SetupStep() {
           targetCents,
           hasSubtotal: reconciled.completeness.subtotalCents != null,
         })
-        if (reconciled.completeness.mismatch && targetCents != null) setStep(2)
+        if (decision.forceReview) setStep(2)
       }
     },
     [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setServiceFeeCents, setTaxCents, setStep],

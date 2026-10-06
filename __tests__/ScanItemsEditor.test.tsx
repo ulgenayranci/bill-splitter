@@ -150,4 +150,34 @@ describe('ScanItemsEditor', () => {
     render(<ScanItemsEditor />)
     expect(screen.queryByTestId('editor-tax')).toBeNull()
   })
+
+  it('no printed total: shows the no-total message, no Off by / Matches text', () => {
+    seed()
+    useBillStore.getState().setScanCheck({
+      correctedCount: 0,
+      mismatch: false,
+      targetCents: null,
+      hasSubtotal: false,
+    })
+    render(<ScanItemsEditor />)
+    expect(screen.getByTestId('scan-review-no-total').textContent).toBe(
+      'No total found on the receipt \u2014 please check the items',
+    )
+    expect(screen.queryByTestId('scan-review-gap')).toBeNull()
+    expect(document.body.textContent).not.toContain('Off by')
+    expect(document.body.textContent).not.toContain('Matches the receipt')
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Please check these items')
+  })
+
+  it('flagged line shows its reason and the flag disappears after the user edits that line', async () => {
+    seed({ mismatch: false, targetCents: 1400 })
+    const st = useBillStore.getState()
+    st.setItems(st.items.map((i) => (i.id === 'i1' ? { ...i, scanFlag: 'Unusual price' as const } : i)))
+    render(<ScanItemsEditor />)
+    expect(screen.getByTestId('scan-line-flag').textContent).toContain('Unusual price')
+    const price = screen.getAllByLabelText('Price')[0]
+    fireEvent.change(price, { target: { value: '10.50' } })
+    fireEvent.blur(price)
+    await waitFor(() => expect(screen.queryByTestId('scan-line-flag')).toBeNull())
+  })
 })
