@@ -36,7 +36,7 @@
 ### Color — Warm neutrals
 | Token | Hex | Use |
 |-------|-----|-----|
-| `paper` / `--background` | `#faf5f1` | app background (cream) |
+| `paper` / `--background` | `#f7f6f4` | app background (stone mist, a barely-warm off-white) |
 | `surface` / `card` | `#ffffff` | cards, inputs, sheets |
 | `n50` / `secondary` | `#f6f1ec` | subtle fills |
 | `n100` / `muted` | `#efe8e1` | muted surfaces |
@@ -98,7 +98,7 @@
 5. **Inputs:** white fill, `1.5px` `border-input`, coral focus ring (`ring-coral-100`).
 6. **Cards:** white surface, `rounded-xl`, `ring-1 ring-foreground/10`. No ad-hoc shadows.
 7. **Radius is `md`/`xl` tokens** — no random `rounded-md`/`rounded-2xl` one-offs.
-8. **Body is paper `#faf5f1`**, not white. White is for cards/sheets only.
+8. **Body is paper `#f7f6f4`**, not white. White is for cards/sheets only.
 
 > ✏️ **Add any global rule you want enforced that isn't listed:**
 > -
