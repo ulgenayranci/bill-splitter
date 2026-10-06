@@ -82,4 +82,20 @@ describe('GET /api/session/[sessionId]', () => {
     expect(res.status).toBe(200)
     expect(mockGet).toHaveBeenCalledWith(expect.stringContaining('test-session-id'))
   })
+
+  it('Test 5: normalizes cjson-mangled empty maps ([]) to {}', async () => {
+    mockGet.mockResolvedValue({ ...baseSession, tips: [], claims: { items: [], personSlots: [], donePeople: [] } })
+    const { status, json } = await callGET('test-session-id')
+    expect(status).toBe(200)
+    const r = json as { tips: unknown; claims: Record<string, unknown> }
+    expect(r.tips).toEqual({})
+    expect(r.claims).toEqual({ items: {}, personSlots: {}, donePeople: {} })
+  })
+
+  it('Test 6: stored garbage value -> 500 generic error', async () => {
+    mockGet.mockResolvedValue('garbage')
+    const { status, json } = await callGET('test-session-id')
+    expect(status).toBe(500)
+    expect((json as { error: string }).error).toBe('Session not found')
+  })
 })

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import { normalizeSession } from '@/lib/normalizeSession'
 
 export const maxDuration = 10
 
@@ -13,9 +13,15 @@ export async function GET(
     return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   }
   try {
-    const session = await redis.get<SessionPayload>(`session:${sessionId}`)
-    if (!session) {
+    const raw = await redis.get<unknown>(`session:${sessionId}`)
+    if (!raw) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
+    // Single client-facing boundary: undo cjson []-vs-{} shape drift from Lua writes.
+    const session = normalizeSession(raw)
+    if (!session) {
+      console.error('Session GET error: stored value is not a session object')
+      return NextResponse.json({ error: 'Session not found' }, { status: 500 })
     }
     // Flat model: every field is safe to return (no host-only secrets in schema).
     // currencyCode and all other SessionPayload fields flow to the client automatically.
