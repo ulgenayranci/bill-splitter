@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 import { reconcileScannedBill, itemsReconcileTarget } from '@/lib/reconcileScannedBill'
+import { repairFromPriceColumn } from '@/lib/repairScannedPrices'
 
 // Read OPENAI_API_KEY from server-only env. NEVER prefix with NEXT_PUBLIC_.
 // (T-2-01 mitigation — see 02-RESEARCH.md Security Domain.)
@@ -15,13 +16,15 @@ function getOpenAI(): OpenAI {
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
-{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null, "confidence": string }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null, "serviceFeeCents": number | null, "taxCents": number | null }
+{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null, "confidence": string }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null, "serviceFeeCents": number | null, "taxCents": number | null, "printedAmountsCents": number[] }
 Rules:
 - All cents values must be integers (e.g. $12.99 -> 1299). NEVER use floats.
 - quantity must be a positive integer (default 1 if not shown).
 - unitPriceCents: the price per SINGLE unit, if the receipt prints a per-unit price. If only a line/extended total is shown, set unitPriceCents to null.
 - lineTotalCents: the extended/line total for ALL units of this line (e.g. "2 × Beer 4.50 ... 9.00" -> lineTotalCents 900). If only a per-unit price is shown, set lineTotalCents to null.
 - Provide whichever of unitPriceCents / lineTotalCents the receipt actually prints; set the other to null. Provide BOTH when both are printed. Do NOT compute or guess the missing one — leave it null.
+- printedAmountsCents: every money amount printed in the items' price column, top to bottom, exactly as printed, ignoring item names. One entry per printed amount. Do NOT include subtotal, tax, service or total amounts.
+- When a row shows a quantity and only ONE amount, check whether the amounts add up to the subtotal as printed (line totals) or only after multiplying by quantity (unit prices); most receipts print LINE TOTALS — use lineTotalCents in that case.
 - name should be a short readable description (3-6 words max).
 - Exclude subtotals, tax / VAT lines, tip, service charge / service fee / coperto / cover charge, and total lines from "items".
 - Include EVERY line the receipt prints, in order — including repeated identical items (e.g. several separate "AYRAN" lines). Never skip, drop, or silently lose a duplicate. If you combine identical lines into one, raise its quantity so the line total still covers all of them.
@@ -46,6 +49,8 @@ interface OcrItem {
   lineTotalCents: number | null
   /** Model's own doubt about this line; coerced to the closed set, default 'high'. */
   confidence: 'high' | 'low'
+  /** Set only when the route itself changed this line's figures (self-correction). */
+  autoFixed?: true
 }
 interface OcrParsed {
   items: OcrItem[]
@@ -58,6 +63,8 @@ interface OcrParsed {
   serviceFeeCents: number | null
   /** Tax ADDED ON TOP of item prices (summed), in integer cents. null when tax is included in prices or absent. */
   taxCents: number | null
+  /** The independently read price column (positive integers) — [] when absent/corrupt. */
+  printedAmountsCents: number[]
 }
 
 /**
@@ -66,7 +73,20 @@ interface OcrParsed {
  * this target as its `subtotalCents` option (locked decision 3).
  */
 function reconcileTarget(pass: OcrParsed): number | null {
-  return itemsReconcileTarget(pass.subtotalCents, pass.grandTotalCents, pass.serviceFeeCents, pass.taxCents)
+  // Sums that can vouch for a candidate target when the printed maths disagree.
+  const sums: number[] = [reconcileScannedBill(pass.items).completeness.reconciledSumCents]
+  if (pass.printedAmountsCents.length > 0) {
+    sums.push(pass.printedAmountsCents.reduce((a, b) => a + b, 0))
+  }
+  return itemsReconcileTarget(pass.subtotalCents, pass.grandTotalCents, pass.serviceFeeCents, pass.taxCents, sums)
+}
+
+/** Self-correct a pass against the receipt's own printed maths (see lib/repairScannedPrices). */
+function repairPass(pass: OcrParsed): OcrParsed {
+  const { items, method } = repairFromPriceColumn(pass.items, pass.printedAmountsCents, reconcileTarget(pass))
+  if (method === 'none') return pass
+  console.log(`OCR self-correction applied: ${method} (${items.filter((i) => i.autoFixed).length} lines changed)`)
+  return { ...pass, items }
 }
 
 // Coerce a candidate to a positive integer cents value, else null.
@@ -124,7 +144,14 @@ function parseOcrResponse(content: string | null | undefined): OcrParsed | null 
 
   const taxCents = toIntCentsOrNull((parsed as { taxCents?: unknown }).taxCents)
 
-  return { items, currencyCode, subtotalCents, grandTotalCents, serviceFeeCents, taxCents }
+  // A corrupted column (any non-positive-integer entry) must never be re-paired by position.
+  const rawColumn = (parsed as { printedAmountsCents?: unknown }).printedAmountsCents
+  const printedAmountsCents =
+    Array.isArray(rawColumn) && rawColumn.every((v) => Number.isInteger(v) && (v as number) > 0)
+      ? (rawColumn as number[])
+      : []
+
+  return { items, currencyCode, subtotalCents, grandTotalCents, serviceFeeCents, taxCents, printedAmountsCents }
 }
 
 /**
@@ -184,8 +211,17 @@ async function runOcrPass(
             grandTotalCents: { type: ['integer', 'null'] },
             serviceFeeCents: { type: ['integer', 'null'] },
             taxCents: { type: ['integer', 'null'] },
+            printedAmountsCents: { type: 'array', items: { type: 'integer' } },
           },
-          required: ['items', 'currencyCode', 'subtotalCents', 'grandTotalCents', 'serviceFeeCents', 'taxCents'],
+          required: [
+            'items',
+            'currencyCode',
+            'subtotalCents',
+            'grandTotalCents',
+            'serviceFeeCents',
+            'taxCents',
+            'printedAmountsCents',
+          ],
           additionalProperties: false,
         },
       },
@@ -229,11 +265,13 @@ export async function POST(request: Request) {
     const openai = getOpenAI()
 
     // Pass 1.
-    const pass1 = await runOcrPass(openai, image)
-    if (!pass1) {
+    const rawPass1 = await runOcrPass(openai, image)
+    if (!rawPass1) {
       console.error('OCR error: empty/malformed response from gpt-4.1-mini (pass 1)')
       return NextResponse.json({ error: 'OCR failed' }, { status: 500 })
     }
+    // Self-correct BEFORE deciding whether a retry is needed.
+    const pass1 = repairPass(rawPass1)
 
     // Reconcile pass 1 to decide whether a corrective retry is warranted. We only
     // retry when the receipt printed a truth figure (pre-tax subtotal, else grand
@@ -251,14 +289,19 @@ export async function POST(request: Request) {
         `Your previous reading summed to ${formatCentsPlain(reconciledSum)} but the printed total is ` +
         `${formatCentsPlain(subtotal)} (off by ${formatCentsPlain(delta)}). You likely missed or ` +
         `miscounted a repeated line. Re-read every line — including identical duplicates — and return ` +
-        `the corrected full list.`
+        `the corrected full list. The receipt's own figures say the items must total ` +
+        `${formatCentsPlain(subtotal)} (grand total minus service and tax). Read the items' price column ` +
+        `top to bottom: each amount belongs to the item on the SAME row — do not shift prices between rows. ` +
+        `These amounts are usually LINE TOTALS (already multiplied by quantity). Fill printedAmountsCents ` +
+        `with that column.`
 
       console.log(
         `OCR pass 1 checksum mismatch (delta ${delta} cents) — running corrective retry (pass 2)`,
       )
 
       try {
-        const pass2 = await runOcrPass(openai, image, extraInstruction)
+        const rawPass2 = await runOcrPass(openai, image, extraInstruction)
+        const pass2 = rawPass2 ? repairPass(rawPass2) : null
         if (pass2) {
           // Keep whichever pass reconciles closer to the printed total.
           best = passMismatchMagnitude(pass2) < passMismatchMagnitude(pass1) ? pass2 : pass1
