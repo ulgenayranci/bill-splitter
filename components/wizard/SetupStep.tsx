@@ -10,7 +10,7 @@ import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
 import { createSession } from '@/lib/createSession'
 import { reconcileScannedBill, itemsReconcileTarget, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
 import { flagScannedLines, shouldForceScanReview } from '@/lib/scanSanityChecks'
-import { formatCents, computeSubtotalCents } from '@/lib/billMath'
+import { formatCents, computeSubtotalCents, currencyDecimals } from '@/lib/billMath'
 import { OcrLoadingOverlay } from './OcrLoadingOverlay'
 import { BillPhotoLightbox } from './BillPhotoLightbox'
 
@@ -27,6 +27,9 @@ import { BillPhotoLightbox } from './BillPhotoLightbox'
  * Continue is gated on a scanned bill AND ≥2 people (D-11), then bridges to
  * the existing Assign flow as a stopgap (D-12).
  */
+/** Items shown in the post-scan preview before "Show all". */
+const PREVIEW_COUNT = 3
+
 export function SetupStep() {
   const router = useRouter()
   const items = useBillStore((s) => s.items)
@@ -53,6 +56,7 @@ export function SetupStep() {
 
   const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [itemsExpanded, setItemsExpanded] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [sessionCreateError, setSessionCreateError] = useState<string | null>(null)
@@ -96,6 +100,22 @@ export function SetupStep() {
   // items don't reconcile to it (mismatch after the server's retry). The scan check is
   // persisted in the store, so this survives refresh.
   const reviewMode = Boolean(scanCheck?.mismatch && scanCheck.targetCents != null)
+
+  // Compact scanned-items preview: live items total vs the receipt's target.
+  const itemsSumCents = computeSubtotalCents(items)
+  const scanTargetCents = scanCheck?.targetCents ?? null
+  const scanMatches =
+    scanTargetCents != null && Math.abs(scanTargetCents - itemsSumCents) <= TOLERANCE_CENTS
+  const scanOffCents =
+    scanTargetCents != null && !scanMatches ? Math.abs(scanTargetCents - itemsSumCents) : null
+  // Bare amount without the currency code, so preview rows stay short (IDR "33,000", EUR "12.50").
+  const formatAmount = (cents: number) => {
+    const decimals = currencyDecimals(currencyCode)
+    return (cents / 10 ** decimals).toLocaleString(undefined, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })
+  }
   // Live items sum recomputed from the store so the gap updates as the user edits.
   const liveSumCents = computeSubtotalCents(items)
   const targetCents = scanCheck?.targetCents ?? null
@@ -393,48 +413,88 @@ export function SetupStep() {
 
       {/* Scan tile (empty) OR receipt thumbnail (after scan) */}
       {billScanned ? (
-        // Scanned bill review container: photo + Retake / Edit.
+        // Scanned bill review container: compact header (thumbnail, count, total,
+        // Retake / Edit) + a short item preview that fades out until expanded.
         <div data-testid="scanned-bill-review">
-          <button
-            type="button"
-            onClick={() => billImageUrl && setLightboxOpen(true)}
-            disabled={!billImageUrl}
-            aria-label="View bill photo"
-            className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-xl border border-zinc-200 [background:repeating-linear-gradient(45deg,#f5ece2,#f5ece2_8px,#fdf6ef_8px,#fdf6ef_16px)] enabled:cursor-pointer"
-          >
-            {billImageUrl ? (
-              <img
-                src={billImageUrl}
-                alt="Captured bill photo"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <Receipt size={22} className="text-coral-700/40" aria-hidden="true" />
+          <div className="rounded-xl border border-border bg-white px-3 py-2.5">
+            <div className="flex items-center gap-3 border-b border-n100 pb-2.5">
+              <button
+                type="button"
+                onClick={() => billImageUrl && setLightboxOpen(true)}
+                disabled={!billImageUrl}
+                aria-label="View bill photo"
+                className="flex h-14 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-n50 enabled:cursor-pointer"
+              >
+                {billImageUrl ? (
+                  <img src={billImageUrl} alt="Captured bill photo" className="h-full w-full object-cover" />
+                ) : (
+                  <Receipt size={18} className="text-n400" aria-hidden="true" />
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-[15px] font-semibold text-zinc-900">
+                  <Check size={14} strokeWidth={3} className="text-coral-500" aria-hidden="true" />
+                  {items.length} {items.length === 1 ? 'item' : 'items'} found
+                </p>
+                <p data-testid="scanned-items-total" className="text-[12px] leading-snug text-n600">
+                  {formatCents(itemsSumCents, currencyCode)}
+                  {scanMatches && ' · matches receipt'}
+                  {scanOffCents != null && (
+                    <span className="text-warn-strong"> · off by {formatCents(scanOffCents, currencyCode)}</span>
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Retake"
+                onClick={() => {
+                  setScanCheck(null)
+                  setServiceFeeCents(null)
+                  setTaxCents(null)
+                  fileInputRef.current?.click()
+                }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-white text-zinc-700"
+              >
+                <RotateCcw size={15} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                aria-label="Edit"
+                onClick={() => setStep(2)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-white text-zinc-700"
+              >
+                <Pencil size={15} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="relative">
+              <ul data-testid="scanned-items-preview" className="text-[13px]">
+                {(itemsExpanded ? items : items.slice(0, PREVIEW_COUNT)).map((item) => (
+                  <li key={item.id} className="flex justify-between gap-2 border-b border-n100 py-1.5 last:border-b-0">
+                    <span className="min-w-0 truncate text-zinc-900">
+                      {(item.quantity ?? 1) > 1 && <span className="mr-1 text-n500">{item.quantity}×</span>}
+                      {item.name}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-zinc-900">{formatAmount(item.priceCents)}</span>
+                  </li>
+                ))}
+              </ul>
+              {!itemsExpanded && items.length > PREVIEW_COUNT && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-b from-white/0 to-white"
+                />
+              )}
+            </div>
+            {items.length > PREVIEW_COUNT && (
+              <button
+                type="button"
+                onClick={() => setItemsExpanded((v) => !v)}
+                aria-expanded={itemsExpanded}
+                className="pt-1.5 text-[12px] font-semibold text-stone underline underline-offset-2"
+              >
+                {itemsExpanded ? 'Show less' : `Show all ${items.length}`}
+              </button>
             )}
-            <span className="absolute left-2 top-2 flex items-center gap-1.5 rounded-full bg-coral-500 px-2.5 py-1 text-[11px] font-bold text-white">
-              <Check size={10} strokeWidth={3} aria-hidden="true" />
-              {items.length} {items.length === 1 ? 'item' : 'items'} found
-            </span>
-          </button>
-          <div className="mt-2 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-24"
-              onClick={() => {
-                setScanCheck(null)
-                setServiceFeeCents(null)
-                setTaxCents(null)
-                fileInputRef.current?.click()
-              }}
-            >
-              <RotateCcw size={13} aria-hidden="true" />
-              Retake
-            </Button>
-            <Button type="button" variant="outline" className="w-24" onClick={() => setStep(2)}>
-              <Pencil size={13} aria-hidden="true" />
-              Edit
-            </Button>
           </div>
           {serviceFeeCents != null && serviceFeeCents > 0 && (
             <p data-testid="service-fee-status" className="mt-2 text-[12px] text-n600">

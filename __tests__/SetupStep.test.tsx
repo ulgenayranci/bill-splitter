@@ -406,12 +406,51 @@ describe('SetupStep — scanned bill review container + auto-open edit screen', 
     expect(clickSpy).toHaveBeenCalled()
   })
 
-  it('photo frame is 192px (h-48), not h-24', () => {
+  it('shows a compact thumbnail, the item count and the items total', () => {
     seedPriorScan()
     renderInProvider(<SetupStep />)
     const photo = screen.getByRole('button', { name: /view bill photo/i })
-    expect(photo.className).toContain('h-48')
-    expect(photo.className).not.toContain('h-24')
+    expect(photo.className).toContain('h-14')
+    expect(screen.getByText('2 items found')).toBeTruthy()
+    expect(screen.getByTestId('scanned-items-total').textContent).toContain('17.98')
+    expect(screen.getByRole('button', { name: 'Retake' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+  })
+
+  it('previews the first 3 items with a "Show all" toggle when there are more', () => {
+    const store = useBillStore.getState()
+    store.setItems(
+      ['A', 'B', 'C', 'D', 'E'].map((n, i) => ({
+        id: `i${i}`, name: `Dish ${n}`, priceCents: 1000, quantity: 1, confidence: 'high' as const,
+      })),
+    )
+    store.setBillImage('data:image/jpeg;base64,PRIOR')
+    renderInProvider(<SetupStep />)
+    const preview = screen.getByTestId('scanned-items-preview')
+    expect(preview.querySelectorAll('li')).toHaveLength(3)
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 5' }))
+    expect(preview.querySelectorAll('li')).toHaveLength(5)
+    fireEvent.click(screen.getByRole('button', { name: 'Show less' }))
+    expect(preview.querySelectorAll('li')).toHaveLength(3)
+  })
+
+  it('has no "Show all" toggle when every item already fits', () => {
+    seedPriorScan()
+    renderInProvider(<SetupStep />)
+    expect(screen.getByTestId('scanned-items-preview').querySelectorAll('li')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: /show all/i })).toBeNull()
+  })
+
+  it('says "matches receipt" when items equal the receipt target, else "off by"', () => {
+    seedPriorScan()
+    const store = useBillStore.getState()
+    store.setScanCheck({ correctedCount: 0, mismatch: false, targetCents: 1798, hasSubtotal: true })
+    const { unmount } = renderInProvider(<SetupStep />)
+    expect(screen.getByTestId('scanned-items-total').textContent).toContain('matches receipt')
+    unmount()
+    store.setScanCheck({ correctedCount: 0, mismatch: true, targetCents: 2000, hasSubtotal: true })
+    renderInProvider(<SetupStep />)
+    expect(screen.getByTestId('scanned-items-total').textContent).toContain('off by')
   })
 
   it('"Confirm & continue" proceeds while a gap remains (soft gate, from persisted scanCheck)', () => {
