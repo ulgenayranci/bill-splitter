@@ -1,0 +1,24 @@
+{
+  "people": [
+    { "id": "p1", "name": "Alice", "colorIndex": 0 },
+    { "id": "p2", "name": "Bob", "colorIndex": 1 },
+    { "id": "p3", "name": "Cem", "colorIndex": 2 }
+  ],
+  "items": [
+    { "id": "i1", "name": "Pizza", "priceCents": 1200, "quantity": 1 },
+    { "id": "i2", "name": "Beer", "priceCents": 1500, "quantity": 3 },
+    { "id": "i3", "name": "Salad", "priceCents": 800, "quantity": 1 }
+  ],
+  "claims": {
+    "items": {
+      "i1": { "p1": { "qty": 1 } },
+      "i2": { "p1": { "qty": 1 }, "p2": { "qty": 2 } },
+      "i3": { "p2": { "qty": 1 }, "p3": { "qty": 1 } }
+    },
+    "personSlots": [],
+    "donePeople": { "p1": true }
+  },
+  "tips": { "p1": 200 },
+  "currencyCode": "EUR",
+  "createdAt": 1782000000000
+}
