@@ -57,7 +57,11 @@ Full details: [milestones/v2.0-ROADMAP.md](milestones/v2.0-ROADMAP.md)
   2. With empty-named seats in a bill, tax and service split equally across all seats and each person's shares add up to the exact total (no cent lost or gained)
   3. Two friends pressing "I'm done" or saving a tip at the same moment both keep their change (neither overwrites the other or any person list change)
   4. A bill can never be created with more than 20 people
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — Seat helpers (lib/seats.ts), Person.guestNumber, MAX_PEOPLE cap on POST /api/session, billMath empty-seat proof (RESULTS-06)
+- [ ] 12-02-PLAN.md — done + tip routes converted to field-level atomic Lua (lib/sessionLua.ts), contract unchanged (REL-04)
+- [ ] 12-03-PLAN.md — []-vs-{} normalizeSession at GET boundary + frozen v2.0 session back-compat suite (REL-04)
 
 ### Phase 13: Seat Server Operations + Real-Redis Gate
 **Goal**: The server can safely claim, add, and remove seats under simultaneous use, and this is proven by running the database scripts against a real local Redis, not mocks
