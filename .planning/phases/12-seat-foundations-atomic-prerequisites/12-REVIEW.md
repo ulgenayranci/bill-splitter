@@ -156,3 +156,10 @@ If Turkish-correct casing is wanted, pass `'tr'` explicitly and use it the same 
 _Reviewed: 2026-10-06T13:05:25Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+
+## Resolution (2026-10-06)
+
+- WR-03, WR-04, WR-05: fixed in quick task 261006-mu4.
+- WR-01, WR-02: carried to Phase 13 (REL-01 / REL-03 real-Redis harness).
+- Info items: no action now; IN-04 cases to be covered by the Phase 13 harness.
