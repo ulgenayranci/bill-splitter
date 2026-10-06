@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: easy-billsy Redesign
-status: Awaiting next milestone
-last_updated: "2026-06-23T23:22:53.839Z"
-last_activity: 2026-06-24 — Completed quick task 260624-j9b: deleted v2.0 dead code (retired wizard, UnclaimedBanner, /api/clarify, OcrErrorToast)
+milestone: v2.1
+milestone_name: Faster people setup
+status: planning
+last_updated: "2026-10-06T11:59:03.310Z"
+last_activity: 2026-10-06
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -32,10 +32,10 @@ See: .planning/PROJECT.md (updated 2026-06-24)
 
 ## Current Position
 
-Phase: Milestone v2.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-29 - Completed quick task 260929-lxp: Service fee as auto-shared locked bill item
+Status: Defining requirements
+Last activity: 2026-10-06 — Milestone v2.1 started
 
 ## Performance Metrics (v1.0 final)
 
@@ -203,6 +203,7 @@ Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 b
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone
+
 | 2026-10-01 | fast | Dev button gallery page at /dev/buttons | ✅ |
 | 2026-10-01 | fast | Wordmark 20px, ink colour, coral "billsy" (a77e9ad) | ✅ |
 | 2026-10-01 | fast | Remove header bottom border (0b4a9a0) | ✅ |

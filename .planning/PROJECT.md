@@ -50,6 +50,20 @@ Anyone splitting a restaurant bill with friends. Built for broad use, not just p
 
 Mobile-friendly web app. Works on any phone via browser, no install needed. Can be pinned to home screen.
 
+## Current Milestone: v2.1 Faster people setup
+
+**Goal:** Replace typing every name with a headcount, so a group gets from scan to splitting in a few taps.
+
+**Target features:**
+- "How many people?" −/+ counter on Setup, pre-filled from the receipt's printed guest count (Pax / Covers / Guests) when OCR finds one
+- Person who scans types only her own name; the remaining N−1 people are empty seats
+- On the share link, "Who are you?" lists seats; a friend picks ANY empty seat and types their name; "+ I'm not listed" adds a seat
+- Empty (unclaimed) seats count as people — they pay an equal share of tax and service
+- Live seat management on the Bill View: anyone can add a seat; anyone can remove a seat only while it is empty (no name, no claims) — flat model, no host role
+- No "seats still empty" nudge — the group is trusted to count themselves
+
+**Key context:** Flat model stays (no host role, no name locking). Removing people who have joined/claimed stays out of scope (prior descope). Mobile-only (375px); design rules: stone primary, white outline, coral only for warnings/chips. Screens approved as mockups 2026-10-06.
+
 ## Latest Milestone: v2.0 easy-billsy Redesign — ✅ SHIPPED 2026-06-24
 
 **Goal (met):** Rebuilt the bill splitter as "easy-billsy" — a clarity-driven, scan-first flow with no host role, so a casual table anywhere (any currency) can split fast without friction.
@@ -58,7 +72,7 @@ Mobile-friendly web app. Works on any phone via browser, no install needed. Can 
 
 **Deferred:** Bill history (inert "History" stub now; saved splits → v2.1+); live remove-person (descoped — setup-screen remove retained).
 
-**Next:** No milestone in flight — run `/gsd:new-milestone` to scope v2.1.
+**Next:** v2.1 Faster people setup (in progress).
 
 ## Requirements
 
@@ -83,9 +97,15 @@ Mobile-friendly web app. Works on any phone via browser, no install needed. Can 
 - ✓ Tip via a Results-screen modal (prominent button) — v2.0 Phases 10/11 (TIP-02, TIP-03)
 - ✓ Rename participants live (flat no-lock) — v2.0 Phase 11 (PART-03..05)
 
-### Active (v2.1 — not yet scoped)
+### Active (v2.1 — Faster people setup)
 
-- Run `/gsd:new-milestone` to define v2.1 requirements. Candidate carry-overs: bill history (saved splits), live remove-person (needs a real Redis/Lua execution test), and a user-facing privacy disclosure (open TODO).
+- [ ] Headcount counter on Setup, pre-filled from receipt guest count
+- [ ] Host enters only her own name; other people are empty seats
+- [ ] Friends pick any empty seat on the share link and name themselves
+- [ ] Empty seats share tax and service equally
+- [ ] Live add seat / remove empty seat (anyone)
+
+Carried over (not in v2.1): bill history (saved splits), live remove-person of joined people, user-facing privacy disclosure (open TODO).
 
 ### Out of Scope (v1) / Deferred to v2
 
@@ -138,4 +158,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 **Stack:** Next.js 16, React 19, Tailwind v4, shadcn/ui, Zustand, Upstash Redis, GPT-4o-mini vision. Live on Vercel.
 
-*Last updated: 2026-06-24 after v2.0 milestone completion*
+*Last updated: 2026-10-06 — started milestone v2.1 Faster people setup*
