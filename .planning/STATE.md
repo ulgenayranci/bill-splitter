@@ -152,6 +152,7 @@ None.
 | fast | Setup scan review: Retake and Edit buttons same width (w-24). | 2026-10-01 | 180c23a | Complete | — |
 | fast | Setup screen helper/status text darker (n600). 426/426 tests. | 2026-10-01 | 53e2bae | Complete | — |
 | 261001-ld5 | Tax as auto-shared locked bill item (OCR taxCents added-on-top only, equal split like service fee, Tax card, results/tip/grand totals, setup status line). 458/458 tests. | 2026-10-01 | 4ac63b9 | | [261001-ld5-tax-as-auto-shared-locked-bill-item-like](./quick/261001-ld5-tax-as-auto-shared-locked-bill-item-like/) |
+| 261006-gpu | OCR guardrails: force review on doubtful scans (mismatch / no printed total / flagged lines). Per-line AI confidence + sanity checks (non-item words, qty>10, 10× median price) with reason chips on review screen. 513/513 tests. | 2026-10-06 | 9058420 | | [261006-gpu-ocr-guardrails-force-review-on-doubtful-](./quick/261006-gpu-ocr-guardrails-force-review-on-doubtful-/) |
 | fast | Split page Items claimed label ink (foreground) + bg-border divider, matching setup Who's involved. 458/458 tests. | 2026-10-01 | 075d293 | Complete | — |
 | fast | ProgressStrip empty segments white (all pages via shared component). 458/458 tests. | 2026-10-01 | c2a2506 | Complete | — |
 | fast | Setup people count chip coral-500 fill + white bold text (matches items-found badge). 458/458 tests. | 2026-10-01 | 92d3a08 | Complete | — |
