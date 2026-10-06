@@ -13,30 +13,50 @@ export function isEmptySeat(person: Pick<Person, 'name'>): boolean {
   return typeof person.name !== 'string' || person.name.trim() === ''
 }
 
-/** Display label: name if claimed, else "Guest N" (stored number, then ordinal among empty seats), else "Guest". Never blank. */
+/**
+ * Guest number for every empty seat without a valid stored number: the smallest numbers not
+ * already stored on anyone, assigned in people order. Keeps labels unique when stored and
+ * unnumbered seats mix (v2.0 sessions, ADD_PERSON_SCRIPT seats).
+ */
+function fallbackGuestNumbers(people: readonly Person[]): Map<string, number> {
+  const taken = new Set<number>()
+  for (const p of people) if (isValidGuestNumber(p.guestNumber)) taken.add(p.guestNumber)
+  const assigned = new Map<string, number>()
+  let n = 0
+  for (const p of people) {
+    if (!isEmptySeat(p) || isValidGuestNumber(p.guestNumber)) continue
+    do n++
+    while (taken.has(n))
+    assigned.set(p.id, n)
+  }
+  return assigned
+}
+
+/** Display label: name if claimed, else "Guest N" (stored number, then first unused number among empty seats), else "Guest". Never blank. */
 export function seatLabel(person: Person, people?: readonly Person[]): string {
   if (!isEmptySeat(person)) return person.name
   if (isValidGuestNumber(person.guestNumber)) return `Guest ${person.guestNumber}`
-  if (people) {
-    const empties = people.filter(isEmptySeat)
-    const idx = empties.findIndex((e) => e.id === person.id)
-    if (idx >= 0) return `Guest ${idx + 1}`
-  }
-  return 'Guest'
+  const n = people ? fallbackGuestNumbers(people).get(person.id) : undefined
+  return n !== undefined ? `Guest ${n}` : 'Guest'
 }
 
-/** Avatar initial: first code point of the trimmed name upper-cased, or "?" for an empty seat. */
+/**
+ * Avatar initial: first code point of the trimmed name upper-cased, or "?" for an empty seat.
+ * Locale-independent toUpperCase() so server and every phone agree (a tr-TR phone would turn
+ * "i" into "İ"); re-split so a multi-character upper case ("ß" -> "SS") stays one character.
+ */
 export function seatInitial(person: Pick<Person, 'name'>): string {
   if (isEmptySeat(person)) return '?'
   const first = Array.from(person.name.trim())[0]
-  return first.toLocaleUpperCase()
+  return Array.from(first.toUpperCase())[0]
 }
 
-/** Next stable guest number: 1 + max valid guestNumber across all people (1 when none). */
+/** Next stable guest number: 1 + the highest number in use, stored or fallback-assigned (1 when none). */
 export function nextGuestNumber(people: readonly Person[]): number {
   let max = 0
   for (const person of people) {
     if (isValidGuestNumber(person.guestNumber) && person.guestNumber > max) max = person.guestNumber
   }
+  for (const n of fallbackGuestNumbers(people).values()) if (n > max) max = n
   return max + 1
 }

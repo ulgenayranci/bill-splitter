@@ -46,3 +46,14 @@ describe('field scope', () => {
     expect(TIP_SCRIPT).not.toContain('donePeople')
   })
 })
+
+describe('WR-04: people null-guards', () => {
+  it.each([
+    ['DONE_SCRIPT', DONE_SCRIPT],
+    ['TIP_SCRIPT', TIP_SCRIPT],
+  ])('%s returns invalid_session when people is not a table and skips non-table entries', (_n, script) => {
+    expect(script).toContain("if type(session.people) ~= 'table' then return 'invalid_session' end")
+    expect(script).toContain("type(p) == 'table' and p.id == personId")
+    expect(script).not.toContain('session.people or {}')
+  })
+})

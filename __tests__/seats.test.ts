@@ -75,8 +75,12 @@ describe('nextGuestNumber', () => {
   it('named with guestNumber counts', () => {
     expect(nextGuestNumber([p('n', 'N', 7), p('a', '', 2)])).toBe(8)
   })
-  it('ignores invalid values', () => {
-    expect(nextGuestNumber([p('a', '', 0), p('b', '', 1.5)])).toBe(1)
+  it('ignores invalid stored values but counts those seats as fallback-numbered (Guest 1, Guest 2)', () => {
+    expect(nextGuestNumber([p('a', '', 0), p('b', '', 1.5)])).toBe(3)
+  })
+  it('accounts for unnumbered empty seats so a new seat never duplicates a label (WR-03)', () => {
+    expect(nextGuestNumber([p('n', 'N'), p('a', ''), p('b', '')])).toBe(3)
+    expect(nextGuestNumber([p('x', 'X')])).toBe(1)
   })
 })
 
@@ -97,5 +101,33 @@ describe('people bounds', () => {
   it('exports 20 and 2', () => {
     expect(MAX_PEOPLE).toBe(20)
     expect(MIN_PEOPLE).toBe(2)
+  })
+})
+
+describe('WR-03: labels stay unique when stored and unnumbered seats mix', () => {
+  const labels = (list: Person[]) => list.filter(isEmptySeat).map((x) => seatLabel(x, list))
+  it('unnumbered seat skips a number already stored on another seat', () => {
+    expect(labels([p('a', '', 2), p('b', '')])).toEqual(['Guest 2', 'Guest 1'])
+  })
+  it('skips numbers stored on any person, including a seat later claimed', () => {
+    expect(labels([p('n', 'Ana', 1), p('b', ''), p('c', '')])).toEqual(['Guest 2', 'Guest 3'])
+  })
+  it('a seat added with nextGuestNumber never duplicates an existing label', () => {
+    const list = [p('n', 'N'), p('a', ''), p('b', '', 1)]
+    const added = p('new', '', nextGuestNumber(list))
+    const all = labels([...list, added])
+    expect(new Set(all).size).toBe(all.length)
+  })
+  it('v2.0-style seats with no guestNumber still read Guest 1, Guest 2 in order', () => {
+    expect(labels([p('n', 'N'), p('a', ''), p('b', '')])).toEqual(['Guest 1', 'Guest 2'])
+  })
+})
+
+describe('WR-05: seatInitial is locale-independent and one character', () => {
+  it('upper-cases i to I regardless of the device locale', () => {
+    expect(seatInitial({ name: 'irem' })).toBe('I')
+  })
+  it('keeps a single character when upper case expands (ß -> S)', () => {
+    expect(seatInitial({ name: 'ßeta' })).toBe('S')
   })
 })

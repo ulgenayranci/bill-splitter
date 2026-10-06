@@ -4,7 +4,9 @@
  * Why: the old done/tip routes did GET -> spread -> SET in JavaScript and could
  * silently revert a concurrent people[] change (PITFALLS Pitfall 4 / CR-01).
  * Each script below reads and writes the session inside one Redis script and
- * mutates exactly one per-person field. redis.multi() is NOT atomic on Upstash
+ * mutates exactly one per-person field, so done/tip can no longer clobber other
+ * writers. NOTE: the /edit route's item ops still GET -> spread -> SET in JS and
+ * can still revert a concurrent done/tip write (review WR-01) — Phase 13 (REL-01). redis.multi() is NOT atomic on Upstash
  * REST, so Lua eval is required.
  *
  * Kept in an importable module (not route-local) because Next.js route files
@@ -21,7 +23,7 @@
  * Returns:
  *   'OK'                - written
  *   'session_not_found' - key missing
- *   'invalid_session'   - stored value is not valid JSON
+ *   'invalid_session'   - stored value is not valid JSON, or people is not a list
  *   'invalid_args'      - ARGV[2] is neither 'true' nor 'false'
  *   'person_not_found'  - personId is not in session.people
  */
@@ -32,9 +34,10 @@ local ok, session = pcall(cjson.decode, raw)
 if not ok or type(session) ~= 'table' then return 'invalid_session' end
 local personId = ARGV[1]
 if ARGV[2] ~= 'true' and ARGV[2] ~= 'false' then return 'invalid_args' end
+if type(session.people) ~= 'table' then return 'invalid_session' end
 local found = false
-for _, p in ipairs(session.people or {}) do
-  if p.id == personId then found = true break end
+for _, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == personId then found = true break end
 end
 if not found then return 'person_not_found' end
 -- Empty tables decoded from [] become objects on assignment of a string key; other fields' shape is normalised at the fetch boundary, not here.
@@ -55,7 +58,7 @@ return 'OK'
  * Returns:
  *   'OK'                - written
  *   'session_not_found' - key missing
- *   'invalid_session'   - stored value is not valid JSON
+ *   'invalid_session'   - stored value is not valid JSON, or people is not a list
  *   'invalid_args'      - ARGV[2] is not a non-negative integer
  *   'person_not_found'  - personId is not in session.people
  */
@@ -67,9 +70,10 @@ if not ok or type(session) ~= 'table' then return 'invalid_session' end
 local personId = ARGV[1]
 local tip = tonumber(ARGV[2])
 if tip == nil or tip < 0 or tip % 1 ~= 0 then return 'invalid_args' end
+if type(session.people) ~= 'table' then return 'invalid_session' end
 local found = false
-for _, p in ipairs(session.people or {}) do
-  if p.id == personId then found = true break end
+for _, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == personId then found = true break end
 end
 if not found then return 'person_not_found' end
 -- Empty tables decoded from [] become objects on assignment of a string key; other fields' shape is normalised at the fetch boundary, not here.
