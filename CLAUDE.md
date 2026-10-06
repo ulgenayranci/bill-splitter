@@ -106,16 +106,13 @@ No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skill
 <!-- GSD:skills-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->
-## GSD Workflow Enforcement
+## Workflow (GSD retired 2026-10-06)
 
-Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
-
-Use these entry points:
-- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
-- `/gsd-debug` for investigation and bug fixing
-- `/gsd-execute-phase` for planned phase work
-
-Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+The user stopped using GSD commands — too slow for this project. Work directly, no research/plan/check/verify agents, no worktrees. Keep these basics on every change:
+- Run `npx vitest run`, `npx tsc --noEmit` and `npm run build` before pushing; commit and push to main; confirm the Vercel deployment reaches READY (redeploy on transient Google Fonts build failures).
+- For anything touching the shared live bill (Redis/Lua, concurrent taps), do a quick hands-on check against the real database through the local app.
+- Add one row per change to the "Quick Tasks Completed" table in `.planning/STATE.md` so parallel chats can see what happened.
+- Ask the user at real decision points and show visible results early (mobile, 375px).
 <!-- GSD:workflow-end -->
 
 
