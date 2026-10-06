@@ -15,7 +15,7 @@ function getOpenAI(): OpenAI {
 
 const RECEIPT_PROMPT = `You are a receipt parser. Extract every line item and its price from this receipt image.
 Return ONLY valid JSON matching this schema exactly:
-{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null, "serviceFeeCents": number | null, "taxCents": number | null }
+{ "items": [{ "name": string, "quantity": number, "unitPriceCents": number | null, "lineTotalCents": number | null, "confidence": string }], "currencyCode": string, "subtotalCents": number | null, "grandTotalCents": number | null, "serviceFeeCents": number | null, "taxCents": number | null }
 Rules:
 - All cents values must be integers (e.g. $12.99 -> 1299). NEVER use floats.
 - quantity must be a positive integer (default 1 if not shown).
@@ -30,7 +30,8 @@ Rules:
 - serviceFeeCents (top level): the printed service charge, service fee, coperto or cover charge AMOUNT (if printed as a percentage, use the printed money amount next to it). Never put it in items. null if none is printed. Do not invent it.
 - taxCents (top level) is ONLY tax that is ADDED ON TOP of the item prices, i.e. a separate tax line that increases the total beyond the items subtotal (e.g. "Subtotal 100.00, Tax 8.00, Total 108.00" -> 800). If several tax lines are added on top (e.g. state tax + city tax), sum them. If tax or VAT is only shown as INCLUDED in the prices (e.g. "VAT incl.", "incl. VAT", "KDV dahil", "inkl. MwSt", "TVA incluse", or a tax breakdown whose amount is already inside the total), set taxCents to null, because charging it again would double-charge people. Many receipts (Turkey, Europe) include tax in prices, so when in doubt whether tax was added on top, use null. Never put tax in items. Do not invent it.
 - Self-check before answering: the sum of all line totals (lineTotalCents, or unitPriceCents × quantity) should equal subtotalCents (the pre-tax items subtotal). If it does not, you have missed or miscounted a line — re-read and correct it.
-- If you cannot read an item clearly, include your best guess.
+- confidence (per item) is "high" when the line's name, quantity and price were clearly printed and read; "low" when the line was hard to read (faded, cut off, blurry, overlapping), or when the quantity or price was guessed/inferred rather than read.
+- If you cannot read an item clearly, include your best guess and mark it confidence "low".
 - currencyCode: the receipt's currency as a 3-letter ISO 4217 code (e.g. "USD", "EUR", "GBP", "JPY"). Infer it from the currency symbol, tax wording, language, or locale on the receipt. If you cannot determine the currency, use "USD".`
 
 // Vercel Hobby tier allows up to 60s. A failed-checksum scan triggers ONE retry
@@ -43,6 +44,8 @@ interface OcrItem {
   quantity: number
   unitPriceCents: number | null
   lineTotalCents: number | null
+  /** Model's own doubt about this line; coerced to the closed set, default 'high'. */
+  confidence: 'high' | 'low'
 }
 interface OcrParsed {
   items: OcrItem[]
@@ -99,7 +102,8 @@ function parseOcrResponse(content: string | null | undefined): OcrParsed | null 
         Number.isInteger(i.quantity) && (i.quantity as number) > 0 ? (i.quantity as number) : 1
       const unitPriceCents = toIntCentsOrNull(i.unitPriceCents)
       const lineTotalCents = toIntCentsOrNull(i.lineTotalCents)
-      return { name, quantity, unitPriceCents, lineTotalCents }
+      const confidence: 'high' | 'low' = i.confidence === 'low' ? 'low' : 'high'
+      return { name, quantity, unitPriceCents, lineTotalCents, confidence }
     })
     .filter(
       (i): i is OcrItem =>
@@ -167,10 +171,11 @@ async function runOcrPass(
                   // the "absent" signal (the receipt didn't print this figure).
                   unitPriceCents: { type: ['integer', 'null'] },
                   lineTotalCents: { type: ['integer', 'null'] },
+                  confidence: { type: 'string', enum: ['high', 'low'] },
                 },
                 // Strict mode requires EVERY property to appear in `required`;
                 // optionality is encoded by the null union above, not by omission.
-                required: ['name', 'quantity', 'unitPriceCents', 'lineTotalCents'],
+                required: ['name', 'quantity', 'unitPriceCents', 'lineTotalCents', 'confidence'],
                 additionalProperties: false,
               },
             },
