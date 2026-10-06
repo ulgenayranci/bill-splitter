@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
+import ippudoFixture from './fixtures/ippudo-ocr-output.json'
+
 process.env.OPENAI_API_KEY = 'test-key'
 
 // vi.mock MUST be set up before the route module is imported. Vitest hoists
@@ -563,6 +565,61 @@ describe('app/api/ocr/route.ts (POST handler)', () => {
       createMock.mockResolvedValue(mockContent({ ...base, taxCents: 800 }))
       await callPOST({ image: 'data:image/jpeg;base64,abc' })
       expect(createMock).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('self-correction (printedAmountsCents)', () => {
+    const IPPUDO_PRINTED = [33000, 44000, 114000, 19000, 86000, 99000, 96000, 165000, 210000, 405000, 198000, 38000]
+
+    it('strict schema requires printedAmountsCents as an integer array', async () => {
+      createMock.mockResolvedValue(
+        mockContent({
+          items: [{ name: 'A', quantity: 1, unitPriceCents: null, lineTotalCents: 500 }],
+          currencyCode: 'USD',
+          subtotalCents: 500,
+        }),
+      )
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      const schema = createMock.mock.calls[0][0].response_format.json_schema.schema
+      expect(schema.required).toContain('printedAmountsCents')
+      expect(schema.properties.printedAmountsCents).toEqual({ type: 'array', items: { type: 'integer' } })
+    })
+
+    it('repairs the Ippudo failure in ONE call and flags changed lines', async () => {
+      createMock.mockResolvedValue(mockContent({ ...ippudoFixture, printedAmountsCents: IPPUDO_PRINTED }))
+      const { status, json } = await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      expect(status).toBe(200)
+      expect(createMock).toHaveBeenCalledTimes(1)
+      const body = json as { items: { lineTotalCents: number; autoFixed?: boolean }[] }
+      expect(body.items.map((i) => i.lineTotalCents)).toEqual(IPPUDO_PRINTED)
+      expect(body.items[1].autoFixed).toBe(true)
+      expect('autoFixed' in body.items[0]).toBe(false)
+      expect('printedAmountsCents' in (json as object)).toBe(false)
+    })
+
+    it('treats a corrupted price column as absent', async () => {
+      createMock.mockResolvedValue(
+        mockContent({ ...ippudoFixture, printedAmountsCents: [...IPPUDO_PRINTED.slice(0, 11), -5] }),
+      )
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      // No repair possible -> mismatch -> retry (second call).
+      expect(createMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('retry prompt carries the trusted target and the price-column hint', async () => {
+      createMock.mockResolvedValue(
+        mockContent({
+          items: [{ name: 'Ayran', quantity: 1, unitPriceCents: null, lineTotalCents: 1200 }],
+          currencyCode: 'TRY',
+          subtotalCents: 2400,
+        }),
+      )
+      await callPOST({ image: 'data:image/jpeg;base64,abc' })
+      const retryPromptText = createMock.mock.calls[1][0].messages[0].content[0].text as string
+      expect(retryPromptText).toContain('printed total')
+      expect(retryPromptText).toContain('identical duplicates')
+      expect(retryPromptText).toContain('24.00')
+      expect(retryPromptText).toContain('price column')
     })
   })
 })

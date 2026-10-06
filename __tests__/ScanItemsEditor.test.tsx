@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { ScanItemsEditor } from '@/components/wizard/ScanItemsEditor'
 import { useBillStore } from '@/stores/useBillStore'
+import { SCAN_FLAG_REASONS } from '@/lib/scanSanityChecks'
 
 type CheckOverride = { mismatch: boolean; targetCents: number; hasSubtotal: boolean }
 
@@ -179,5 +180,35 @@ describe('ScanItemsEditor', () => {
     fireEvent.change(price, { target: { value: '10.50' } })
     fireEvent.blur(price)
     await waitFor(() => expect(screen.queryByTestId('scan-line-flag')).toBeNull())
+  })
+
+  it('shows an auto-fixed chip on flagged lines', () => {
+    seed()
+    useBillStore.setState((s) => ({
+      items: s.items.map((i) => (i.id === 'i1' ? { ...i, scanFlag: SCAN_FLAG_REASONS.autoFixed } : i)),
+    }))
+    render(<ScanItemsEditor />)
+    expect(screen.getByTestId('scan-line-flag').textContent).toContain('Auto-fixed — please check')
+  })
+
+  it('opens and closes the receipt photo from the review screen', () => {
+    seed()
+    useBillStore.getState().setBillImage('data:image/jpeg;base64,abc')
+    render(<ScanItemsEditor />)
+    const btn = screen.getByTestId('scan-review-photo')
+    expect(btn.getAttribute('aria-label')).toBe('View receipt photo')
+    expect(btn.textContent).toContain('View receipt')
+    expect(btn.querySelector('img')).not.toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Bill photo' })).toBeNull()
+    fireEvent.click(btn)
+    expect(screen.getByRole('dialog', { name: 'Bill photo' })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog', { name: 'Bill photo' })).toBeNull()
+  })
+
+  it('renders no receipt control without a photo', () => {
+    seed()
+    render(<ScanItemsEditor />)
+    expect(screen.queryByTestId('scan-review-photo')).toBeNull()
   })
 })

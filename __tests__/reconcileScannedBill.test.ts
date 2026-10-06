@@ -149,8 +149,22 @@ describe('reconcileScannedBill — completeness', () => {
 })
 
 describe('itemsReconcileTarget', () => {
-  it('printed subtotal wins; fee ignored', () => {
-    expect(itemsReconcileTarget(2000, 2700, 500)).toBe(2000)
+  it('printed subtotal wins when printed maths agree; fee ignored', () => {
+    expect(itemsReconcileTarget(2000, 2500, 500)).toBe(2000)
+  })
+  it('maths disagree (tip inside total): subtotal kept when the items agree with it', () => {
+    expect(itemsReconcileTarget(2000, 2700, 500, null, [2000])).toBe(2000)
+  })
+  it('maths disagree and nothing agrees: grand total minus fee and tax is the truth', () => {
+    expect(itemsReconcileTarget(2000, 2700, 500)).toBe(2200)
+    expect(itemsReconcileTarget(2000, 2700, 500, null, [1900])).toBe(2200)
+  })
+  it('maths disagree: price-column sum agreeing with the derived candidate wins (Ippudo)', () => {
+    expect(itemsReconcileTarget(1507490, 1773739, 105490, 161249)).toBe(1507000)
+    expect(itemsReconcileTarget(1507490, 1773739, 105490, 161249, [1507000])).toBe(1507000)
+  })
+  it('no fee or tax printed: subtotal kept', () => {
+    expect(itemsReconcileTarget(2000, 2700, null, null)).toBe(2000)
   })
   it('grand total minus fee when no subtotal', () => {
     expect(itemsReconcileTarget(null, 2500, 500)).toBe(2000)

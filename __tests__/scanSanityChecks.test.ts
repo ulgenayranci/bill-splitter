@@ -202,3 +202,14 @@ describe('shouldForceScanReview', () => {
     ).toEqual(['no-items', 'mismatch', 'no-total', 'flagged-lines'])
   })
 })
+
+describe('autoFixed flag precedence', () => {
+  it('autoFixed wins over quantity/price/hardToRead', () => {
+    const { lineFlags } = flagScannedLines([L({ autoFixed: true, quantity: 20, confidence: 'low' })])
+    expect(lineFlags[0]).toBe(SCAN_FLAG_REASONS.autoFixed)
+  })
+  it('nonItem still wins over autoFixed', () => {
+    const { lineFlags } = flagScannedLines([L({ autoFixed: true, name: 'Service charge' })])
+    expect(lineFlags[0]).toBe(SCAN_FLAG_REASONS.nonItem)
+  })
+})

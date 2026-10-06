@@ -144,7 +144,7 @@ export function SetupStep() {
 
       // Raw OCR lines (per-unit and/or line-total may each be null) + printed totals.
       let ocrItems:
-        | { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null }[]
+        | { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null; autoFixed?: boolean }[]
         | null = null
       let ocrSubtotalCents: number | null = null
       let ocrGrandTotalCents: number | null = null
@@ -178,7 +178,7 @@ export function SetupStep() {
         })
         if (!res.ok) throw new Error(`OCR route returned ${res.status}`)
         const data = (await res.json()) as {
-          items: { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null; confidence?: 'high' | 'low' }[]
+          items: { name: string; quantity: number; unitPriceCents: number | null; lineTotalCents: number | null; confidence?: 'high' | 'low'; autoFixed?: boolean }[]
           currencyCode?: string
           subtotalCents?: number | null
           grandTotalCents?: number | null
@@ -234,7 +234,15 @@ export function SetupStep() {
       // it just receives the chosen target as its subtotalCents option.
       // The service fee and tax are not items: the target subtracts them from the grand-total
       // fallback so they neither cause nor hide an "Off by" (DD-3).
-      const targetCents = itemsReconcileTarget(ocrSubtotalCents, ocrGrandTotalCents, ocrServiceFeeCents, ocrTaxCents)
+      // When the printed maths disagree, the route's (possibly repaired) items vouch for
+      // the subtotal if they sum to it; otherwise the grand-total-derived figure wins.
+      const targetCents = itemsReconcileTarget(
+        ocrSubtotalCents,
+        ocrGrandTotalCents,
+        ocrServiceFeeCents,
+        ocrTaxCents,
+        [reconcileScannedBill(ocrItems).completeness.reconciledSumCents],
+      )
       setServiceFeeCents(ocrServiceFeeCents)
       setTaxCents(ocrTaxCents)
       const reconciled = reconcileScannedBill(ocrItems, { subtotalCents: targetCents })
