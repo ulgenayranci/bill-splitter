@@ -1,7 +1,8 @@
 import { nanoid } from 'nanoid'
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import { MAX_PEOPLE, type SessionPayload } from '@/lib/sessionSchema'
+import { isValidGuestNumber } from '@/lib/seats'
 import type { Person, Item } from '@/stores/useBillStore'
 
 export const maxDuration = 10
@@ -14,7 +15,8 @@ function isValidPeople(v: unknown): v is Person[] {
     return (
       typeof r.id === 'string' &&
       typeof r.name === 'string' &&
-      typeof r.colorIndex === 'number'
+      typeof r.colorIndex === 'number' &&
+      (r.guestNumber === undefined || isValidGuestNumber(r.guestNumber))
     )
   })
 }
@@ -44,6 +46,10 @@ export async function POST(request: Request) {
   }
   const b = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
 
+  // T-12-01: cap people before any validation work or Redis write
+  if (Array.isArray(b.people) && b.people.length > MAX_PEOPLE) {
+    return NextResponse.json({ error: `Too many people (max ${MAX_PEOPLE})` }, { status: 400 })
+  }
   if (!isValidPeople(b.people)) {
     return NextResponse.json({ error: 'Invalid people' }, { status: 400 })
   }
@@ -78,7 +84,13 @@ export async function POST(request: Request) {
     const sessionId = nanoid()
     // Flat model: claims start empty — no host pre-assignment, no approval queue (CLAIM-01/03)
     const payload: SessionPayload = {
-      people: b.people,
+      // T-12-02: whitelist person keys; unknown keys are stripped
+      people: b.people.map((p) => ({
+        id: p.id,
+        name: p.name,
+        colorIndex: p.colorIndex,
+        ...(p.guestNumber !== undefined ? { guestNumber: p.guestNumber } : {}),
+      })),
       items: b.items,
       claims: { items: {}, personSlots: {}, donePeople: {} },
       tips: {},

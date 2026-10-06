@@ -165,3 +165,74 @@ describe('POST /api/session', () => {
     }
   })
 })
+
+describe('POST /api/session — seats and people cap', () => {
+  const items = [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }]
+  const mk = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ id: `p${i}`, name: `P${i}`, colorIndex: 0 }))
+
+  it('accepts exactly 20 people', async () => {
+    mockSet.mockResolvedValue('OK')
+    const { status } = await callPOST({ people: mk(20), items })
+    expect(status).toBe(200)
+    expect(mockSet).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(mockSet.mock.calls[0][1] as string).people).toHaveLength(20)
+  })
+
+  it('rejects 21 people with 400 and writes nothing', async () => {
+    const { status, json } = await callPOST({ people: mk(21), items })
+    expect(status).toBe(400)
+    expect((json as { error: string }).error).toBe('Too many people (max 20)')
+    expect(mockSet).not.toHaveBeenCalled()
+  })
+
+  it('accepts an empty seat with guestNumber and stores it', async () => {
+    mockSet.mockResolvedValue('OK')
+    const { status } = await callPOST({
+      people: [
+        { id: 'p1', name: 'Ana', colorIndex: 0 },
+        { id: 's1', name: '', colorIndex: 1, guestNumber: 1 },
+      ],
+      items,
+    })
+    expect(status).toBe(200)
+    const stored = JSON.parse(mockSet.mock.calls[0][1] as string)
+    expect(stored.people[1].name).toBe('')
+    expect(stored.people[1].guestNumber).toBe(1)
+  })
+
+  it('rejects invalid guestNumber values', async () => {
+    for (const gn of [0, -1, 1.5, '2', 1000]) {
+      mockSet.mockReset()
+      vi.resetModules()
+      const { status, json } = await callPOST({
+        people: [{ id: 's1', name: '', colorIndex: 1, guestNumber: gn }],
+        items,
+      })
+      expect(status).toBe(400)
+      expect((json as { error: string }).error).toBe('Invalid people')
+      expect(mockSet).not.toHaveBeenCalled()
+    }
+  })
+
+  it('strips unknown person keys', async () => {
+    mockSet.mockResolvedValue('OK')
+    await callPOST({
+      people: [{ id: 'p1', name: 'Ana', colorIndex: 0, isHost: true, foo: 'x' }],
+      items,
+    })
+    const stored = JSON.parse(mockSet.mock.calls[0][1] as string)
+    expect(Object.keys(stored.people[0]).sort()).toEqual(['colorIndex', 'id', 'name'])
+  })
+
+  it('v2.0-shaped body stores no guestNumber key', async () => {
+    mockSet.mockResolvedValue('OK')
+    const { status } = await callPOST({
+      people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }],
+      items,
+    })
+    expect(status).toBe(200)
+    const stored = JSON.parse(mockSet.mock.calls[0][1] as string)
+    expect('guestNumber' in stored.people[0]).toBe(false)
+  })
+})
