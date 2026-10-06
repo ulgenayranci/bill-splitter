@@ -14,7 +14,7 @@ Waiting on Phase 13 real-Redis harness (REL-03) — not a manual user test.
 
 ### 1. DONE_SCRIPT / TIP_SCRIPT execute correctly on real Redis
 expected: Lua scripts in lib/sessionLua.ts run against a real Redis (local redis-server via Homebrew, Phase 13): concurrent done + tip both persist; person_not_found / invalid_args returned; cjson empty-table shapes (claims, tips, items) round-trip without breaking later writes (review WR-02, WR-04)
-result: pending
+result: partial — 2026-10-06 smoke run against the real Upstash DB via the local app (throwaway session, 24h TTL): concurrent done(pA)+tip(pB) both 200 and both persisted; ghost personId → 400 "Invalid personId: not in session"; empty-name seat with guestNumber 1 stored and read back; personSlots normalised to {}. Still pending in Phase 13: full real-Redis harness incl. WR-02 (empty items shape) and WR-04 (null people).
 
 ## Summary
 
