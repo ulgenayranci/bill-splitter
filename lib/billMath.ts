@@ -1,8 +1,38 @@
 import type { Item, ItemId, Person, PersonId } from '@/stores/useBillStore'
 
-/** Parse user-typed dollar string → integer cents. Returns null if invalid or zero. */
-export function parseCents(value: string): number | null {
+/**
+ * Minor-unit digits the app uses for a currency (2 for USD/EUR/TRY, 0 for JPY/KRW/IDR).
+ * Mirrors formatCents: Intl's minimumFractionDigits, defaulting to 2.
+ */
+export function currencyDecimals(currencyCode?: string): number {
+  if (!currencyCode) return 2
+  try {
+    return (
+      new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).resolvedOptions()
+        .minimumFractionDigits ?? 2
+    )
+  } catch {
+    return 2
+  }
+}
+
+/** Integer cents → editable input string ("12.50" for EUR, "33000" for IDR). */
+export function centsToInput(cents: number, currencyCode?: string): string {
+  return currencyDecimals(currencyCode) === 0 ? String(cents) : (cents / 100).toFixed(2)
+}
+
+/**
+ * Parse a user-typed price → integer cents (minor units). Returns null if invalid or zero.
+ * Zero-decimal currencies (IDR, JPY, KRW) take whole amounts and accept thousands
+ * separators ("33000", "33,000", "33.000").
+ */
+export function parseCents(value: string, currencyCode?: string): number | null {
   const trimmed = value.trim()
+  if (currencyDecimals(currencyCode) === 0) {
+    if (!/^(\d+|\d{1,3}([.,\s]\d{3})+)$/.test(trimmed)) return null
+    const whole = parseInt(trimmed.replace(/[.,\s]/g, ''), 10)
+    return whole === 0 ? null : whole
+  }
   if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return null
   const cents = Math.round(parseFloat(trimmed) * 100)
   if (cents === 0) return null // reject zero-price items

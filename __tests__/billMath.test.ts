@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseCents,
+  centsToInput,
+  currencyDecimals,
   formatCents,
   computeSubtotalCents,
   computeTipCents,
@@ -621,5 +623,49 @@ describe('computePersonShareFromClaims with tax share', () => {
     const r = computePersonShareFromClaims('p1', items, claims, 100)
     expect(r.tax).toBe(0)
     expect(r.total).toBe(1100)
+  })
+})
+
+describe('zero-decimal currencies (IDR / JPY / KRW)', () => {
+  it('currencyDecimals: 0 for IDR/JPY/KRW, 2 for EUR/TRY and when unknown', () => {
+    expect(currencyDecimals('IDR')).toBe(0)
+    expect(currencyDecimals('JPY')).toBe(0)
+    expect(currencyDecimals('KRW')).toBe(0)
+    expect(currencyDecimals('EUR')).toBe(2)
+    expect(currencyDecimals('TRY')).toBe(2)
+    expect(currencyDecimals(undefined)).toBe(2)
+    expect(currencyDecimals('')).toBe(2)
+  })
+
+  it('centsToInput shows whole amounts for IDR and 2 decimals for EUR', () => {
+    expect(centsToInput(33000, 'IDR')).toBe('33000')
+    expect(centsToInput(1250, 'EUR')).toBe('12.50')
+    expect(centsToInput(1250)).toBe('12.50')
+  })
+
+  it('parseCents takes whole IDR amounts, with or without thousands separators', () => {
+    expect(parseCents('33000', 'IDR')).toBe(33000)
+    expect(parseCents('33,000', 'IDR')).toBe(33000)
+    expect(parseCents('33.000', 'IDR')).toBe(33000)
+    expect(parseCents('1,507,000', 'IDR')).toBe(1507000)
+    expect(parseCents(' 33000 ', 'IDR')).toBe(33000)
+  })
+
+  it('parseCents rejects decimals, malformed grouping and zero for IDR', () => {
+    expect(parseCents('330.50', 'IDR')).toBeNull()
+    expect(parseCents('33,00', 'IDR')).toBeNull()
+    expect(parseCents('0', 'IDR')).toBeNull()
+    expect(parseCents('abc', 'IDR')).toBeNull()
+  })
+
+  it('round-trips: what the editor shows parses back to the same amount', () => {
+    expect(parseCents(centsToInput(33000, 'IDR'), 'IDR')).toBe(33000)
+    expect(parseCents(centsToInput(1250, 'EUR'), 'EUR')).toBe(1250)
+  })
+
+  it('2-decimal behaviour unchanged', () => {
+    expect(parseCents('12.50', 'EUR')).toBe(1250)
+    expect(parseCents('12.50')).toBe(1250)
+    expect(parseCents('12,50', 'EUR')).toBeNull()
   })
 })

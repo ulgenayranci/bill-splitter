@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { BillPhotoLightbox } from "./BillPhotoLightbox";
 import { useBillStore } from "@/stores/useBillStore";
 import { TOLERANCE_CENTS } from "@/lib/reconcileScannedBill";
-import { formatCents, parseCents, computeSubtotalCents } from "@/lib/billMath";
+import { formatCents, parseCents, centsToInput, computeSubtotalCents } from "@/lib/billMath";
 
 /**
  * Edit-scanned-items screen (store step 2). Counts as the Setup step in the
@@ -64,7 +64,7 @@ export function ScanItemsEditor() {
   const draftFor = (item: (typeof items)[number]) =>
     reviewDrafts[item.id] ?? {
       name: item.name,
-      price: (item.priceCents / 100).toFixed(2),
+      price: centsToInput(item.priceCents, currencyCode),
       qty: String(item.quantity ?? 1),
     };
 
@@ -87,7 +87,7 @@ export function ScanItemsEditor() {
     const draft = reviewDrafts[item.id];
     if (!draft) return;
     const trimmedName = draft.name.trim() || item.name;
-    const priceCents = parseCents(draft.price);
+    const priceCents = parseCents(draft.price, currencyCode);
     const qty = Number.parseInt(draft.qty, 10);
     const nextQty =
       Number.isInteger(qty) && qty > 0 ? qty : (item.quantity ?? 1);
@@ -225,8 +225,8 @@ export function ScanItemsEditor() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") commitRow(item);
                     }}
-                    maxLength={9}
-                    className="h-10 w-20 bg-white text-base"
+                    maxLength={12}
+                    className="h-10 w-32 bg-white text-base"
                   />
                   <Input
                     aria-label="Quantity"

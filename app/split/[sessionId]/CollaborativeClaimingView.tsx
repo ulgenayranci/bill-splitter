@@ -14,7 +14,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Check, X, Plus, Pencil, Share2, Trash2 } from 'lucide-react'
-import { parseCents } from '@/lib/billMath'
+import { parseCents, centsToInput } from '@/lib/billMath'
 import type { SessionPayload } from '@/lib/sessionSchema'
 import type { ItemId, PersonId, Person } from '@/stores/useBillStore'
 import { useBillStore } from '@/stores/useBillStore'
@@ -472,7 +472,7 @@ export function CollaborativeClaimingView({
       if (inlineForm.kind === 'add') {
         const trimmed = inlineForm.name.trim()
         if (!trimmed) { setInlineForm({ ...inlineForm, error: 'Enter a name', errorField: 'name' }); return }
-        const priceCents = parseCents(inlineForm.price)
+        const priceCents = parseCents(inlineForm.price, session?.currencyCode)
         if (!priceCents || priceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price', errorField: 'price' }); return }
         const res = await fetch(`/api/session/${sessionId}/edit`, {
           method: 'POST',
@@ -485,7 +485,7 @@ export function CollaborativeClaimingView({
         // Send edit_name and/or edit_price/edit_quantity for whatever changed
         const trimmedName = inlineForm.name.trim()
         if (!trimmedName) { setInlineForm({ ...inlineForm, error: 'Enter a name', errorField: 'name' }); return }
-        const newPriceCents = parseCents(inlineForm.price)
+        const newPriceCents = parseCents(inlineForm.price, session?.currencyCode)
         if (!newPriceCents || newPriceCents <= 0) { setInlineForm({ ...inlineForm, error: 'Enter a valid price', errorField: 'price' }); return }
         const nameChanged = trimmedName !== inlineForm.originalName
         const priceChanged = inlineForm.price.trim() !== inlineForm.originalPrice
@@ -666,7 +666,7 @@ export function CollaborativeClaimingView({
         {session.items.map((item) => {
           const claimsForItem = session.claims?.items?.[item.id] ?? {}
           const isEditing = inlineForm?.kind === 'edit' && inlineForm.itemId === item.id
-          const originalPrice = (item.priceCents / 100).toFixed(2)
+          const originalPrice = centsToInput(item.priceCents, session.currencyCode)
           const isSingleQty = (item.quantity ?? 1) <= 1
           return (
             <li key={item.id} id={`item-${item.id}`} className="flex flex-col gap-1">

@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { NextResponse } from 'next/server'
 import { reconcileScannedBill, itemsReconcileTarget } from '@/lib/reconcileScannedBill'
 import { repairFromPriceColumn } from '@/lib/repairScannedPrices'
+import { centsToInput } from '@/lib/billMath'
 
 // Read OPENAI_API_KEY from server-only env. NEVER prefix with NEXT_PUBLIC_.
 // (T-2-01 mitigation — see 02-RESEARCH.md Security Domain.)
@@ -238,9 +239,9 @@ function passMismatchMagnitude(pass: OcrParsed): number {
   return Math.abs(completeness.deltaCents)
 }
 
-/** Format integer cents as a plain decimal string (e.g. 2297 -> "22.97") for the retry message. */
-function formatCentsPlain(cents: number): string {
-  return (cents / 100).toFixed(2)
+/** Format minor units as a plain amount for the retry message (2297 -> "22.97"; IDR 33000 -> "33000"). */
+function formatCentsPlain(cents: number, currencyCode?: string): string {
+  return centsToInput(cents, currencyCode)
 }
 
 export async function POST(request: Request) {
@@ -286,11 +287,11 @@ export async function POST(request: Request) {
       const subtotal = target1
       const delta = Math.abs(recon1.completeness.deltaCents)
       const extraInstruction =
-        `Your previous reading summed to ${formatCentsPlain(reconciledSum)} but the printed total is ` +
-        `${formatCentsPlain(subtotal)} (off by ${formatCentsPlain(delta)}). You likely missed or ` +
+        `Your previous reading summed to ${formatCentsPlain(reconciledSum, pass1.currencyCode)} but the printed total is ` +
+        `${formatCentsPlain(subtotal, pass1.currencyCode)} (off by ${formatCentsPlain(delta, pass1.currencyCode)}). You likely missed or ` +
         `miscounted a repeated line. Re-read every line — including identical duplicates — and return ` +
         `the corrected full list. The receipt's own figures say the items must total ` +
-        `${formatCentsPlain(subtotal)} (grand total minus service and tax). Read the items' price column ` +
+        `${formatCentsPlain(subtotal, pass1.currencyCode)} (grand total minus service and tax). Read the items' price column ` +
         `top to bottom: each amount belongs to the item on the SAME row — do not shift prices between rows. ` +
         `These amounts are usually LINE TOTALS (already multiplied by quantity). Fill printedAmountsCents ` +
         `with that column.`
