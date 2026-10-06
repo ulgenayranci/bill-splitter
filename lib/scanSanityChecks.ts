@@ -10,6 +10,7 @@ export const SCAN_FLAG_REASONS = {
   quantity: 'Unusual quantity',
   price: 'Unusual price',
   nonItem: 'Looks like a total/tax line',
+  autoFixed: 'Auto-fixed — please check',
 } as const
 
 export type ScanFlagReason = (typeof SCAN_FLAG_REASONS)[keyof typeof SCAN_FLAG_REASONS]
@@ -25,6 +26,8 @@ export interface ScanSanityLine {
   priceCents: number
   unitPriceCents?: number
   confidence?: 'high' | 'low' | 'ambiguous'
+  /** True when the app changed this line's figures itself. */
+  autoFixed?: boolean
 }
 
 // Intentionally conservative: whole words only (letter/digit lookarounds), so real
@@ -76,6 +79,7 @@ export function flagScannedLines(lines: ScanSanityLine[]): {
 
   const lineFlags = lines.map((l, idx): ScanFlagReason | null => {
     if (NON_ITEM_RE.test(l.name)) return SCAN_FLAG_REASONS.nonItem
+    if (l.autoFixed) return SCAN_FLAG_REASONS.autoFixed
     if (l.quantity > MAX_PLAUSIBLE_QUANTITY) return SCAN_FLAG_REASONS.quantity
     if (med > 0 && units[idx] > PRICE_OUTLIER_FACTOR * med) return SCAN_FLAG_REASONS.price
     if (l.confidence === 'low' || l.confidence === 'ambiguous') return SCAN_FLAG_REASONS.hardToRead

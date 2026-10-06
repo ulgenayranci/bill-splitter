@@ -29,6 +29,8 @@ export interface ReconcileInputLine {
   lineTotalCents?: number | null
   /** Optional passthrough confidence; copied unchanged onto the reconciled item. */
   confidence?: 'high' | 'low' | 'ambiguous'
+  /** True when the app itself changed this line's figures (price-column repair etc.). */
+  autoFixed?: boolean
 }
 
 /** One reconciled line — `priceCents` is the canonical LINE TOTAL consumed by billMath. */
@@ -42,6 +44,8 @@ export interface ReconciledItem {
   /** True when unit×qty disagreed with the printed total and the printed total was trusted. */
   corrected: boolean
   confidence?: 'high' | 'low' | 'ambiguous'
+  /** Passed through from the input line; present only when true. */
+  autoFixed?: boolean
 }
 
 /** Bill-level completeness signal — detection only, never mutates or adds items. */
@@ -78,6 +82,11 @@ function isUsablePrice(value: number | null | undefined): value is number {
 }
 
 function reconcileLine(raw: ReconcileInputLine): ReconciledItem {
+  const item = reconcileLineCore(raw)
+  return raw.autoFixed ? { ...item, autoFixed: true } : item
+}
+
+function reconcileLineCore(raw: ReconcileInputLine): ReconciledItem {
   const quantity = coerceQuantity(raw.quantity)
   const hasUnit = isUsablePrice(raw.unitPriceCents)
   const hasTotal = isUsablePrice(raw.lineTotalCents)
@@ -163,21 +172,45 @@ export function reconcileScannedBill(
   }
 }
 
+
 /**
- * The figure scanned items should reconcile against. The printed pre-tax subtotal wins
- * (service fee and tax ignored); otherwise the grand total MINUS any service fee and tax
- * (neither is an item, so they must neither cause nor hide an "Off by"); otherwise null.
+ * The figure scanned items should reconcile against.
+ *
+ * Consistent printed maths (subtotal + service + tax = grand total, or no subtotal/grand
+ * pair to compare): the printed pre-tax subtotal wins; otherwise the grand total MINUS any
+ * service fee and tax (neither is an item); otherwise null.
+ *
+ * Inconsistent printed maths (subtotal + service + tax != grand total beyond tolerance):
+ * one figure was misread, or a tip sits inside the total. Candidates are the printed
+ * subtotal and grandTotal - service - tax. If any `agreementSumsCents` entry (the sum of the
+ * independently read price column, or the reconciled items sum) matches a candidate within
+ * tolerance, that candidate is used. Otherwise the
+ * printed bill total is the truth: grandTotal - service - tax.
  */
 export function itemsReconcileTarget(
   subtotalCents: number | null | undefined,
   grandTotalCents: number | null | undefined,
   serviceFeeCents: number | null | undefined,
   taxCents?: number | null,
+  agreementSumsCents?: readonly number[],
 ): number | null {
-  if (isUsablePrice(subtotalCents)) return subtotalCents
+  const fee = isUsablePrice(serviceFeeCents) ? serviceFeeCents : 0
+  const tax = isUsablePrice(taxCents) ? taxCents : 0
+  if (isUsablePrice(subtotalCents)) {
+    if (isUsablePrice(grandTotalCents) && (fee > 0 || tax > 0)) {
+      const implied = grandTotalCents - fee - tax
+      if (Math.abs(subtotalCents + fee + tax - grandTotalCents) > TOLERANCE_CENTS && implied > 0) {
+        const agrees = (candidate: number) =>
+          (agreementSumsCents ?? []).some((s) => Math.abs(s - candidate) <= TOLERANCE_CENTS)
+        if (agrees(implied)) return implied
+        if (agrees(subtotalCents)) return subtotalCents
+        return implied
+      }
+    }
+    return subtotalCents
+  }
   if (isUsablePrice(grandTotalCents)) {
-    const target = grandTotalCents - (isUsablePrice(serviceFeeCents) ? serviceFeeCents : 0) -
-      (isUsablePrice(taxCents) ? taxCents : 0)
+    const target = grandTotalCents - fee - tax
     return target > 0 ? target : null
   }
   return null
