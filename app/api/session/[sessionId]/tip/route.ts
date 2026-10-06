@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import { TIP_SCRIPT } from '@/lib/sessionLua'
 
 export const maxDuration = 10
 
@@ -34,24 +34,20 @@ export async function POST(
   }
 
   try {
-    const session = await redis.get<SessionPayload>(`session:${sessionId}`)
-    if (!session) {
+    // Field-level atomic write (Pitfall 4 / CR-01): one Lua eval, no GET-spread-SET window.
+    // Real-Redis concurrency verification happens in Phase 13 (REL-03).
+    const result = await redis.eval(TIP_SCRIPT, [`session:${sessionId}`], [personId, String(tipCents)])
+    if (result === 'OK') {
+      return NextResponse.json({ ok: true })
+    }
+    if (result === 'session_not_found') {
       return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
     }
-    if (!session.people.some((p) => p.id === personId)) {
+    if (result === 'person_not_found') {
       return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
     }
-    // GAP-09-NOLOCK: slot lock guard removed — membership check above is the real authorization
-
-    // WR-01: Non-atomic read-modify-write. Concurrent tip writes from different people
-    // are safe (tips is keyed by personId). Same-person concurrent tip writes can race
-    // but are extremely unlikely (single confirm button). Acceptable for MVP.
-    const updated: SessionPayload = {
-      ...session,
-      tips: { ...(session.tips ?? {}), [personId]: tipCents },
-    }
-    await redis.set(`session:${sessionId}`, JSON.stringify(updated), { ex: 86400 })
-    return NextResponse.json({ ok: true })
+    console.error('Tip unexpected script result:', result)
+    return NextResponse.json({ error: 'Tip failed' }, { status: 500 })
   } catch (err) {
     console.error('Tip error:', err)
     return NextResponse.json({ error: 'Tip failed' }, { status: 500 })

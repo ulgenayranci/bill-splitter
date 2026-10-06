@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import { DONE_SCRIPT } from '@/lib/sessionLua'
 
 export const maxDuration = 10
 
@@ -28,30 +28,20 @@ export async function POST(
   const done = b.done
 
   try {
-    const session = await redis.get<SessionPayload>(`session:${sessionId}`)
-    if (!session) {
+    // Field-level atomic write (Pitfall 4 / CR-01): one Lua eval, no GET-spread-SET window.
+    // Real-Redis concurrency verification happens in Phase 13 (REL-03).
+    const result = await redis.eval(DONE_SCRIPT, [`session:${sessionId}`], [personId, String(done)])
+    if (result === 'OK') {
+      return NextResponse.json({ ok: true })
+    }
+    if (result === 'session_not_found') {
       return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
     }
-    // Validate personId is a known participant (real authorization — GAP-09-NOLOCK: no slot lock needed)
-    if (!session.people.some((p) => p.id === personId)) {
+    if (result === 'person_not_found') {
       return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
     }
-
-    // WR-01: This is a non-atomic read-modify-write. Two concurrent done/undone submissions
-    // from the same person in quick succession can race. This is acceptable here because:
-    // (a) donePeople is keyed by personId, so concurrent writes from *different* people are safe,
-    // (b) same-person concurrent done writes are extremely unlikely in practice (single button tap).
-    // A Lua-based atomic write would be the correct fix if this becomes a reliability concern.
-    const updated: SessionPayload = {
-      ...session,
-      claims: {
-        items: session.claims?.items ?? {},
-        personSlots: session.claims?.personSlots ?? {},
-        donePeople: { ...(session.claims?.donePeople ?? {}), [personId]: done },
-      },
-    }
-    await redis.set(`session:${sessionId}`, JSON.stringify(updated), { ex: 86400 })
-    return NextResponse.json({ ok: true })
+    console.error('Done unexpected script result:', result)
+    return NextResponse.json({ error: 'Done failed' }, { status: 500 })
   } catch (err) {
     console.error('Done error:', err)
     return NextResponse.json({ error: 'Done failed' }, { status: 500 })

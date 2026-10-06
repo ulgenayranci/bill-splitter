@@ -3,15 +3,17 @@ process.env.UPSTASH_REDIS_REST_URL = 'https://mock.upstash.io'
 process.env.UPSTASH_REDIS_REST_TOKEN = 'mock-token'
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { DONE_SCRIPT } from '@/lib/sessionLua'
 
 const mockGet = vi.fn()
 const mockSet = vi.fn()
-const mockMulti = vi.fn()
+const mockEval = vi.fn()
 
 vi.mock('@upstash/redis', () => ({
   Redis: class {
     get = mockGet
     set = mockSet
+    eval = mockEval
     multi = vi.fn().mockReturnValue({ set: vi.fn(), exec: vi.fn() })
   },
 }))
@@ -20,7 +22,7 @@ beforeEach(() => {
   vi.resetModules()
   mockGet.mockReset()
   mockSet.mockReset()
-  mockMulti.mockReset()
+  mockEval.mockReset()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
@@ -36,60 +38,70 @@ async function callPOSTWithParams(sessionId: string, body: unknown): Promise<{ s
   return { status: res.status, json: await res.json() }
 }
 
-const baseSession = {
-  people: [{ id: 'p1', name: 'Alice', colorIndex: 0 }, { id: 'p2', name: 'Bob', colorIndex: 1 }],
-  items: [{ id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1 }],
-  claims: { items: {}, personSlots: { p1: true }, donePeople: {} },
-  hostToken: 'host-token-abc',
-  hostPersonId: undefined,
-  tips: {},
-  editRequests: {},
-  disputes: {},
-  createdAt: Date.now(),
-}
-
 describe('POST /api/session/[sessionId]/done', () => {
-  it('Test 1: POST { personId, done: true } sets claims.donePeople[personId] = true via redis.set, returns { ok: true }', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    mockSet.mockResolvedValue('OK')
+  it('done:true evals DONE_SCRIPT atomically and returns { ok: true }', async () => {
+    mockEval.mockResolvedValue('OK')
     const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', done: true })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    expect(mockSet).toHaveBeenCalledTimes(1)
-    const savedPayload = JSON.parse(mockSet.mock.calls[0][1])
-    expect(savedPayload.claims.donePeople['p1']).toBe(true)
+    expect(json).toEqual({ ok: true })
+    expect(mockEval).toHaveBeenCalledTimes(1)
+    expect(mockEval).toHaveBeenCalledWith(DONE_SCRIPT, ['session:test-session'], ['p1', 'true'])
+    expect(mockGet).not.toHaveBeenCalled()
+    expect(mockSet).not.toHaveBeenCalled()
   })
 
-  it('Test 2: POST { personId, done: false } sets claims.donePeople[personId] = false (soft checkpoint per D-08), returns { ok: true }', async () => {
-    const sessionWithDone = {
-      ...baseSession,
-      claims: { ...baseSession.claims, donePeople: { p1: true } },
-    }
-    mockGet.mockResolvedValue(sessionWithDone)
-    mockSet.mockResolvedValue('OK')
+  it('done:false passes "false" (soft checkpoint D-08) and returns { ok: true }', async () => {
+    mockEval.mockResolvedValue('OK')
     const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', done: false })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    const savedPayload = JSON.parse(mockSet.mock.calls[0][1])
-    expect(savedPayload.claims.donePeople['p1']).toBe(false)
+    expect(json).toEqual({ ok: true })
+    expect(mockEval).toHaveBeenCalledWith(DONE_SCRIPT, ['session:test-session'], ['p1', 'false'])
   })
 
-  it('Test 3: Returns 404 when session not found', async () => {
-    mockGet.mockResolvedValue(null)
+  it('session_not_found -> 404', async () => {
+    mockEval.mockResolvedValue('session_not_found')
     const { status, json } = await callPOSTWithParams('missing-session', { personId: 'p1', done: true })
     expect(status).toBe(404)
-    expect(json).toBeDefined()
+    expect(json).toEqual({ error: 'session_not_found' })
   })
 
-  it('Test 4: Returns 400 when personId missing', async () => {
-    mockGet.mockResolvedValue(baseSession)
+  it('person_not_found -> 400 with v2.0 message', async () => {
+    mockEval.mockResolvedValue('person_not_found')
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p999', done: true })
+    expect(status).toBe(400)
+    expect(json).toEqual({ error: 'Invalid personId: not in session' })
+  })
+
+  it.each(['invalid_session', 'invalid_args', 'something_unexpected'])('eval result %s -> 500 generic', async (result) => {
+    mockEval.mockResolvedValue(result)
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', done: true })
+    expect(status).toBe(500)
+    expect(json).toEqual({ error: 'Done failed' })
+  })
+
+  it('eval throws -> 500 generic, message not leaked', async () => {
+    mockEval.mockRejectedValue(new Error('secret-redis-detail'))
+    const { status, json } = await callPOSTWithParams('test-session', { personId: 'p1', done: true })
+    expect(status).toBe(500)
+    expect(json).toEqual({ error: 'Done failed' })
+    expect(JSON.stringify(json)).not.toContain('secret-redis-detail')
+  })
+
+  it('missing personId -> 400, eval not called', async () => {
     const { status } = await callPOSTWithParams('test-session', { done: true })
     expect(status).toBe(400)
+    expect(mockEval).not.toHaveBeenCalled()
   })
 
-  it('Test 5: Returns 400 when done field missing or not boolean', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOSTWithParams('test-session', { personId: 'p1' })
+  it.each([{ personId: 'p1' }, { personId: 'p1', done: 'true' }])('bad done %j -> 400, eval not called', async (body) => {
+    const { status } = await callPOSTWithParams('test-session', body)
     expect(status).toBe(400)
+    expect(mockEval).not.toHaveBeenCalled()
+  })
+
+  it('invalid JSON -> 400, eval not called', async () => {
+    const { status } = await callPOSTWithParams('test-session', '{not json')
+    expect(status).toBe(400)
+    expect(mockEval).not.toHaveBeenCalled()
   })
 })
