@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Faster people setup
-status: planning
+status: ready_to_plan
 last_updated: "2026-10-06T11:59:03.310Z"
 last_activity: 2026-10-06
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -16,8 +16,8 @@ progress:
 # Project State
 
 **Project:** Bill Splitter
-**Milestone:** v2.0 — easy-billsy Redesign (✅ shipped 2026-06-24)
-**Last updated:** 2026-06-24
+**Milestone:** v2.1 — Faster people setup (roadmap created 2026-10-06; Phases 12–16)
+**Last updated:** 2026-10-06
 
 ---
 
@@ -26,16 +26,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24)
 
 **Core value:** Photo → items → each person picks what they had → everyone knows what they owe.
-**Current focus:** Planning next milestone (v2.1) — run `/gsd:new-milestone`
+**Current focus:** Phase 12 — Seat Foundations + Atomic Prerequisites (run `/gsd:plan-phase 12`)
 
 ---
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 12 of 16 (Seat Foundations + Atomic Prerequisites)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-10-06 — Milestone v2.1 started
+Status: Ready to plan
+Progress: [░░░░░░░░░░] 0% (0/5 phases)
+Last activity: 2026-10-06 — v2.1 roadmap created (5 phases, 22/22 requirements mapped)
 
 ## Performance Metrics (v1.0 final)
 
@@ -47,6 +48,8 @@ Last activity: 2026-10-06 — Milestone v2.1 started
 ## Accumulated Context
 
 ### Roadmap Evolution
+
+- 2026-10-06 — v2.1 roadmap created: Phases 12–16 (foundations; seat server ops + real-Redis Lua gate; OCR guestCount, parallelizable with 13; Setup headcount UI; identity picker + live seats + results). Locked decisions: Lua/DB tests run against a REAL local Redis (Homebrew, dev-only); minimum 2 seats; empty seats labelled "Guest N" with a stable number stored at creation (never renumbered); anyone can remove an EMPTY seat. A seat is a Person with name ''. Phase 13 needs Lua-harness research, Phase 14 needs real-receipt research; UI phases 15 and 16 need 375px UI contract review.
 
 - 2026-06-09 — v2.0 milestone reopened (was marked complete after Phase 10 execution, before UAT). Phase 11 added: "Bug Fixes & Polish — Bill/Results Screens + Participant Management" — post-v2 UAT bug list (receipt button non-functional; share/receipt buttons too small; unclaimed-items section + revised "all set" copy on Results; participant remove/edit; tip prominence + currency menu relocation). Not yet planned; needs discussion (open decisions on receipt-button intent, unclaimed phrasing, participant-removal handling of claimed items).
 

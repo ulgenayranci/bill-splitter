@@ -67,7 +67,30 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmap) | | |
+| REL-04 | Phase 12 | Pending |
+| RESULTS-06 | Phase 12 | Pending |
+| REL-01 | Phase 13 | Pending |
+| REL-02 | Phase 13 | Pending |
+| REL-03 | Phase 13 | Pending |
+| SEAT-03 | Phase 13 | Pending |
+| SEAT-04 | Phase 13 | Pending |
+| OCR-05 | Phase 14 | Pending |
+| SETUP-05 | Phase 15 | Pending |
+| SETUP-06 | Phase 15 | Pending |
+| SETUP-07 | Phase 15 | Pending |
+| SETUP-08 | Phase 15 | Pending |
+| SETUP-09 | Phase 15 | Pending |
+| IDENT-05 | Phase 16 | Pending |
+| IDENT-06 | Phase 16 | Pending |
+| IDENT-07 | Phase 16 | Pending |
+| IDENT-08 | Phase 16 | Pending |
+| IDENT-09 | Phase 16 | Pending |
+| RESULTS-07 | Phase 16 | Pending |
+| SEAT-01 | Phase 16 | Pending |
+| SEAT-02 | Phase 16 | Pending |
+| SEAT-05 | Phase 16 | Pending |
 
 ---
 *Requirements defined: 2026-10-06*
+
+**Coverage:** 22/22 v2.1 requirements mapped to exactly one phase.
