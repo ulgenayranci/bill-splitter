@@ -84,7 +84,20 @@ Plans:
   4. A seat with a name, picked items, a tip, or done status cannot be removed, and the bill never drops below 2 people
   5. Removing "Guest 2" leaves "Guest 3" still named "Guest 3" (guest numbers are stable, never renumbered)
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 13-01-PLAN.md — Real-Redis harness (ioredis dev dep behind legitimacy checkpoint, `npm run test:redis`, redis-server lifecycle) + DONE/TIP proof; closes Phase 12 UAT (REL-03)
+- [ ] 13-02-PLAN.md — All Lua moved to lib/sessionLua.ts, shape-tolerant guards, person_not_found on claim scripts, /edit item ops to field-level Lua (WR-01/WR-02) (REL-01, REL-02)
+
+**Wave 2** *(blocked on 13-02)*
+
+- [ ] 13-03-PLAN.md — claim_seat / add_seat / remove_seat Lua + /edit ops and HTTP mapping (SEAT-03, SEAT-04, REL-02)
+
+**Wave 3** *(blocked on 13-01, 13-03)*
+
+- [ ] 13-04-PLAN.md — Real-Redis gate: seat/guard/parity, item ops + shape matrix + coverage meta-test, concurrency + real route handlers (REL-01, REL-02, REL-03, SEAT-03, SEAT-04)
 
 ### Phase 14: OCR Guest Count
 
