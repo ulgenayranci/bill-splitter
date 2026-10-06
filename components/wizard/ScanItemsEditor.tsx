@@ -5,6 +5,7 @@ import { Trash2, Plus, Lock, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { BillPhotoLightbox } from "./BillPhotoLightbox";
 import { useBillStore } from "@/stores/useBillStore";
 import { TOLERANCE_CENTS } from "@/lib/reconcileScannedBill";
 import { formatCents, parseCents, computeSubtotalCents } from "@/lib/billMath";
@@ -27,6 +28,8 @@ export function ScanItemsEditor() {
   const serviceFeeCents = useBillStore((s) => s.serviceFeeCents);
   const taxCents = useBillStore((s) => s.taxCents);
   const setStep = useBillStore((s) => s.setStep);
+  const billImageUrl = useBillStore((s) => s.billImageUrl);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   // Per-row edit drafts keyed by item id. Holds raw strings so the user can type
   // freely; committed to the store on blur/Enter.
@@ -117,6 +120,26 @@ export function ScanItemsEditor() {
       data-testid="scan-items-editor"
       className="flex flex-1 flex-col gap-5"
     >
+      {billImageUrl && (
+        <button
+          type="button"
+          aria-label="View receipt photo"
+          data-testid="scan-review-photo"
+          onClick={() => setPhotoOpen(true)}
+          className="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-border bg-white px-3 py-2 text-left text-zinc-900"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={billImageUrl}
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-md object-cover"
+          />
+          <span className="flex flex-col">
+            <span className="text-[15px] font-semibold">View receipt</span>
+            <span className="text-[13px] text-zinc-500">Compare with your items</span>
+          </span>
+        </button>
+      )}
       <h1 className="text-[18px] font-semibold text-zinc-900">
         {isOff
           ? "Your items don't match the receipt"
@@ -274,6 +297,7 @@ export function ScanItemsEditor() {
           Done
         </Button>
       </div>
+      <BillPhotoLightbox open={photoOpen} onClose={() => setPhotoOpen(false)} />
     </div>
   );
 }
