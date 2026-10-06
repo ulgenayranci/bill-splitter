@@ -1,630 +1,244 @@
-# Architecture Research
+# Architecture Patterns — v2.1 Faster People Setup
 
-**Domain:** Collaborative bill-splitter web app — v2.0 easy-billsy redesign
-**Researched:** 2026-06-04
-**Confidence:** HIGH (full codebase read: all session routes, schema, Zustand store, and UI components)
+**Domain:** Seat-based people setup on top of the existing flat collaborative bill splitter
+**Researched:** 2026-10-06
+**Confidence:** HIGH (all findings come from reading the current code; no new libraries needed)
 
----
+## Bottom line
 
-## Context: What Was Built vs What Changes
+Model an empty seat as a normal `Person` whose `name` is `''`. No new field, no schema migration, no change to `billMath`. Tax and service already split equally across `session.people`, so empty seats pay their share without any math changes. All new server work is three small Lua ops that mirror `ADD_PERSON_SCRIPT` and `RENAME_PERSON_SCRIPT`. Most of the risk is in the UI, which uses `person.name` in many places and currently assumes it is non-empty.
 
-v1.0 shipped a two-route architecture: a local wizard at `app/page.tsx` (Zustand, no server) and a
-collaborative claiming view at `app/split/[sessionId]` (Redis-backed). The session was created at a
-deliberate handoff point when the host tapped "Share with group". v2.0 keeps that boundary intact
-but restructures what happens on each side of it, removes the host role entirely, and adds
-currencyCode as a first-class field through the full data path.
+## 1. Seat representation: empty-name Person, not a flag
 
----
+**Recommendation: `Person { id, name: '', colorIndex }`. Empty name means empty seat.** `isEmptySeat(p) = p.name.trim() === ''`.
 
-## System Overview
+| Criterion | Empty-name Person | `isSeat` / `claimed` flag |
+|---|---|---|
+| Schema change | None (`name: string` already allowed) | New field on Person, SessionPayload, Lua, validators |
+| Old sessions (24h TTL) | Valid as-is | Need a default for the missing flag |
+| `computeEqualChargeShares`, `computePersonShareFromClaims`, `done` route, `tips` | Work unchanged | Work unchanged |
+| `POST /api/session` `isValidPeople` | `typeof name === 'string'` accepts `''` | Needs an update |
+| Two sources of truth | None (name IS the state) | Flag and name can disagree |
+| "Claim seat = name the person" | One field changes, so one atomic compare-and-set | Two fields change |
 
-```
-BROWSER — Route: /  (app/page.tsx)
+The only cost is that every `person.name` display site must tolerate `''`. Add one helper, `lib/seats.ts`:
 
-  SetupScreen (NEW — replaces 4-step wizard)
-  +-------------------+  +------------------------------------------+
-  |  ScanStep          |  |  PeopleStep (inline, same screen)        |
-  |  camera input      |  |  add names; no minimum required          |
-  |  POST /api/ocr     |  |  stored in useBillStore (Zustand)        |
-  +-------------------+  +------------------------------------------+
-
-  useBillStore (Zustand) — pre-share local state
-    people[], items[], currencyCode (NEW), ocrStatus, sessionId
-    assignments[] REMOVED — no pre-assigning in flat model
-
-                         |
-                         | POST /api/session
-                         | { people, items, currencyCode }
-                         | (NO hostToken, NO assignments in v2)
-                         v
-
-UPSTASH REDIS  key: session:{sessionId}
-
-  SessionPayload (v2 — trimmed schema):
-    people[], items[], currencyCode (NEW)
-    claims: { items, personSlots, donePeople }
-    tips: Record<PersonId, number>
-    createdAt, TTL 86400s
-
-  REMOVED from schema:
-    hostToken, hostPersonId, editRequests, disputes
-    ClaimEntry.assignedBy, ClaimEntry.accepted
-
-                         |
-                         | GET /api/session/{id}  (SWR 3s poll)
-                         | POST /api/session/{id}/claim
-                         | POST /api/session/{id}/edit  (NEW direct route)
-                         | POST /api/session/{id}/done
-                         | POST /api/session/{id}/tip
-                         v
-
-BROWSER — Route: /split/[sessionId]  (CollaborativeClaimingView)
-
-  IdentityModal (NEW — replaces PersonSlotPicker with modal UX)
-    reads session.people; auto-skip if length===1
-    inline "Add my name" if no match found
-    persists chosen personId to localStorage (existing pattern kept)
-
-  BillView (MODIFIED — flat claiming)
-    ClaimableItemCard — unchanged core; gains attribution + currencyCode
-    InlineEditForm — fires POST /edit directly (no queue)
-    UnassignedWarning — elevated; + "split evenly" CTA
-    LiveClaimAttribution — "claimed by Alice" per item
-
-  ResultsScreen (MODIFIED — was PersonResultsScreen)
-    locked per-person breakdown
-    TipModal (moved here from mid-flow)
-    Copy / Edit bill / New bill actions
-
-  AppShell (NEW — wraps all routes via layout.tsx)
-    easy-billsy header wordmark + HamburgerMenu
-    HamburgerMenu: New Split / History stub / About Us
+```ts
+export const isEmptySeat = (p: Person) => p.name.trim() === ''
+export const seatLabel = (p: Person) => (isEmptySeat(p) ? 'Empty seat' : p.name)
+export const seatInitial = (p: Person) => (isEmptySeat(p) ? '?' : p.name.charAt(0).toUpperCase())
 ```
 
----
+Then replace the raw `person.name` and `.name.charAt(0)` uses. Known sites (from grep):
+- `components/split/PersonSlotPicker.tsx`: card label, avatar initial, rename form.
+- `components/split/BillViewHeader.tsx`: people strip, initials and `title`.
+- `components/split/PersonResultsScreen.tsx`: accordion rows (about lines 264-297), the Copy text at about line 159, and the swipe handler that passes `person.name`.
+- `components/split/ClaimableItemCard.tsx`: `peopleById[pid]?.name`. Empty seats never hold claims, so this is safe, but use the helper anyway.
 
-## Question A: Setup + Bill View — Local Zustand vs Session Model
+Seat numbering: do NOT derive "Seat 3" from array index. Removing an empty seat shifts everyone after it and confuses people looking at the same list. Use the avatar colour plus a "?" and "Empty seat" label. If numbering is wanted later, store it.
 
-**Decision: Keep the existing boundary. Setup stays Zustand-local. Session is created once, at the
-"Share" transition point.**
+`colorIndex`: `ADD_PERSON_SCRIPT` uses `#people % 6`. After a removal this can duplicate a colour. That is cosmetic and acceptable. Seats created on Setup use `nextColorIndex`.
 
-Rationale:
+The scanner's own seat is a named person created on Setup. Her `personId` is already known client-side because `randomId()` ids are sent to the server in `createSession`.
 
-1. The existing `POST /api/session` creates a session from `{ people, items }` that are already in
-   Zustand. This handoff is clean and proven. There is no benefit to creating the session earlier.
+## 2. Server ops
 
-2. The Setup screen is a local-only, single-device operation: scan, review items, add names. No
-   other device needs to see this state until the user is ready to share.
+All three go in `app/api/session/[sessionId]/edit/route.ts`, in the existing branch-before-GET/SET style. Lua cannot generate ids, so ids come from TS (`nanoid()`), as `add_person` already does. Add the new op names to `VALID_OPS`.
 
-3. The session is cheap (one Redis write). Creating it eagerly (e.g. on first OCR result) would
-   consume Redis commands for sessions that are abandoned. Creating it at the handoff is correct.
+### 2a. `claim_seat` (atomic, concurrent): NEW Lua `CLAIM_SEAT_SCRIPT`
 
-4. For the single-device case (one person, no sharing), the transition is:
-   Setup → (session created) → IdentityModal (auto-select self) → BillView. No architectural
-   difference — the session still gets created; the identity modal is satisfied by auto-select.
+ARGV = `[personId, trimmedName]`. Compare-and-set on the empty name:
 
-**What changes at the Setup → BillView transition:**
-
-- `POST /api/session` body gains `currencyCode` (new field, see Question D).
-- The body drops `assignments` — pre-populated host assignments no longer exist in the flat model.
-- `useBillStore` adds a `currencyCode` field set by the OCR response.
-- After session creation, the device navigates to `/split/{sessionId}` without a `#hostToken`
-  fragment — there is no hostToken in v2.
-
-The Zustand store remains the pre-share staging area. The Redis session remains the shared
-collaborative state. The boundary does not move.
-
----
-
-## Question B: Removing the Host Role — Flat Model Migration Path
-
-The host role spans three layers: schema, Lua claim scripts, and UI. The removal is surgical
-and preserves atomic-claim safety in full.
-
-### Layer 1: Schema (lib/sessionSchema.ts)
-
-**Remove from `SessionPayload`:**
-- `hostToken: string`
-- `hostPersonId?: PersonId`
-- `editRequests: Record<string, EditRequest>`
-- `disputes: Record<string, Dispute>`
-
-**Remove types entirely:**
-- `EditRequest` interface
-- `Dispute` interface
-- `EditPayload` union (replace with a simpler inline type for the direct-edit route)
-- `ClaimEntry.assignedBy` — all claims are self-claims in v2; the field is meaningless
-- `ClaimEntry.accepted` — host-assigned item acceptance flow is removed
-
-**Simplified ClaimEntry:**
-```typescript
-export interface ClaimEntry {
-  qty: number
-  // assignedBy and accepted removed
-}
+```lua
+-- find person; if not found -> 'person_not_found'
+-- if p.name ~= '' then return 'seat_taken' end
+-- p.name = ARGV[2]; SET ... EX 86400; return 'OK'
 ```
 
-**`PublicSessionPayload` simplifies:**
-In v1 it was `Omit<SessionPayload, 'hostToken'>`. In v2 nothing is sensitive, so:
-```typescript
-export type PublicSessionPayload = SessionPayload
-```
-Keep the type alias so all imports continue to work without a rename.
+Why a guard here when the app is otherwise "no name locking": the lock is NOT on names. It is a one-time empty-to-named transition. Without it, two friends tapping the same empty seat at once would silently overwrite each other's name, and the loser would then be sitting in a seat that now has someone else's name. With the compare-and-set, the loser gets 409 `seat_taken`. The client then calls `mutate()`, the list refreshes, and the modal re-renders with that seat now named and selectable under the existing flat "names always selectable" rule. Keep that fallback friendly: a short inline "Someone just took that seat, pick another".
 
-**Add to `SessionPayload`:**
-```typescript
-currencyCode: string | null  // currency symbol detected from OCR ("£", "€", etc.)
-```
+After success the client does what `handleAddPerson` does now: `await mutate()`, `setSelectedPersonId(personId)`, write `split:${sessionId}:personId` to localStorage, and close the modal. A separate `action: 'slot'` call is not needed. Selecting an already-named seat still goes through the existing `handleSelect` / slot path.
 
-### Layer 2: Lua Scripts (app/api/session/[sessionId]/claim/route.ts)
+Reuse `validateOp`'s name rules from `add_person` (trimmed, 1-50 characters). `rename_person` stays unchanged and still rejects empty names, so a named person can never turn back into an empty seat, which keeps "empty" a one-way state.
 
-**QTY_CLAIM_SCRIPT changes:**
+Race to be aware of: `rename_person` on an empty seat's id (the pencil on a seat in the picker) bypasses the empty-name guard. Hide the rename pencil for empty seats (the name input on claim replaces it), or route empty seats only through `claim_seat`.
 
-Remove the `claimerHostToken` / `assignedBy` / host-check block. The ARGV list shrinks from
-`[itemId, personId, qty, assignedBy, hostToken]` to `[itemId, personId, qty]`.
+### 2b. `add_seat`: NEW or parameterised `ADD_PERSON_SCRIPT`
 
-The atomic bounds check (CR-03) that prevents `totalClaimed > item.quantity` is entirely
-independent of host logic and must be preserved unchanged. The critical property — that the
-check and write are a single atomic Lua operation — is unaffected by removing the host block.
-Two concurrent users claiming the same item still cannot exceed `item.quantity`.
+Easiest: allow `add_person` to accept `name: ''` through a new op `add_seat` that reuses the same Lua with an empty-string name. The script already:
+- appends atomically (no append race),
+- enforces the 20-person cap (`session_full`),
+- assigns `colorIndex`.
 
-**SLOT_CLAIM_SCRIPT changes:**
+Only the validator differs, so `validateOp('add_seat')` has no name. The response returns `{ ok, personId }`. Do not set `personSlots`. The "+ I'm not listed" modal flow stays as `add_person` with a typed name (creates a named person), which is correct because that friend is naming themselves.
 
-Remove the `maybeHostToken` parameter and the `hostPersonId` set block. The script becomes:
-set `claims.personSlots[personId] = true` and write back. Remove the `slot_taken` guard entirely
-— in v2, two devices claiming the same name is explicitly allowed (per FEATURES open decision #2).
-`personSlots` is repurposed as "who is connected" for live attribution display, not a lock.
+### 2c. `remove_seat`: NEW Lua `REMOVE_SEAT_SCRIPT` (the riskiest one)
 
-The `ClaimBody` type in the route loses `hostToken` and `assignedBy`. `validateBody` simplifies.
+This is the only new op that deletes. The prior descope was caused by a Lua purge with 2 Critical findings and no execution test. Keep it deliberately narrow: **refuse unless the seat is provably empty, and never purge anything.** If it succeeds, there is nothing else to clean up.
 
-### Layer 3: Routes to Delete
+ARGV = `[personId]`. All checks and the delete run in one Lua call, so a concurrent `claim_seat` or item claim cannot sneak in between the check and the remove:
 
-These routes exist solely to support the host workflow:
-
-| Route | Reason for deletion |
-|-------|-------------------|
-| `app/api/session/[sessionId]/resolve-edit/route.ts` | Host approves/rejects edit requests |
-| `app/api/session/[sessionId]/resolve-dispute/route.ts` | Host resolves disputes |
-| `app/api/session/[sessionId]/dispute/route.ts` | Guest files a dispute |
-| `app/api/session/[sessionId]/accept/route.ts` | Guest accepts host-assigned items |
-| `app/api/session/[sessionId]/edit-request/route.ts` | Guest submits edit for host approval |
-
-**New route to create:**
-`app/api/session/[sessionId]/edit/route.ts` — direct item mutation, no token, no queue.
-
-The item-mutation logic already exists in `resolve-edit/route.ts` lines 66–116 (the
-approved-path branch). Copy that logic into the new route and remove the hostToken check and
-the pending/approved/rejected state machine. The result is: read session → apply mutation →
-write session → return `{ ok: true }`.
-
-This is a direct read-modify-write without Lua, meaning there is a narrow race window if two
-users edit the same item in the same ~millisecond window. For v2 the specified behavior is
-last-write-wins (FEATURES open decision #2). If this becomes a concern in v2.1, the mutation
-can be moved into a Lua script following the same pattern as QTY_CLAIM_SCRIPT.
-
-### Layer 4: UI Components to Delete
-
-| Component | Why |
-|-----------|-----|
-| `components/split/HostPanel.tsx` | Host management UI |
-| `components/split/EditRequestForm.tsx` | Request-edit form inside HostPanel |
-| `components/split/ReviewHostAssignedScreen.tsx` | Host-assigned item acceptance screen |
-| `components/split/WaitingForClaimsScreen.tsx` | Waiting-for-host state screen |
-
-### Layer 5: CollaborativeClaimingView.tsx Changes
-
-The host removal touches multiple sections of this 700-line component:
-
-**Remove:**
-- `hostTokenParam` state and the `useEffect` that reads `#hostToken` from URL hash
-- `hostPersonId` from session shape references
-- `isHost` derived state and all JSX gated on it
-- `HostPanel` import, FAB render, `hostPanelOpen` state
-- `pendingCount` computation (was counting edit requests + disputes + unclaimed)
-- `ReviewHostAssignedScreen` phase render and `hasUnacceptedHostItems` helper
-- `review` from the `Phase` union type: `type Phase = 'claiming' | 'tip' | 'results'`
-- `hostToken` from `handleSelect` body
-- The `handleDone` branch that checked for host-assigned items post-done
-- The `handleBackFromTip` branch that routed back through `review`
-
-**Change:**
-- `handleInlineSubmit` (edit path): POST to `/edit` directly instead of `/edit-request`
-- `derivePhase`: remove the `hasUnacceptedHostItems` check
-- `PersonSlotPicker` → `IdentityModal` (see Question C)
-- Phase flow simplifies to: `claiming → tip → results`
-
-**Add:**
-- Live claim attribution in the ClaimableItemCard render path
-
----
-
-## Question C: Identity Storage — Where "Who Are You?" Lives
-
-**Decision: localStorage for persistence (existing pattern), Redis personSlots for attribution
-(existing structure). Zustand is NOT used for identity.**
-
-The identity choice (which personId "I am on this device") is session-scoped and device-scoped.
-Zustand is app-global and resets on `store.reset()`. localStorage keyed by sessionId is the
-correct scope — it survives page refresh, survives Zustand reset, and does not leak across sessions.
-
-The existing pattern already does this:
-```typescript
-localStorage.setItem(`split:${sessionId}:personId`, selectedPersonId)
-```
-This pattern is kept unchanged in v2.
-
-**What changes in v2:**
-
-1. `PersonSlotPicker` is replaced by `IdentityModal` — a dialog component that presents the same
-   name-picker grid but is rendered as a modal overlay on the Bill View rather than as a full
-   blocking screen. The state storage remains the same localStorage key.
-
-2. **Auto-skip:** if `session.people.length === 1`, write the single person's id to localStorage
-   and proceed directly to BillView. No modal shown.
-
-3. **Inline add:** if `session.people` is empty or the user taps "My name isn't here", show a
-   single text-input inside the modal. On submit, call `POST /api/session/{id}/edit` with an
-   `add_person` action (new action type on the direct-edit route), or create a dedicated
-   `POST /api/session/{id}/add-person` route. The new person appears in `session.people` on the
-   next SWR poll; the new personId goes to localStorage.
-
-4. **Slot "taken" semantics removed:** `personSlots[personId] = true` becomes informational only —
-   it indicates "a device has identified as this person." The modal renders all names as
-   selectable regardless of slot state. Remove the `aria-disabled` + `opacity-40` treatment.
-
-**Summary of identity state locations:**
-
-| Data | Where Stored | Scope | Reason |
-|------|-------------|-------|--------|
-| `session.people[]` (the names list) | Redis | Session | All devices need it |
-| `selectedPersonId` (my identity this device) | localStorage + React state | Device+Session | Survives refresh |
-| `session.claims.personSlots` | Redis | Session | Attribution: who is connected |
-| Auto-skip condition | Derived at mount: `people.length === 1` | None (derived) | No storage needed |
-
----
-
-## Question D: currencyCode Data Flow — OCR to All Display Sites
-
-**The full chain: OCR prompt → API response → Zustand → session create → Redis → SWR → formatCents.**
-
-### Step 1: OCR Prompt Extension (app/api/ocr/route.ts)
-
-Extend the GPT-4o-mini `RECEIPT_PROMPT` and `json_schema` to extract `currency_symbol`:
-
-```
-Return ONLY valid JSON matching this schema exactly:
-{
-  "currency_symbol": string | null,
-  "items": [{ "name": string, "priceCents": number, "quantity": number }]
-}
-Rules:
-... (existing rules unchanged)
-- currency_symbol: find the symbol on the total line or first priced item.
-  Return the symbol character (e.g. "£", "€", "¥", "₹", "$"). Return null if not visible.
+```lua
+-- locate person index i; none -> 'person_not_found'
+-- if p.name ~= '' -> 'seat_not_empty'
+-- for each itemId, claimMap in pairs(session.claims.items or {}):
+--     if claimMap[personId] ~= nil -> 'seat_not_empty'
+-- if session.claims.personSlots and session.claims.personSlots[personId] -> 'seat_not_empty'
+-- if session.claims.donePeople and session.claims.donePeople[personId] -> 'seat_not_empty'
+-- if session.tips and session.tips[personId] -> 'seat_not_empty'
+-- if #session.people <= 2 -> 'too_few_people'   -- floor chosen to match the Setup gate
+-- table.remove(session.people, i)
+-- SET ... EX 86400; return 'OK'
 ```
 
-The json_schema `properties` block gains:
-```json
-"currency_symbol": { "type": ["string", "null"] }
-```
+Notes and traps:
+- "Empty" = no name AND no claims, matching the locked requirement. A seat with a name is never removable, so no purge logic is needed. This is what keeps it out of the scope that was descoped.
+- A seat could only ever carry claims/slots/tips if someone adopted its identity, and adopting means naming it first. The extra checks are defence in depth; they are cheap.
+- cjson trap already present in this codebase: a table that is empty after decoding is re-encoded as `[]`. `people` stays non-empty (floor of 2), so it is safe. Do not remove the last person. Do not rewrite `claims.*` sub-tables in this script. Only the `session.people` array changes.
+- Reading `claims.items[*][personId]`: after a prior Lua write `claims.items` can be `[]` (empty array). `pairs()` over it simply yields nothing, which is correct. Test with that shape.
+- `table.remove` shifts the array, which changes the remainder-cent distribution order in `computeEqualChargeShares`. This is server-authoritative and identical on every device, so it is fine.
+- Stale-client cases: a client whose localStorage `personId` points to a removed seat would hit `!me -> SessionExpiredScreen`. That cannot happen for empty seats because nobody adopts an unnamed identity. If a modal is open on a removed seat, the existing effect that clears state when the person disappears (`PersonSlotPicker` lines 31-35) handles it.
+- The old failure mode was untested Lua. **Phase gate: write an execution-style test** (see 6) before shipping this op.
 
-The route returns `{ items, currencyCode }` — one new field in the response.
+### Other consumers
 
-### Step 2: Zustand Store (stores/useBillStore.ts)
+- `done` route: validates `personId` against `session.people`. Unchanged.
+- `tip` route: per-person, unchanged. Empty seats get no tip.
+- `claim` route (`slot`, `share`, `qty`): unchanged. The `share`/`qty` Lua operates on string ids and does not check person existence. A claim on a removed seat id is impossible in practice. Optional hardening: none needed this milestone.
+- `GET /api/session/[id]`: unchanged. 3-second SWR polling propagates seat changes with no extra plumbing.
 
-Add to `BillState` interface:
-```typescript
-currencyCode: string | null
-setCurrencyCode: (code: string | null) => void
-```
-Add to `INITIAL_STATE`: `currencyCode: null`.
+## 3. billMath and Results flow
 
-The OCR result handler (in whatever component replaces `AddItemsStep`) calls
-`store.setCurrencyCode(currencyCode)` after a successful OCR response.
+- `lib/billMath.ts`: **no changes.** `computeEqualChargeShares(charge, session.people)` already divides by `people.length`, so empty seats are counted automatically. This is the whole "empty seats pay equal tax/service" requirement, delivered for free. Add tests that a `name: ''` person still gets a share and that shares sum exactly to the charge.
+- Item subtotals: an empty seat has no claims, so `computePersonShareFromClaims` yields `itemSubtotal 0`, `tax` share, `fee` share, `tip 0`. Correct by definition.
+- `app/split/[sessionId]/CollaborativeClaimingView.tsx`: computes `feeShares`/`taxShares` from `session.people`. Unchanged.
+- `components/split/PersonResultsScreen.tsx`:
+  - The accordion lists all people. Empty seats will appear as "Empty seat" rows owing tax/service. Keep them visible, because they are part of the totals and hiding them would make the sum look wrong. Use `seatLabel`.
+  - Copy text (about line 150): `${p.name} owes ...` becomes `${seatLabel(p)} owes ...`. Decide product-side whether to emit "Empty seat" lines. Recommendation: include them, since the user said they pay.
+  - Swipe handler `handleTouchEnd(e, person.id, person.name)`: guard for empty names.
+- Known property worth surfacing in the roadmap: if the headcount is too high, the surplus empty seats permanently take a tax/service share from real people. The remedy is "remove empty seat", so Phase UX must make the empty-seat affordance discoverable (no nudge by decision, but the remove control must be easy to find).
+- Unclaimed-items callout (`getUnclaimedCounts`): unchanged. Item claim logic does not depend on people.
 
-### Step 3: Session Create Payload (app/api/session/route.ts)
+## 4. Identity modal changes
 
-`POST /api/session` body validation accepts `currencyCode: string | null`. Validator: any string
-of 1–4 characters (covers all currency symbols) or null. The persisted `SessionPayload` gains
-the field.
+Files: `components/split/IdentityModal.tsx` (shell, copy), `components/split/PersonSlotPicker.tsx` (list; this is where the real change is), `app/split/[sessionId]/CollaborativeClaimingView.tsx` (handlers).
 
-### Step 4: Schema (lib/sessionSchema.ts)
+- Props: add `onClaimSeat(personId, name): Promise<void>` to `IdentityModal` and `PersonSlotPicker`.
+- Picker rendering: two groups in the grid. Named people tap-to-select, with a rename pencil (unchanged). Empty seats render as dashed/"Empty seat" cards; tapping reveals an inline "Your name" input plus a confirm button, reusing the existing inline-add pattern (`showAddForm`, `newName`) and the same Input/Button styling. Track `claimingSeatId` state (like `editingPersonId`).
+- "+ I'm not listed" remains, unchanged (`add_person` with a typed name).
+- Copy: `DialogDescription` "Pick your name from the list below." becomes "Pick your seat and type your name." when empty seats exist.
+- Stale-state effect: extend the existing `useEffect` guard so that if `claimingSeatId` seat gets named by someone else while the form is open, the form closes and shows the "taken" message. The 409 path also covers this.
+- Scanner shortcut: in `SetupStep.handleContinue`, after `createSession`, write `localStorage.setItem('split:${sessionId}:personId', hostPerson.id)` so the scanner skips the modal entirely (her seat is the only named one). Currently the restore effect (`CollaborativeClaimingView` about lines 141-166) opens the modal when nothing is stored. Verify against `phase === 'invite'` behaviour (G4) so the invite step still shows first. Also keep the existing "Who are you?" route available for the scanner via the header strip tap.
+- Header strip (`BillViewHeader.tsx`): shows `otherPeople` as initial circles; empty seats must render as neutral "?" circles; add a small "+" (add seat) control. A seat-management surface is needed on the Bill View (see 5).
+- Seat management on the live Bill View: new component, suggested `components/split/SeatManager.tsx` (or a sheet from the header strip). It lists empty seats with a remove button and offers "+ Add seat". It calls `add_seat` / `remove_seat`, then `mutate()`. Handle 409 `seat_not_empty` ("Someone just joined that seat").
 
-```typescript
-export interface SessionPayload {
-  people: Person[]
-  items: Item[]
-  currencyCode: string | null  // NEW
-  claims: SessionClaims
-  tips: Record<PersonId, number>
-  createdAt: number
-}
-```
+## 5. Setup side (headcount counter, store, createSession)
 
-### Step 5: GET /api/session returns it, SWR propagates it
+Files: `components/wizard/SetupStep.tsx` (modify), `stores/useBillStore.ts` (modify), `lib/createSession.ts` (no change needed), `app/api/session/route.ts` (no change; `''` passes `isValidPeople`).
 
-`PublicSessionPayload = SessionPayload` in v2 (nothing stripped). `currencyCode` is present in
-every SWR poll result on the client.
+Store:
+- Keep `people: Person[]`. Seats are `{ id: randomId(), name: '', colorIndex }`. Add actions:
+  - `setHeadcount(n)`: pad with empty seats up to `n`; shrink only by dropping trailing EMPTY seats; never below `max(2, namedCount)`; cap 20 (server `session_full`).
+  - `setPersonName(id, name)` (or reuse `addPerson` for the scanner's own name: first person gets the name, rest are seats).
+- `guestCount` is not needed as persisted state; it only seeds `setHeadcount` after OCR. Persisted `people` carries the result. `partialize` already persists `people`. Persisted `version: 1` data stays valid (named people only), so no migration. Bump only if you later add persisted fields.
+- `removePerson` stays for named-people removal on Setup (existing safe path).
+- The Setup gate `canContinue = billScanned && people.length >= 2` currently counts only added people. New gate: scanned AND her name entered AND headcount >= 2. People array length is now the headcount, so the gate must check that the scanner's own seat is named (e.g. `people.some(p => !isEmptySeat(p))`).
+- UI: −/+ counter replacing the people list; one name input labelled for herself. Counter clamps at min 2 and max 20. Optional: show hint "Pre-filled from receipt" when OCR supplied the count.
 
-### Step 6: formatCents updated (lib/billMath.ts)
+## 6. OCR `guestCount` field
 
-Current implementation hardcodes `$`:
-```typescript
-export function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`
-}
-```
+Files: `app/api/ocr/route.ts` (modify), `components/wizard/SetupStep.tsx` (consume), `__tests__/ocrRoute.test.ts` and `__tests__/fixtures/ippudo-ocr-output.json` (update).
 
-v2 change — optional parameter, backward-compatible:
-```typescript
-export function formatCents(cents: number, currencyCode?: string | null): string {
-  const symbol = currencyCode ?? '$'
-  return `${symbol}${(cents / 100).toFixed(2)}`
-}
-```
+- Prompt: add a bullet, e.g. "guestCount (top level): the number of guests/covers/pax printed on the receipt (labels like Pax, Covers, Guests, Couverts, Kisi). null if not printed. Do not invent it. Do not use table numbers, check numbers, or item quantities."
+- JSON schema (strict mode): add `guestCount: { type: ['integer', 'null'] }` to `properties` AND to the `required` list (strict mode requires every property to be listed; optionality is the null union), keeping `additionalProperties: false`.
+- `OcrParsed`: add `guestCount: number | null`. `parseOcrResponse`: accept only an integer in `[1, 50]`, else null (hallucination guard). Cap on the client at 20.
+- Response: `guestCount: best.guestCount ?? undefined` (matches the omit-when-null pattern of `taxCents`). Because `best` is whichever pass reconciled closer, `guestCount` flows with `best` automatically; no merge logic needed. Optionally prefer pass 1 value if pass 2 returns null.
+- Client: in `handleFileChange` read `data.guestCount`; if valid, call `setHeadcount(clamp(guestCount, 2, 20))`; otherwise leave the default (2). Do not overwrite a headcount the user has already adjusted after a retake. Track a `headcountTouched` ref/flag if that matters, or simply re-prefill on every successful scan (simplest, and defensible).
+- Risk: LLM misreads (a "table 12" read as 12 guests). Prefill is only a default and the counter is editable; empty seats are removable live. No server-side trust is placed on it.
 
-All existing call sites that omit `currencyCode` continue to work unchanged. Call sites that
-display user-facing prices pass `session.currencyCode` (or `store.currencyCode` pre-session).
+## Component boundaries (new vs modified)
 
-A full `Intl.NumberFormat` approach (handles JPY zero-decimal, CHF rounding, etc.) is a v2.1
-enhancement. Symbol-prefix is sufficient for v2.
+| File | Status | Change |
+|---|---|---|
+| `lib/seats.ts` | NEW | `isEmptySeat`, `seatLabel`, `seatInitial` helpers |
+| `components/split/SeatManager.tsx` | NEW | Add seat / remove empty seat UI on Bill View |
+| `app/api/session/[sessionId]/edit/route.ts` | MODIFIED | Add ops `claim_seat`, `add_seat`, `remove_seat` + 2 new Lua scripts, extend `VALID_OPS` and `validateOp` |
+| `app/api/ocr/route.ts` | MODIFIED | `guestCount` prompt/schema/parse/response |
+| `stores/useBillStore.ts` | MODIFIED | `setHeadcount`, seat-aware people actions |
+| `components/wizard/SetupStep.tsx` | MODIFIED | Counter UI, own-name input, Continue gate, OCR prefill, pre-store identity in localStorage |
+| `components/split/PersonSlotPicker.tsx` | MODIFIED | Empty-seat cards, inline claim-with-name, hide rename on empty |
+| `components/split/IdentityModal.tsx` | MODIFIED | `onClaimSeat` prop, copy |
+| `app/split/[sessionId]/CollaborativeClaimingView.tsx` | MODIFIED | `handleClaimSeat`, `handleAddSeat`, `handleRemoveSeat`, wire SeatManager |
+| `components/split/BillViewHeader.tsx` | MODIFIED | Empty-seat circles, seat entry point |
+| `components/split/PersonResultsScreen.tsx` | MODIFIED | `seatLabel`/`seatInitial`, Copy text, swipe guard |
+| `components/split/ClaimableItemCard.tsx` | MODIFIED (minor) | Name helper |
+| `lib/billMath.ts`, `lib/sessionSchema.ts`, `lib/createSession.ts`, claim/done/tip routes, `app/api/session/route.ts` | UNCHANGED | Verified: no change required |
 
-### Step 7: Display Sites That Need currencyCode
-
-| File | Call site | Source of currencyCode |
-|------|-----------|----------------------|
-| `CollaborativeClaimingView.tsx` | item prices, pending-add card | `session.currencyCode` |
-| `components/split/ClaimableItemCard.tsx` | item price display | prop from parent |
-| `components/split/TipScreen.tsx` | subtotal, tip amount | `session.currencyCode` via prop |
-| `components/split/PersonResultsScreen.tsx` | per-line and total | `session.currencyCode` via prop |
-| Pre-session results (SetupScreen local preview) | item prices | `useBillStore(s => s.currencyCode)` |
-| Copy-summary string | totals per person | pass `currencyCode` into the formatter |
-
-Pattern: components receiving a `session` prop read `session.currencyCode` directly; components
-operating pre-session read from the Zustand store. No prop-drilling beyond one level.
-
----
-
-## Component Inventory: New / Modified / Deleted
-
-### NEW files
-
-| File | Purpose |
-|------|---------|
-| `app/components/AppShell.tsx` | easy-billsy header wordmark + hamburger nav wrapper |
-| `app/components/HamburgerMenu.tsx` | New Split / History stub / About Us nav |
-| `components/split/IdentityModal.tsx` | Modal name picker; auto-skip; inline add-person |
-| `app/api/session/[sessionId]/edit/route.ts` | Direct item mutation (no queue, no token) |
-| `app/about/page.tsx` | Static About Us page |
-| `app/history/page.tsx` | Inert History stub ("coming in v2.1") |
-
-### MODIFIED files
-
-| File | What Changes |
-|------|-------------|
-| `app/page.tsx` | Replace WizardShell + 4 step components with single SetupScreen |
-| `app/layout.tsx` | Wrap children in AppShell; update metadata title to "easy-billsy" |
-| `lib/sessionSchema.ts` | Remove host fields; add currencyCode; simplify ClaimEntry |
-| `lib/billMath.ts` | `formatCents` gains optional `currencyCode` param |
-| `stores/useBillStore.ts` | Add `currencyCode` + `setCurrencyCode`; drop `hostToken`; drop `assignments` |
-| `app/api/ocr/route.ts` | Extend prompt + json_schema to return `currency_symbol`; return `currencyCode` |
-| `app/api/session/route.ts` | Accept `currencyCode` in body; drop assignments pre-population; drop hostToken generation |
-| `app/api/session/[sessionId]/claim/route.ts` | Remove host checks from Lua; simplify ClaimBody; relax slot_taken |
-| `app/split/[sessionId]/CollaborativeClaimingView.tsx` | Full flat-model refactor; IdentityModal; direct /edit route; attribution; simplified Phase |
-| `components/split/ClaimableItemCard.tsx` | Add `currencyCode` prop; add claim attribution display |
-| `components/split/TipScreen.tsx` | Add `currencyCode` prop; thread to `formatCents` |
-| `components/split/PersonResultsScreen.tsx` | Add `currencyCode` prop; add Copy/Edit/New bill actions |
-| `components/split/SessionExpiredScreen.tsx` | Update branding to easy-billsy |
-| `components/split/PersonSlotPicker.tsx` | Either deleted or refactored into IdentityModal |
-
-### DELETED files
-
-| File | Why |
-|------|-----|
-| `app/api/session/[sessionId]/resolve-edit/route.ts` | Host approval workflow removed |
-| `app/api/session/[sessionId]/resolve-dispute/route.ts` | Dispute workflow removed |
-| `app/api/session/[sessionId]/dispute/route.ts` | Dispute filing removed |
-| `app/api/session/[sessionId]/accept/route.ts` | Host-assigned item acceptance removed |
-| `app/api/session/[sessionId]/edit-request/route.ts` | Edit request queue removed |
-| `components/split/HostPanel.tsx` | Host management UI removed |
-| `components/split/EditRequestForm.tsx` | Host panel subcomponent removed |
-| `components/split/ReviewHostAssignedScreen.tsx` | Host-assigned item review removed |
-| `components/split/WaitingForClaimsScreen.tsx` | Waiting-for-host state removed |
-| `components/wizard/WizardShell.tsx` | Replaced by SetupScreen |
-| `components/wizard/AddPeopleStep.tsx` | Inline in SetupScreen |
-| `components/wizard/AddItemsStep.tsx` | Inline in SetupScreen |
-| `components/wizard/AssignItemsStep.tsx` | Flat model removes pre-assignment entirely |
-| `components/wizard/ResultsStep.tsx` | Replaced by PersonResultsScreen in session flow |
-
----
-
-## Recommended Phase Build Order (Phase 7+)
-
-The constraint is "Setup screen first, then reassess." The ordering below respects that constraint
-and sequences remaining phases by strict dependency order.
-
-### Phase 7: App Shell + Setup Screen
-
-**Goal:** Replace the wizard with a scan-first single-screen setup. App shell visible from day one.
-
-Build first because every subsequent phase plugs into this new entry point. The SetupScreen change
-to `app/page.tsx` is the foundational restructure. Doing shell + setup together avoids touching
-`app/layout.tsx` twice.
-
-Scope:
-- `app/layout.tsx` — AppShell wrapper, "easy-billsy" title
-- `app/components/AppShell.tsx` + `HamburgerMenu.tsx` (New Split navigates to `/`; History/About are stubs)
-- `app/page.tsx` — new SetupScreen replacing WizardShell
-- `app/about/page.tsx` + `app/history/page.tsx` — stubs
-- `stores/useBillStore.ts` — add `currencyCode` + `setCurrencyCode`
-- `app/api/ocr/route.ts` — extend prompt + schema to return `currency_symbol`
-
-At end of Phase 7: the app loads with easy-billsy branding; users can scan a receipt and add people
-on a single screen; the OCR response includes `currencyCode`. The wizard is gone. Session creation
-and everything at `/split/[sessionId]` is untouched.
-
-**Reassess gate here** — "Setup screen first, then reassess." This is the natural pause point
-before committing to phases 8+.
-
-### Phase 8: Flat Model — Schema + API Surgery
-
-**Goal:** Remove host role from data model, Lua scripts, and routes. Add the direct-edit route.
-
-Build second because this is purely backend/schema work with no UI surface. The SetupScreen
-(Phase 7) can still create sessions using the pre-v2 schema as an interim state — the new
-`currencyCode` field coexists with the host fields until Phase 8 removes them.
-
-Scope:
-- `lib/sessionSchema.ts` — remove host fields, add `currencyCode`, simplify `ClaimEntry`
-- `app/api/session/route.ts` — accept `currencyCode`, drop `assignments` + `hostToken` generation
-- `app/api/session/[sessionId]/claim/route.ts` — simplify Lua scripts
-- `app/api/session/[sessionId]/edit/route.ts` — new direct mutation route (NEW)
-- DELETE: resolve-edit, resolve-dispute, dispute, accept, edit-request routes
-
-At end of Phase 8: the session model is clean. The old host routes return 404. The direct edit
-route is live but not yet wired from the UI.
-
-### Phase 9: Bill View Redesign + Identity Modal
-
-**Goal:** Replace PersonSlotPicker with IdentityModal; refactor CollaborativeClaimingView to the
-flat model; wire inline edit to the direct `/edit` route; add live claim attribution.
-
-Build third because:
-- Depends on Phase 8's simplified schema (no editRequests, no disputes, no hostToken)
-- Depends on Phase 7's session creation passing currencyCode
-
-Scope:
-- `components/split/IdentityModal.tsx` — new component
-- `app/split/[sessionId]/CollaborativeClaimingView.tsx` — full flat-model refactor
-- DELETE: HostPanel, EditRequestForm, ReviewHostAssignedScreen, WaitingForClaimsScreen
-- `components/split/ClaimableItemCard.tsx` — add attribution display + `currencyCode` prop
-- Wire InlineEditForm to `POST /api/session/{id}/edit` directly
-
-At end of Phase 9: the collaborative Bill View is flat. Anyone can claim and edit. Identity modal
-works. The "I'm done" flow goes directly to results without a waiting state.
-
-### Phase 10: Results Screen + Tip Modal + Currency Display
-
-**Goal:** Locked results screen with tip-as-modal; thread `currencyCode` to all display sites.
-
-Build fourth because:
-- The tip flow depends on Phase 9's simplified session (no waiting, flat done flow)
-- currencyCode threading requires Phase 7's OCR change and Phase 8's schema field to both exist
-
-Scope:
-- `components/split/PersonResultsScreen.tsx` — redesign: locked breakdown + Copy/Edit/New bill
-- `components/split/TipScreen.tsx` — convert to modal launched from Results; thread currencyCode
-- `lib/billMath.ts` — `formatCents` optional `currencyCode` param
-- Thread `session.currencyCode` through all `formatCents` call sites (see display site table above)
-- Copy-summary: use `currencyCode` and format per-person lines
-
-At end of Phase 10: the full v2.0 flow is complete end-to-end.
-
----
-
-## Data Flow: Setup to Results
+## Data flow
 
 ```
-User opens /
-  SetupScreen mounts (app/page.tsx)
-  User takes photo
-    POST /api/ocr
-    OCR returns { items, currencyCode }
-    store.setItems(items)
-    store.setCurrencyCode(currencyCode)              [NEW]
-  User adds people inline
-    store.addPerson(name)
-  User taps "Start splitting"
-    POST /api/session { people, items, currencyCode }  [currencyCode NEW; assignments REMOVED]
-    returns { sessionId }                              [no hostToken in v2]
-    store.setSessionId(sessionId)
-    navigate to /split/{sessionId}
+Setup:  OCR guestCount -> setHeadcount(N) -> people = [me(named), seat x (N-1)]
+        -> createSession(people[]) -> Redis session.people (names '' for seats)
+        -> localStorage personId = me.id -> /split/[id] (skip modal)
 
-/split/[sessionId] loads CollaborativeClaimingView
-  SWR GET /api/session/{id} → PublicSessionPayload
-  IdentityModal shown (unless people.length === 1 → auto-skip)
-    user picks name
-    POST /api/session/{id}/claim { personId, action: 'slot' }
-    localStorage.setItem(split:{id}:personId, selectedPersonId)
-  BillView: user claims items
-    POST /api/session/{id}/claim { personId, itemId, qty, action: 'qty' }
-    Lua atomic bounds check + write                  [unchanged]
-    SWR mutate + optimistic update                   [unchanged]
-  User edits item
-    POST /api/session/{id}/edit { personId, type, payload }  [NEW DIRECT ROUTE]
-    read-modify-write (last-write-wins)
-  User taps "I'm done"
-    POST /api/session/{id}/done { personId, done: true }
-    navigate to ResultsScreen directly               [no review phase, no waiting]
-  ResultsScreen: locked per-person breakdown
-    tap "Add tip" — TipModal opens
-    POST /api/session/{id}/tip { personId, tipCents }
-    modal closes, totals update
-  Copy / Edit bill / New bill actions
-    "New bill": store.reset() + navigate to /
+Share link: GET session (SWR 3s) -> modal lists named + empty
+        tap empty seat + type name -> POST /edit {op:'claim_seat'} -> Lua CAS
+            OK -> adopt personId, close modal
+            seat_taken (409) -> mutate(), "pick another"
+        "I'm not listed" -> POST /edit {op:'add_person', name} (unchanged)
+
+Live:   add_seat -> Lua append (cap 20)
+        remove_seat -> Lua: name=='' AND no claims/slots/done/tips AND people>2 -> table.remove
+        every device sees changes on the next 3s poll
+
+Money:  computeEqualChargeShares(tax/fee, session.people)  // empty seats included
 ```
 
----
+## Patterns to follow
 
-## Anti-Patterns to Avoid
+- **Atomic field-level Lua for any concurrent mutation** (`ADD_PERSON_SCRIPT` / `RENAME_PERSON_SCRIPT` / `UPDATE_CURRENCY_SCRIPT` style): GET, pcall(cjson.decode), mutate one field, SET with `EX 86400`. Never use GET/mutate/SET in JS for these (the CR-01 clobber lesson). `redis.multi()` is not atomic on Upstash REST.
+- **Return string status codes from Lua** and map them to HTTP codes in TS (`404`, `409`, `500`).
+- **Normalise once** in `validateOp` and pass `normalizedName` to Lua (WR-05).
+- **Derive, never store**: seat emptiness is derived from `name`, shares are derived at render time.
 
-### Anti-Pattern 1: Creating the Session Before Setup Is Complete
+## Anti-patterns to avoid
 
-**What people do:** Create the Redis session on first OCR result, before people are added.
-**Why it is wrong:** Wastes Redis commands on abandoned sessions; people and items are still being
-edited; the pre-session Zustand state is the correct place for mutable in-progress setup.
-**Do this instead:** Create the session at the single handoff point when the user signals readiness.
+- **A separate `seats[]` array or `isSeat` flag.** Creates two sources of truth and touches every consumer that iterates `people`.
+- **Purging claims on remove.** That is exactly what got live remove-person descoped. Refuse instead of cleaning up.
+- **Blind rename of an empty seat.** Always use the CAS op so concurrent claimants cannot overwrite each other.
+- **Deriving "Seat N" from array index.** Shifts on removal.
+- **Trusting `guestCount` blindly.** Clamp and keep it editable.
+- **Rewriting `claims.*` in the new Lua.** cjson turns empty tables into `[]`; only touch `session.people`.
 
-### Anti-Pattern 2: Adding Lua Atomicity to the Direct Edit Route
+## Suggested build order (dependency driven)
 
-**What people do:** Port the direct-edit route into a Lua script to make simultaneous edits atomic.
-**Why it is wrong:** Premature optimization. The at-table context makes concurrent conflicting edits
-rare. Last-write-wins is the specified behavior. Lua adds complexity without changing the UX.
-**Do this instead:** Simple read-modify-write in TypeScript. Revisit in v2.1 if conflicts arise.
+1. **Foundations (no UI):** `lib/seats.ts`; store `setHeadcount`; tests for `computeEqualChargeShares` with `name: ''` people. Unblocks everything, near-zero risk.
+2. **Server ops:** `add_seat`, `claim_seat`, `remove_seat` Lua + route branches + `validateOp`. Write route tests in `__tests__/editRoute.test.ts` style, and add a real Lua execution test for `remove_seat` and `claim_seat` (e.g. run the scripts against a Lua runtime/Redis in test or a minimal cjson-compatible harness). Include: concurrent double-claim, remove after claim, remove with claims, `claims.items == []` shape, the floor of 2 people. **This is the descope gate; do not ship `remove_seat` without it.**
+3. **OCR `guestCount`:** prompt, schema, parse, response, test + fixture. Independent of 2, so it can run in parallel.
+4. **Setup UI:** counter, own-name input, gate, OCR prefill, pre-store `personId`. Depends on 1 and 3.
+5. **Identity modal / picker:** empty-seat cards, `claim_seat` wiring, 409 handling, "I'm not listed" kept. Depends on 1 and 2.
+6. **Live seat management + display pass:** `SeatManager`, header strip, `PersonResultsScreen` copy and labels, `ClaimableItemCard` helper. Depends on 2 and 5.
+7. **End-to-end check at 375px:** multi-device concurrent claim, empty seats in Results totals, expiry path.
 
-### Anti-Pattern 3: Keeping assignedBy on ClaimEntry "for attribution"
+## Scalability considerations
 
-**What people do:** Keep `assignedBy` in ClaimEntry to track who assigned an item to whom.
-**Why it is wrong:** In v2, attribution ("who claimed this") is derived from the claims map itself.
-`claimsForItem` maps `personId → ClaimEntry` — the claimer is the key, not a stored field.
-**Do this instead:** Drop `assignedBy` and `accepted` from ClaimEntry. Render the claimer's name
-by looking up the personId key in claimsForItem against `session.people`.
+| Concern | Now | Note |
+|---|---|---|
+| Session size | <5KB with 20 seats | Seats add about 60 bytes each |
+| Lua cost | O(items x people) in `remove_seat` scan | Trivial at 20 people |
+| Poll load | 3s SWR | Unchanged |
+| Concurrency | Single JSON blob per session | Whole-session read/write inside Lua is atomic per script; `/done` is still non-atomic (pre-existing WR-01), not worsened here |
 
-### Anti-Pattern 4: Prop-drilling currencyCode Through Every Level
+## Open questions and risks
 
-**What people do:** Thread `currencyCode` as a prop through every component that renders a price.
-**Why it is wrong:** Creates unnecessary coupling. The currency does not change within a session.
-**Do this instead:** A thin helper `formatSessionCents(cents, session)` at the top of each screen
-component, or pass `session.currencyCode` explicitly only to the three direct consumers
-(ClaimableItemCard, TipScreen, PersonResultsScreen) — all three already receive session or its
-properties as props.
-
----
-
-## Scaling Considerations
-
-The bill-splitter use case is bounded (table groups of 2–10, sessions lasting 10–30 minutes):
-
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 0–10k sessions/day | Current architecture correct; Upstash free tier (10k commands/day) may need upgrading to Pro; no structural changes |
-| 10k–100k sessions/day | Upstash Pro tier; consider caching GET /api/session at the edge (1s TTL) to reduce commands from 3s SWR polling |
-| 100k+ sessions/day | Edge caching layer for reads; evaluate SSE over polling to reduce request volume; Upstash scale plan |
-
-**Concurrency note:** At 3s polling, 5 people in one session generates ~100 Redis GETs/minute.
-At 10 concurrent sessions that is 1,000 commands/minute (~1.4M/day) — above the free tier.
-Upstash Pay-as-you-go or Pro tier is required for any meaningful production traffic.
-
----
+- `/done` is a non-atomic GET/SET and can clobber a concurrent Lua write to `people` (a `claim_seat` landing between its GET and SET would be lost). Window is tiny and pre-existing, but seat claims increase the number of people-array writes. Consider moving `done` to Lua as hardening in step 2 (MEDIUM priority).
+- `/edit` generic ops (add/remove/edit item) also GET/SET the whole session and could clobber seat changes in the same window. Same pre-existing pattern; note it, do not fix this milestone unless testing shows trouble.
+- Pre-storing the scanner's identity may interact with the G4 invite step and the `restoreAttempted` ref; verify in step 4.
+- Minimum people floor (2) is a recommendation. The requirement does not state it explicitly; confirm with the product owner.
+- Empty-seat tax share impact is a product consequence the team has accepted ("pay an equal share"); the discoverability of the remove control is the only mitigation since there is no nudge by design.
 
 ## Sources
 
-- Full codebase read (all files listed in the Component Inventory above)
-- `.planning/PROJECT.md` — v2.0 requirements and scope
-- `.planning/research/FEATURES.md` — flat model open decisions (#1 unclaimed items, #2 edit
-  conflicts, #3 claiming for others, #4 editing others' claims, #5 empty setup, #6 currency fallback)
-
----
-
-*Architecture research for: easy-billsy v2.0 bill splitter redesign*
-*Researched: 2026-06-04*
+- Code read directly: `app/api/session/[sessionId]/edit/route.ts`, `claim/route.ts`, `done/route.ts`, `app/api/session/route.ts`, `app/api/ocr/route.ts`, `lib/billMath.ts`, `lib/sessionSchema.ts`, `lib/createSession.ts`, `stores/useBillStore.ts`, `components/wizard/SetupStep.tsx`, `components/split/IdentityModal.tsx`, `PersonSlotPicker.tsx`, `BillViewHeader.tsx`, `PersonResultsScreen.tsx`, `app/split/[sessionId]/CollaborativeClaimingView.tsx` (HIGH)
+- `.planning/PROJECT.md` (milestone scope and decisions) (HIGH)
+- Upstash `redis.multi()` non-atomicity: from existing code comments (RESEARCH Pitfall 1), not re-verified this session (MEDIUM)

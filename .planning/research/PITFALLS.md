@@ -1,286 +1,183 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Live bill-splitter app — v2.0 easy-billsy redesign (host removal, wizard collapse, currency, flat model)
-**Researched:** 2026-06-04
-**Confidence:** HIGH (derived from direct codebase inspection — sessionSchema.ts, claim/route.ts, billMath.ts, 29-file test suite, and CollaborativeClaimingView.tsx; not training-data speculation)
+**Domain:** Headcount / empty-seat claiming on a real-time shared bill (v2.1 "Faster people setup")
+**Researched:** 2026-10-06
+**Confidence:** HIGH on codebase-grounded findings (read the real routes/Lua); MEDIUM on OCR behavior (prompt-level reasoning, no live scan testing)
 
----
+Key facts about the existing system that drive everything below (verified in code):
+- A "seat" will be a `Person` in `session.people` with an empty `name`. There is no seat concept or `claimed` flag today (`lib/sessionSchema.ts`).
+- `rename_person` and `add_person` are Lua scripts in `app/api/session/[sessionId]/edit/route.ts`. `rename_person` is an unconditional overwrite (no compare-and-set).
+- `done/route.ts` and `tip/route.ts` are NON-atomic GET -> spread -> `redis.set(whole session)`. They already clobber concurrent writes to `people[]`.
+- `claim/route.ts` Lua never checks that `personId` exists in `session.people` (only `done` does, in TS).
+- `computeEqualChargeShares(charge, people)` hands the remainder cent(s) to the first people by ARRAY INDEX.
+- Identity restore in `CollaborativeClaimingView.tsx` (~line 160) already checks `session.people.some(p => p.id === stored)` once on first load, guarded by `restoreAttempted` ref; it is NOT re-checked on later polls.
+- `add_person` assigns `colorIndex = #people % 6`; people cap is 20.
+- Prior descope (v2.0 PART-01/02/06): live remove-person Lua had 2 Critical review findings and no execution-level test. Lesson: any new Lua here needs a real execution test before ship.
 
 ## Critical Pitfalls
 
-### Pitfall 1: Host-Removal Blast Radius — Dangling References After Deletion
-
-**What goes wrong:**
-Deleting the six host-specific files (HostPanel.tsx, ReviewHostAssignedScreen.tsx, EditRequestForm.tsx, and routes accept/edit-request/resolve-edit/resolve-dispute/dispute) leaves import references in files that are NOT being deleted. The application silently compiles if TypeScript can resolve the symbol from the deleted export, but crashes at runtime if the re-export chain breaks, or breaks the type system if `hostToken`, `hostPersonId`, `editRequests`, and `disputes` remain in `SessionPayload` while the code using them is deleted.
-
-Concrete blast radius from codebase inspection:
-- `lib/sessionSchema.ts`: `ClaimEntry.assignedBy`, `ClaimEntry.accepted`, `EditRequest`, `Dispute`, `hostToken`, `hostPersonId`, `editRequests`, `disputes` — all must be removed or the schema becomes a lie that causes old-session crashes (see Pitfall 2).
-- `app/api/session/[sessionId]/claim/route.ts`: The Lua `QTY_CLAIM_SCRIPT` checks `session.hostToken` at line 26 and `SLOT_CLAIM_SCRIPT` sets `session.hostPersonId` at lines 97-99. Removing the host model requires these Lua strings to be rewritten — they are not TypeScript, so the type checker will not catch stale Lua references. A typo in the Lua rewrite silently returns `invalid_session` for every claim.
-- `app/split/[sessionId]/CollaborativeClaimingView.tsx`: 17+ host-specific references including `hostTokenParam` state, `#hostToken=` URL fragment parsing, the `isHost` derived value, `ReviewHostAssignedScreen` import, `hasUnacceptedHostItems`, and the `editCount`/`disputeCount` badge counters. The view will not compile if ReviewHostAssignedScreen is deleted without also removing every reference to it.
-- `app/api/session/route.ts`: Pre-populates `claims.items` with `assignedBy: 'host'` markers (lines 58-65). In the flat model this block should be removed; leaving it means new sessions still contain host markers that trigger the `accepted` check path even though that path has been deleted.
-- `stores/useBillStore.ts`: Referenced for host-related types; any `hostToken` forwarding logic must be found and removed.
-
-The 923 lines across 6 host-specific test files (`HostPanel.test.tsx`, `ReviewHostAssignedScreen.test.tsx`, `disputeRoute.test.ts`, `editRequestRoute.test.ts`, `resolveEditRoute.test.ts`, `resolveDisputeRoute.test.ts`) will fail immediately. But 59 host-concept assertions scattered across "shared" test files (`sessionClaimRoute.test.ts`, `sessionRoute.test.ts`, `sessionGetRoute.test.ts`, `tipRoute.test.ts`, etc.) will silently pass if the fixture data still contains `hostToken` even though the field is removed from the schema. This is a false-green scenario.
-
-**Why it happens:**
-Grep-driven deletion misses Lua string literals, URL fragment string matches (`#hostToken=`), and conditional checks that reference undefined fields (TypeScript does not error on accessing `session.hostToken` if `hostToken` is `string | undefined`, only on `string`). Developers delete the visible files and assume the type errors are the complete hit list.
-
-**How to avoid:**
-1. Before any deletion, generate a reference map: `grep -rn "hostToken\|hostPersonId\|editRequests\|disputes\|assignedBy\|accepted\|ClaimEntry\|EditRequest\|Dispute" --include="*.ts" --include="*.tsx" > /tmp/host-refs.txt`. Work through this file top to bottom.
-2. Remove `hostToken`, `hostPersonId`, `editRequests`, `disputes` from `SessionPayload` first. This will cascade type errors that reveal every reference; fix those before deleting files.
-3. Audit Lua script strings separately — they are opaque to TypeScript. Search for `'host'` inside Lua string literals in `claim/route.ts` explicitly.
-4. Remove `assignedBy` and `accepted` from `ClaimEntry` only after confirming no non-host code reads them (nothing in the flat model needs them).
-5. Run `npx tsc --noEmit` after every file deletion, not just at the end.
-
-**Warning signs:**
-- TypeScript compiles cleanly but Lua `evalsha` returns `invalid_session` in staging — sign that Lua was updated inconsistently with the session schema shape.
-- `CollaborativeClaimingView` renders a blank screen after deletion — sign that `ReviewHostAssignedScreen` import was deleted but the JSX reference was not.
-- Tests pass but `sessionRoute.test.ts` fixture still sets `hostToken: 'host-token-abc'` — sign of stale fixtures giving false confidence.
-
-**Phase to address:**
-Phase 1 (host removal) — this is the first-and-hardest refactor; must be completed atomically before any other v2 phase begins. Do not interleave with wizard collapse or currency work.
-
----
-
-### Pitfall 2: Live Redis Session Backward-Compat — Old-Shape Sessions Crash New Code
-
-**What goes wrong:**
-The app is LIVE. At any moment of deployment there are Redis sessions with TTLs up to 24 hours that were written by the v1 code and contain:
-- `hostToken: "abc123"` (required field in current `SessionPayload`)
-- `hostPersonId: "person-id"` (optional but present)
-- `editRequests: { "req1": {...} }` (present and non-empty for active dispute sessions)
-- `disputes: { "d1": {...} }` (same)
-- `claims.items[itemId][personId].assignedBy: "host"` and `accepted: true/false`
-
-After deploy, the new code does `const session = JSON.parse(raw)` and treats the result as the new schema. Extra fields in JSON do not crash cjson — old sessions with `hostToken` will not break new Lua scripts. The real crash scenario is the reverse: new code reads a field old sessions NEVER had, such as `session.currencySymbol`, and treats `undefined` as a string — `undefined.toUpperCase()` crashes. Any new field access that is not null-guarded is a time-bomb on old sessions.
-
-The `computePersonShareFromClaims` function in `billMath.ts` will receive old claim entries with `{ qty: 1, assignedBy: 'host', accepted: false }` from sessions that were active at deploy time. The math is unaffected (the function only reads `entry.qty`), but any new UI code that checks `entry.assignedBy === 'host'` and expects that field to be absent will find it present in old sessions.
-
-**Why it happens:**
-Serverless deploys are instant-cutover. There is no migration step for Redis KV data. The 24h TTL means stale data coexists with new code for up to 24 hours post-deploy.
-
-**How to avoid:**
-1. Apply a defensive read pattern at every point where session data is consumed from Redis. Every new field access must use optional chaining and a default: `session.currencySymbol ?? null`, `session.editRequests ?? {}`, `session.disputes ?? {}`. Do this at the GET /api/session route level, not scattered across components.
-2. Remove required status from `hostToken` in the TypeScript schema — change it to `hostToken?: string`. This makes the type honest: sessions written before the v2 deploy have it; sessions written after do not.
-3. Write a `migrateSession(raw: unknown): SessionPayload` normalizer function that is called immediately after `JSON.parse`. This function applies defaults, strips unknown fields, and returns a canonically-shaped object. The claim Lua scripts already re-encode the full session on every write (`redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)`) — the normalizer plus one Lua write would upgrade any in-flight session to the new shape on the next claim operation.
-4. Do not remove `editRequests` and `disputes` from the TypeScript type on day one; mark them `editRequests?: Record<string, EditRequest>` and let them atrophy over 24 hours as sessions expire. Remove from schema in a follow-up commit.
-5. The `currencySymbol` field is the highest-risk new field — it is read by `formatCents` callers. Make its absence display a neutral fallback (bare number or configurable symbol) rather than throwing.
-
-**Warning signs:**
-- `invalid_session` errors in Vercel logs spiking immediately after deploy — sign that the Lua decoder encounters unexpected schema shapes.
-- `TypeError: Cannot read properties of undefined` in browser console on the Results screen — sign that `session.currencySymbol` is accessed without null-guard.
-- A specific user reports their existing session shows wrong totals or crashes — they were mid-session during the deploy window.
-
-**Phase to address:**
-Phase 1 (host removal) — write the `migrateSession` normalizer as the first act of the session schema change, before any other code changes. The normalizer is the safety net for the entire migration.
-
----
-
-### Pitfall 3: Currency Formatting — Zero-Decimal Currencies and the `parseCents` Contract
-
-**What goes wrong:**
-`formatCents` in `billMath.ts` currently hardcodes `$${(cents / 100).toFixed(2)}`. This assumes all currencies have 2 decimal places and use `$` as the symbol. Introducing currency recognition without changing this function means:
-- JPY (¥) amounts stored as "whole yen" — e.g., ¥1500 — will be stored as `150000` cents (1500 * 100) because `parseCents` multiplies by 100. When displayed, `150000 / 100 = 1500.00` renders correctly by accident. BUT if the OCR returns `1500` and the code calls `parseCents("1500")`, it returns `150000` — then `formatCents(150000)` shows `¥1500.00` which looks wrong (meaningless .00 decimals on a zero-decimal currency).
-- KWD (Kuwaiti Dinar) has 3 decimal places. `parseCents("5.250")` returns `null` because the regex `^\d+(\.\d{1,2})?$` rejects 3 decimal places. This silently drops items from Kuwaiti receipts.
-- The `Intl.NumberFormat` approach to replace `.toFixed(2)` requires knowing the ISO currency code (e.g., `"JPY"`, `"USD"`, `"GBP"`), NOT just the symbol (`¥`, `$`, `£`). The OCR extracts a symbol; you must then map symbol to ISO code to use `Intl.NumberFormat`. Multiple currencies share the same symbol (`$` is used by USD, CAD, AUD, SGD, HKD, and others).
-- `Math.round(parseFloat(value) * 100)` in `parseCents` is the standard JavaScript float-multiplication approach. For most values it is fine, but `parseFloat("1.005") * 100 = 100.49999...` rounds to 100 instead of 101. The correct approach for user input is to split on the decimal point and construct cents arithmetically: `parseInt(wholePart) * 100 + parseInt(fracPart.padEnd(2, '0').slice(0, 2))`.
-
-**Why it happens:**
-The existing codebase was built dollar-first. The "integer cents" model was correct for USD but the implementation encodes USD assumptions in the storage format (cents = smallest unit / 100) and the display logic (`toFixed(2)`, `$` prefix). Currency is being added as a late concern rather than a foundation concern.
-
-**How to avoid:**
-1. Do NOT use `Intl.NumberFormat` with a currency code for the initial v2 implementation — it requires knowing the ISO code, which you may not have reliably. Instead, pass `currencySymbol` as a display-only prefix/suffix parameter to `formatCents` and keep the `/ 100` and `toFixed(2)` math unchanged. This limits breakage to visually correct for 2-decimal currencies.
-2. For zero-decimal currencies (JPY, KRW, VND, etc.): if `currencySymbol` is `¥` or `₩`, skip the `* 100` in `parseCents` and the `/ 100` in `formatCents`. The cleanest approach is a `currencyScale` parameter (default 100; set to 1 for zero-decimal currencies).
-3. For the v2 release, explicitly scope currency recognition to common restaurant currencies: USD (`$`), EUR (`€`), GBP (`£`), JPY (`¥`), INR (`₹`), AUD (`$`), CAD (`$`). For ambiguous `$`, default to USD display; add a currency picker for override. Do not attempt to handle KWD (3 decimal) in v2.
-4. Replace `parseCents`'s float multiplication with string-split arithmetic to eliminate the `1.005` edge case: split on `.`, take at most 2 fraction digits, construct cents without floating point.
-5. The `billMath.test.ts` suite currently tests `formatCents(1250)` === `'$12.50'`. These tests must be updated to accept `formatCents(1250, '£')` === `'£12.50'` when the symbol parameter is added. Do not silently change the test output without understanding the dollar-sign hardcoding throughout the test suite.
-
-**Warning signs:**
-- JPY receipt items show as `¥15.00` instead of `¥1500` — sign that `parseCents` stored yen as if they were cents.
-- `parseCents` returns `null` for a valid price on a non-USD receipt — sign of the 3-decimal or symbol-in-string problem.
-- `formatCents` tests pass but display is wrong — sign that tests are checking the old `$` format and the currency parameter was added but not threaded to the test fixture.
-
-**Phase to address:**
-Phase 3 (currency recognition) — `formatCents` signature change must be a single atomic commit that updates the function, all 20+ call sites, and the test suite in one changeset. Do not change the signature in one commit and update call sites in scattered later commits — the intermediate state will be broken.
-
----
-
-### Pitfall 4: Wizard Collapse Without Orphaning the Test Suite
-
-**What goes wrong:**
-The current test suite has tests tightly coupled to the 4-step wizard flow:
-- `AddPeopleStep.test.tsx` — tests `AddPeopleStep` in isolation
-- `AddItemsStep.test.tsx` — tests the OCR review step
-- `AssignItemsStep.test.tsx` — tests the assignment step
-- `WizardShell.test.tsx` — tests multi-step shell and step-advance logic
-- `ResultsStep.test.tsx` — tests the final results view
-
-Collapsing to a single `SetupScreen` does not mean these tests simply disappear. If the component trees are restructured without carrying test intent forward:
-1. Tests are deleted without replacement — coverage drops; previously-tested calculation paths are silently unguarded.
-2. Tests are kept but their component is renamed/split — tests fail with `Cannot find module` errors that look trivial but hide real coverage gaps when devs delete the failing test instead of updating it.
-3. `WizardShell` tests cover step-navigation logic (back/forward, state preservation across steps). If the wizard is collapsed but some sub-navigation remains (Setup to identity modal to BillView to Results), the navigation state machine still needs tests even if the component name changes.
-
-The `billMath.test.ts` and `sessionClaimRoute.test.ts` are pure-logic tests that survive any UI restructuring — they do not reference component trees. These are safe. The risk is in component tests that mount the wizard hierarchy.
-
-**Why it happens:**
-Refactoring UI structure is treated as a UX concern, not a test-architecture concern. The developer collapses screens, then runs the test suite and gets red, and deletes failing tests to make CI green rather than porting them.
-
-**How to avoid:**
-1. Before collapsing the wizard, audit which tests cover business logic (calculation, validation, state management) vs. which cover component wiring (does the Next button call `advanceStep`). Business logic tests must survive; wiring tests must be ported to the new component tree.
-2. Create a coverage map: for each of the 5 wizard step tests, list the behaviors being tested (e.g., "empty name is rejected", "price validates as cents"). Ensure each behavior has a corresponding test in the new component before deleting the old test.
-3. Keep `billMath.test.ts` completely intact — no changes needed; it tests pure functions that do not care about UI structure.
-4. Keep `sessionClaimRoute.test.ts`, `tipRoute.test.ts`, `sessionGetRoute.test.ts` intact — these test API routes unchanged by the UI collapse.
-5. `WizardShell.test.tsx` should be deleted only after creating `SetupScreen.test.tsx` and `BillView.test.tsx` with equivalent navigation-state tests.
-6. Do not run `git rm` on test files — use `git mv` so history is preserved and the deletion intent is explicit.
-
-**Warning signs:**
-- Test count drops by more than the number of explicitly-deleted host test files (6 files, ~923 lines) — sign that component tests were silently deleted.
-- CI goes from red to green without new tests being added — classic sign of test deletion rather than porting.
-- `billMath.test.ts` fails after the collapse — sign that a refactor accidentally modified `billMath.ts`.
-
-**Phase to address:**
-Phase 2 (wizard collapse to Setup screen) — begin with a test inventory document listing every currently-passing test and mapping it to the new component it should test. Treat test migration as a first-class deliverable of this phase, not cleanup.
-
----
-
-### Pitfall 5: Flat-Model Race Conditions — Stale SWR Cache and Over-Blocking Slot Enforcement
-
-**What goes wrong:**
-Two issues arise directly from removing the host role:
-
-**Issue A — Stale totals at Results entry.** The SWR polling interval is 3 seconds. When a user transitions from the claiming screen to the Results screen, SWR returns the last cached value first, then revalidates. If another user changed a price or claimed an item in the last 3 seconds, the Results screen computes totals on stale data. The user sees a total that differs from the server-authoritative value, creating "why did my total change?" confusion. This was not a problem in v1 because the host controlled the transition to Results and could see the current state.
-
-**Issue B — `slot_taken` blocks the flat identity modal.** The current `SLOT_CLAIM_SCRIPT` returns `slot_taken` and the UI treats this as a blocking error. In v1, the host model made identity exclusivity meaningful: the host's slot was a write-capability gate. In v2 with a flat model, two devices should be able to act as the same person (a common scenario when someone's battery dies and they borrow another phone). If `slot_taken` still blocks, any second device claiming "Alice" is rejected, which is a regression from expected flat-model behavior.
-
-Additionally, the edit route that replaces the edit-request workflow is currently a non-atomic read-modify-write in TypeScript. Two concurrent edits to the same item price will race: both read the current price, both write their new price, last-write-wins silently. This is acceptable per the product decision in FEATURES.md, but the write must still go through an atomic Lua script to avoid corrupting the JSON structure (partial writes to nested objects via non-atomic SET can corrupt the session).
-
-**Why it happens:**
-`slot_taken` enforcement was designed for the host model where identity exclusivity mattered as a security property. In the flat model it becomes a UX blocker without a security benefit. SWR cache staleness was masked in v1 by host-gated transitions.
-
-**How to avoid:**
-1. Downgrade `slot_taken` from a blocking error to a soft notification or remove the personSlots exclusivity check entirely. In v2, the identity modal is informational (self-identification), not an exclusive lock.
-2. Call `mutate()` (SWR) synchronously when transitioning to the Results phase to force a fresh fetch before computing final totals. This is a one-line change but critical for totals accuracy.
-3. The new direct edit route must use the same Lua read-modify-write pattern as `QTY_CLAIM_SCRIPT`. Do not write a plain TypeScript GET + modify + SET sequence for item edits — the non-atomic pattern was already identified as dangerous in the existing codebase comments.
-4. Accept last-write-wins for all item edits but surface an "edited by [name]" attribution label on items — this is the social self-correction mechanism and is mandatory, not optional, when conflict detection is deliberately omitted.
-
-**Warning signs:**
-- `slot_taken` response in the identity modal blocks a user from joining — sign that personSlots enforcement was left in place from v1.
-- Results screen shows totals that differ from what the user saw on the claiming screen — sign that Results is reading from stale SWR cache.
-- Two concurrent price edits result in a corrupt session JSON (500 from the next claim call) — sign that the edit route used a non-atomic GET+SET pattern.
-
-**Phase to address:**
-Phase 1 (host removal) — remove `slot_taken` blocking behavior when removing host enforcement. Phase 4 (Results redesign) — add forced fresh-fetch on Results entry. Phase 1 also — write the new edit route as a Lua script.
-
----
-
-## Technical Debt Patterns
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Keep `editRequests`/`disputes` in schema as optional fields after v2 | Old sessions don't crash; gradual atrophy | Schema carries dead fields; new developers confused by their presence | Acceptable for 24h TTL window only; remove in a follow-up commit after sessions expire |
-| Use symbol string (`£`) directly in `formatCents` rather than ISO code + `Intl.NumberFormat` | Avoids symbol-to-ISO-code mapping complexity | `Intl.NumberFormat` locale-aware grouping (e.g., `1.000,00` in Germany) not applied; bare `toFixed(2)` is locale-naive | Acceptable for v2; full `Intl` support is a v2.1+ concern |
-| Last-write-wins for item edits without server-side conflict detection | Simpler code, no approval queue | Silent overwrites are invisible without attribution label | Acceptable IF attribution label ships in the same phase — it is not optional |
-| Delete 6 host test files without full test coverage replacement in Phase 2 | Faster Phase 1 | Coverage debt on paths that were previously tested; regressions in claim math possible | Never — test replacement must be in the same phase as deletion |
-| Reuse existing Lua `QTY_CLAIM_SCRIPT` without modifying `assignedBy` field storage | Saves Lua rewrite effort | Old sessions still have `assignedBy: 'host'` entries; new code that checks this field will behave unexpectedly | Only safe if `assignedBy` is fully removed from all reads — partial removal is worse than full removal |
-
----
-
-## Integration Gotchas
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Upstash Redis Lua eval | Using `redis.multi()` for atomic operations — NOT atomic on Upstash REST, already documented in `claim/route.ts` line 9 | Always use `redis.eval()` with Lua for any read-modify-write that must be atomic. Do not regress by adding non-Lua multi() calls in the new edit route. |
-| GPT-4o-mini currency extraction | Asking the model to return a currency code (e.g., `"USD"`) — the model will often hallucinate or return inconsistent codes for ambiguous symbols like `$` | Ask the model to return the literal symbol as it appears on the receipt (`"£"`, `"€"`, `"¥"`). Map to ISO code only for `Intl.NumberFormat` use; keep the raw symbol as the primary key. |
-| SWR `refreshInterval: 3000` | Assuming SWR cache is fresh when entering the Results phase — SWR returns the last cached value first, then revalidates in the background | Call `mutate()` synchronously on Results entry to force a fresh fetch before computing final totals. One-line change, critical for totals correctness. |
-| Vercel serverless deployment | Old and new code serve requests simultaneously for a brief window during the Vercel rolling deploy | Ensure the `migrateSession` normalizer is deployed before any code that reads new fields. If impossible in one deploy, deploy the normalizer as a separate prior commit. |
-
----
-
-## Performance Traps
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| `computePersonShareFromClaims` called on every SWR poll (every 3s) for all people | Jank on Results screen with 8+ people and 20+ items | Memoize with `useMemo` keyed on `session.claims` and `session.items` reference identity | With 10+ people and 20+ items; not a real concern at typical bill-splitting scale |
-| Lua script re-encodes full session JSON on every claim | Each claim operation is O(items * people) in Lua decode/encode | Already acceptable at bill-splitting scale (max ~30 items, ~10 people) | Never a real problem at this scale |
-| SWR polling continues after Results screen is shown | Unnecessary network requests when session is effectively done | Set `refreshInterval: 0` when phase transitions to `results` | Cosmetic issue only |
-
----
-
-## Security Mistakes
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Removing `hostToken` validation from the claim route without replacing with any authorization check | In the flat model, any caller can claim any item for any person — this is intentional. But the edit route should still validate that `personId` exists in `session.people` before applying the edit. | In the new edit route, validate `personId` is in `session.people` before applying the edit. This prevents a malicious external caller from injecting edits with made-up personIds. |
-| `hostToken` stored in URL fragment (`#hostToken=abc`) in the current code (per CR-05 comment in CollaborativeClaimingView.tsx) | Fragment is not sent to server in HTTP requests — intentional and safe in v1. In v2, `hostToken` no longer exists. A dangling `#hostToken=` in shared URLs after v2 deploy is confusing but not a security risk. | Remove fragment generation from `ShareLinkButton.tsx` as part of Phase 1 host removal. Verify with incognito tab that `window.location.hash` is empty on the new share URL. |
-| `currencySymbol` stored in Redis without sanitization and reflected in the Results screen | If the OCR prompt returns a maliciously-crafted currency string, it could be displayed as HTML or used as an injection vector | `currencySymbol` must be validated to a single symbol character from an allowlist (e.g., `$`, `£`, `€`, `¥`, `₹`) before storage. Do not reflect arbitrary strings from the GPT response into the DOM without sanitization. |
-
----
-
-## UX Pitfalls
-
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| "Who are you?" identity modal appears with an empty people list because the user shared the link before adding people | User is stuck — cannot claim items and cannot proceed | The identity modal must include an inline single-field "Add my name" path, not a redirect to Setup. Documented in FEATURES.md but easy to omit in implementation. |
-| Removing the host role removes the only person who could see all unassigned items | Items silently excluded from totals; group undercharges someone | The "unassigned items" warning on the pre-Results screen is the only safety net — it must be prominent (blocking, not dismissible without action) and must show item names and prices, not just a count. |
-| Collapsing the wizard means the scan-first Setup screen is the landing page for returning users starting a new split | A user who taps "New Split" is forced through the scan step even if they want manual entry | Provide "Enter manually" as a clearly visible secondary action on the Setup screen from the beginning, not buried in an error state. |
-| Currency symbol displayed before the user has scanned (bare number state) | Users see `$0.00` or `0.00` and are confused about what currency the app will use | During Setup, before scan, show no currency prefix at all — apply the currency symbol only after OCR succeeds and the symbol is known. |
-
----
-
-## "Looks Done But Isn't" Checklist
-
-- [ ] **Host removal:** Lua scripts in `claim/route.ts` updated — TypeScript compiles after host removal but Lua is a string; verify the Lua logic is host-free by reading the script character by character.
-- [ ] **Host removal:** `app/api/session/route.ts` pre-populates `claims.items` with `assignedBy: 'host'` — this block must be removed or new sessions still carry host markers.
-- [ ] **Backward-compat:** `migrateSession` normalizer handles sessions with `editRequests`, `disputes`, `hostToken`, `hostPersonId`, `assignedBy: 'host'` all gracefully — verify with a unit test that passes an old-shape session object and asserts the normalized output.
-- [ ] **Currency:** `formatCents` call sites (20+ across components) all pass `currencySymbol` — verify with `grep -rn "formatCents(" --include="*.tsx"` that no call site still uses the old 1-argument signature after the signature change.
-- [ ] **Currency:** `parseCents` regex `^\d+(\.\d{1,2})?$` updated or bypassed for zero-decimal currencies — verify with a test for a JPY amount `"1500"` that it returns `1500` (not `150000`) when currencyScale is 1.
-- [ ] **Test suite:** After host file deletion, `npx vitest run` passes with zero skipped tests — skipped tests are a sign that host-fixture dependencies were removed but the test was not.
-- [ ] **Flat model:** `personSlots` `slot_taken` blocking behavior removed from the identity modal — verify that two browser tabs can both select "Alice" without one being rejected.
-- [ ] **Results screen:** `mutate()` called on entry to force fresh SWR fetch — verify by inspecting network tab that a GET /api/session request fires when transitioning to Results.
-- [ ] **Share URL:** `#hostToken=` fragment no longer appended to generated share URLs — verify by opening the share URL in a fresh incognito tab and inspecting `window.location.hash`.
-
----
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Dangling host reference causes production crash after deploy | HIGH | Roll back the Vercel deployment immediately (takes ~30 seconds via Vercel dashboard); fix the reference; redeploy. The 24h Redis TTL means all in-flight sessions survive the rollback. |
-| Old-shape sessions cause `TypeError` in new code | MEDIUM | Deploy a hotfix that adds null-guards (`?? {}`) to the failing field accesses; no data loss. The broken sessions expire within 24h. |
-| `formatCents` signature change breaks call sites | LOW | TypeScript will catch all call sites at compile time via `npx tsc --noEmit`; this cannot reach production if CI enforces type checking. |
-| Test suite has false-green from stale host-field fixtures | MEDIUM | Add a lint rule or CI check asserting `hostToken` does not appear in test fixture objects after Phase 1 completes. |
-| Zero-decimal currency stored as 100x the correct value | MEDIUM | Display is wrong but data is intact; add `currencyScale` parameter to `formatCents` and `parseCents`, deploy hotfix. Existing sessions with wrong values expire within 24h. |
-
----
-
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Host-removal blast radius (dangling refs, Lua strings, stale fixtures) | Phase 1: Host role removal | `npx tsc --noEmit` passes; `grep -rn "hostToken" --include="*.ts"` returns zero results except the normalizer; Lua scripts inspected manually for `'host'` literals |
-| Live Redis session backward-compat | Phase 1: Host role removal | Unit test for `migrateSession()` covering old-shape session; Vercel log monitoring for 24h post-deploy |
-| Currency formatting (zero-decimal, parseCents float, formatCents symbol) | Phase 3: Currency recognition | `billMath.test.ts` includes JPY test cases; `grep -rn "formatCents(" --include="*.tsx"` shows all call sites use new signature |
-| Wizard test suite orphaned during collapse | Phase 2: Wizard collapse | Test count after collapse equals (original count - deleted host tests) + new component tests; no tests deleted without replacement |
-| Flat-model `slot_taken` blocks identity | Phase 1: Host role removal | Manual QA: two incognito tabs both successfully claim "Alice" identity in the same session |
-| Results screen stale SWR cache | Phase 4: Results redesign | Network tab shows a GET /api/session request fires on Results entry; totals match what server computed |
-| Unguarded new field access on old sessions | Phase 1: Host role removal | `migrateSession` unit test with v1-shape session object; no `?.` omissions on new fields |
-
----
+### Pitfall 1: Two friends claim the same empty seat (silent last-write-wins)
+**What goes wrong:** Both open the link, both pick "Seat 3", both type a name. Existing `rename_person` just overwrites, so the second name replaces the first. The first friend's phone still thinks they are Seat 3, keeps claiming items under the same personId, and now their items are attributed to someone else's name. Nobody gets an error.
+**Why it happens:** The flat/no-lock model (GAP-09-NOLOCK) was designed for "names always selectable, concurrent same-name editing". Seat claiming is different: a seat is only legitimately claimable while empty. Reusing `rename_person` carries over the "overwrite" semantics.
+**Consequences:** Wrong person billed; two people believe they are the same seat; confusion that is invisible until Results.
+**Prevention:** Add a NEW dedicated op (e.g. `claim_seat`) with compare-and-set inside Lua: succeed only if `person.name == ''` (or missing); otherwise return `seat_taken`. Do NOT reuse `rename_person` for the first naming. The client on `seat_taken` must refetch and re-open the picker with a message ("Someone just took that seat — pick another"), and must NOT store the personId in localStorage. Keep `rename_person` unchanged for renaming already-named seats (flat model preserved: renaming a named seat is still allowed, per decision).
+**Detection:** Test that fires two concurrent `claim_seat` calls on one seat at the Lua level and asserts exactly one `OK`. Warning sign: any code path where the empty->named transition goes through `rename_person`.
+**Phase:** Seat-claim API phase (first backend phase). Needs an execution-level Lua test (see Pitfall 3).
+
+### Pitfall 2: Removing an empty seat while someone is claiming it (or claiming items as it)
+**What goes wrong:** A removes empty Seat 4 at the same moment B picks Seat 4. Outcomes: B's `claim_seat` returns `person_not_found` (fine if handled) OR, worse, B already holds Seat 4 locally and claims items; the claim Lua does not validate personId, so claims are written under a ghost personId that is not in `people[]`. Those units are counted as claimed (hiding them from the "unclaimed" callout) but billed to nobody — money silently disappears from the totals.
+**Why it happens:** (a) remove-empty must check "no name AND no claims" atomically — a TS pre-check followed by a write is a TOCTOU race. (b) `QTY_CLAIM_SCRIPT` / `SHARE_CLAIM_SCRIPT` never verify the person exists. (c) Also the "empty" definition must include claims, not only name: today a seat could theoretically hold claims with no name.
+**Consequences:** Orphan claims; item shown as claimed but charged to nobody; Results total below the receipt total.
+**Prevention:**
+1. `remove_seat` Lua: one script that (i) finds the person, (ii) requires `name == ''`, (iii) scans `claims.items[*][personId]`, `tips[personId]`, `donePeople[personId]`, `personSlots[personId]` and refuses with `seat_not_empty` if any exist, (iv) removes from `people`, (v) deletes any leftover keys. All in one eval.
+2. Add a person-exists guard to both claim scripts (`QTY_CLAIM_SCRIPT`, `SHARE_CLAIM_SCRIPT`) returning `person_not_found`; also in `claim_seat`. Client treats `person_not_found` as "your seat was removed" -> clear identity, reopen picker.
+3. Do not allow removing the seat the current device is acting as unless it is empty (a named self is never empty, so naturally blocked).
+4. Never remove the last seat (`#people >= 1`), and the scanner's own seat must be named so is protected by the emptiness rule.
+**Detection:** Orphan-claims invariant check in tests: every personId in `claims.*` and `tips`/`donePeople` is in `people[]`. Results total across people + unclaimed == receipt total.
+**Phase:** Seat-management phase. This is the exact feature that was descoped in v2.0 for untested Lua — make Lua execution testing (not just code review) an explicit acceptance gate.
+
+### Pitfall 3: Repeating the v2.0 failure — new Lua with no execution test
+**What goes wrong:** `remove_person` was descoped because the Lua purge had 2 Critical findings and was never run. Seat claim/remove adds two more scripts of the same kind. Lua/cjson has known traps that unit tests on TS cannot catch.
+**Why it happens:** Lua lives in template strings; nothing type-checks it; Upstash REST eval is hard to run in unit tests.
+**Specific cjson traps to test:**
+- An empty Lua table re-encodes as `[]`, not `{}`. After removing the last claim/seat, `claims.items`, `tips`, `donePeople`, `personSlots` can flip from `{}` to `[]`. The claim script already works around this for per-item maps (removes the key); the same care is needed for any new purge loop. `people` becoming `[]` is fine but must never happen.
+- Deleting from a table while iterating with `pairs`/`ipairs` skips entries; rebuild a new `people` array instead of `table.remove` inside the loop.
+- `nil` in arrays truncates; do not assign nil into `people` entries.
+- cjson turns large numbers/floats oddly; keep all values integer cents.
+- Empty string `name = ''` round-trips fine, but `name = nil` removes the key — be consistent (always write `''`).
+**Prevention:** Run the scripts against a real Redis (local `redis-server` via a test harness or an `EVAL`-capable Upstash test DB — note memory: Upstash DB was recreated 2026-09-29, check env vars) and assert on the decoded JSON shape, including the "empty map stays an object" cases. Write the tests BEFORE merging the scripts.
+**Detection:** Session JSON where `tips` or `claims.items` is `[]`; client `Object.entries` still works on `[]` but `{...[]}` and key writes later behave differently; `Record` typing lies.
+**Phase:** Seat-management phase (gate), also applies to seat-claim phase.
+
+### Pitfall 4: Non-atomic routes clobber seat changes (done/tip write the whole session)
+**What goes wrong:** `done` and `tip` do GET, spread, then `redis.set(entire session)`. If someone adds, claims, or removes a seat between that GET and SET (a window of tens to hundreds of ms on serverless), the whole `people[]` write is reverted. A newly claimed seat name vanishes; a removed seat reappears; a new seat disappears and its holder's claims become orphans.
+**Why it happens:** This was tolerated in v2.0 because `people[]` rarely changed after creation (only add_person/rename). v2.1 makes `people[]` the hottest mutating field (every friend arriving claims a seat at roughly the same moment — the exact stampede right after the link is shared).
+**Consequences:** Intermittent "my name disappeared" bugs that are nearly impossible to reproduce. Lost seat claims right at the busiest moment.
+**Prevention:** Convert `done` and `tip` to field-level Lua updates (mirror `UPDATE_CURRENCY_SCRIPT`, which was written for precisely this reason: CR-01) BEFORE or in the same phase as seat claiming. Ensure the Lua only touches `claims.donePeople[personId]` / `tips[personId]`.
+**Detection:** Concurrent test: fire `claim_seat` and `done` together 50 times; assert the seat name is always present.
+**Phase:** Must land before or with the seat-claim phase (prerequisite), not after.
+
+### Pitfall 5: Stale identity in localStorage pointing at a removed or re-assigned seat
+**What goes wrong:** Device stores `split:{id}:personId`. Restore only runs once on first load (`restoreAttempted` ref). New v2.1 scenarios: (a) the stored seat was removed while the tab was in the background — later polls return a session without that personId, but `selectedPersonId` is still set, so `me` is undefined (`session.people.find` at ~line 581), the view may crash or silently show nothing, and claim calls hit `person_not_found`. (b) the stored seat is the scanner's own device: after "New Split" or a new bill with a REUSED personId scheme... ids are nanoids, so collisions are not a risk, but cross-session leakage is avoided only because keys are namespaced by sessionId — keep it that way. (c) Seat exists but is now EMPTY (name cleared by a rename to blank, or a seat removed and re-added) — the device is "someone" in an empty seat.
+**Why it happens:** The membership check is one-shot, and v2.0 had no way for a person to disappear while the view was open (live remove descoped). v2.1 reintroduces that.
+**Consequences:** Blank screen/crash in the Bill View, claims returning errors, or a user acting as a seat that is now someone else's.
+**Prevention:** Make identity validity a derived, continuously-checked property: on every session update, if `selectedPersonId` is set and not in `people[]`, clear it, remove the localStorage key, and reopen the "Who are you?" modal with a toast ("Your seat was removed"). Also treat "stored seat exists but is empty" as invalid (device never claimed it, since claiming sets a name). Do not rely on `restoreAttempted` for removal detection.
+**Detection:** Test: open view, remove the seat server-side, wait one poll tick, assert modal reopens and no exception. Warning sign: `me` null checks scattered in render.
+**Phase:** Identity/seat-picker phase; re-verify in seat-management phase.
+
+### Pitfall 6: Results/Bill View showing unnamed seats as blank rows or "undefined"
+**What goes wrong:** Every place that renders `person.name` (results list, copy-to-clipboard text at `PersonResultsScreen` ~line 150, attribution chips, picker, BillViewHeader `otherPeople`, avatars using first letter `name[0]`) assumes a non-empty name. Empty seats produce blank lines, an empty avatar initial, "owes" lines with no name, or a copy-paste summary like ": 12.40" sent to the group chat.
+**Why it happens:** `isValidPeople` only requires `typeof name === 'string'`, and every renderer was written when names were mandatory.
+**Consequences:** The headline output of the app (the "who owes what" text) looks broken; empty seats also tempt readers into thinking money is lost.
+**Prevention:** One shared helper `displayName(person, index)` -> `name || "Seat {index+1}"` (stable numbering by array order of seat creation; do not renumber when a seat is removed — see Pitfall 8). Use it everywhere including the clipboard text, avatars (use "?" or seat number), and chips. Results must list empty seats explicitly, labeled "Seat 3 (empty) owes X — equal share of tax/service". Grep for `.name` usages as a checklist item. Initial/avatar fallbacks must not index into an empty string.
+**Detection:** Snapshot test of results + copy text with one empty seat. Grep `person.name`/`p.name` for unguarded uses.
+**Phase:** Seat model phase (introduce helper first), verified in results phase.
+
+### Pitfall 7: Equal tax/service share rounding and seat-count drift
+**What goes wrong:** (a) With N seats, `computeEqualChargeShares` gives the remainder cents to the first `idx < remainder` people by array order. Adding or removing a seat changes N, so every person's share changes by a cent or more live — a person who already screenshot their total now sees it change (expected, but must be understood by the design). (b) Remainder cents going to the same early array positions (usually the scanner) is stable but means the same person always pays +1 cent; fine. (c) If array order differs between clients or after a Lua rewrite, the cent could land on different people on different phones; cjson preserves array order so this is safe, but any code that sorts or re-orders `people` in a render (e.g. PersonResultsScreen puts "me" first at lines ~126-127) must NOT be fed into the share function — the share function must always receive the canonical `session.people` order. Today the call at line 115 passes `session.people` (good); the pitfall is a future refactor passing the reordered list. (d) Empty seats are intentionally charged tax/service even though they have no items: sum of all shares must still equal the charge exactly (largest-remainder already guarantees this over ALL seats; a bug that excludes empty seats from the divisor but still bills them would break it).
+**Why it happens:** Headcount and `people.length` become the same number only if empty seats are real `Person` entries. Any design that stores headcount as a separate integer (e.g. `session.headcount`) while `people[]` holds only named people gives two sources of truth that drift.
+**Prevention:** Single source of truth: seats ARE `people[]` entries, headcount = `people.length`. Do not add a separate headcount field. Keep passing canonical `session.people` to `computeEqualChargeShares`. Add property tests: for N in 1..20 and charges including 0, 1, N-1, prime values, `sum(shares) === charge`, and each share within 1 cent of the others. Also assert the invariant at Results: sum(person totals) + unclaimed items portion == grand total.
+**Detection:** Totals not summing to receipt; cents jumping on person order change.
+**Phase:** Billing-math phase (small; mostly tests). Also see service fee (`computeServiceFeeShares` alias) — one function, test once.
+
+### Pitfall 8: Backward compatibility with live sessions in Redis (24h TTL)
+**What goes wrong:** Sessions created before deploy stay live up to 24 hours. They contain only named people, no empty seats, no new fields. New code must treat that as valid: "headcount" == number of named people, no empty seats, nothing to claim.
+**Specific risks:**
+- Any new schema field (e.g. `seatNumber`, `claimedAt`, `headcount`) being required by new TS/Lua code will be `nil` on old sessions: Lua `nil` arithmetic errors, TS `undefined` rendering. Make every new field optional with a documented default (the file already does this for `serviceFeeCents`/`taxCents` — follow that pattern).
+- Seat numbering by "index in people[]" works retroactively; storing a persisted `seatNumber` would not (old people lack it). Prefer derived labels, or optional field with fallback to index.
+- Old clients (cached JS in a phone's browser tab opened before deploy) will call `add_person`/`rename_person` with the old contract; they must keep working. Do not change the contract of existing ops; add new ops. An old client rendering a session that contains empty-name people will show blanks — acceptable and short-lived, but do not crash (names are strings, so it will not).
+- `POST /api/session` validation (`isValidPeople`) currently accepts empty `name`; verify it still does (it does: `typeof name === 'string'`) — and that `people.length >= 1` stays required. Tighten NOTHING that old sessions would violate.
+- Existing max-20 cap in `ADD_PERSON_SCRIPT`: headcount counter must be capped at the same 20 client-side AND `claim_seat`/`add_seat` must enforce it server-side.
+**Prevention:** Additive-only schema; new ops, not changed ops; fixture test that loads a v2.0-shaped session JSON through the new routes and renders. A one-line deploy note: nothing needs migrating because the TTL is 24h and the shape is a superset.
+**Detection:** Console errors on old session links after deploy; `attempt to perform arithmetic on a nil value` from eval.
+**Phase:** Schema phase (first); regression fixture in every later phase.
+
+### Pitfall 9: OCR misreads Pax/Covers/Guests as a price, table number, or item
+**What goes wrong:** The OCR prompt (`app/api/ocr/route.ts`) currently has no guest-count field and says "Include EVERY line the receipt prints". Once added, the model can: report table number ("Table 12"), check number, cashier id, date digits, or a quantity like "2x" as the guest count; or conversely, a "Guests: 4" line may be emitted as an ITEM (priced 4 -> 400 cents?) or contaminate `printedAmountsCents`. Some receipts show "Pax: 2" (couples), some "Covers: 0" or "1" for a table that is actually 6. Thermal receipts with Turkish ("Kişi"), Italian ("Coperti"), Spanish ("Comensales"), German ("Gäste") labels differ from the English triple the feature names. Note "coperto" is also a cover CHARGE in Italy — the existing prompt already treats it as serviceFeeCents; a guest count and a cover charge can coexist ("Coperti 4 x 2.00") and be confused.
+**Why it happens:** Only the model's interpretation separates a count from an amount; it is a free-text OCR task with no checksum (unlike the subtotal self-check that protects item sums).
+**Consequences:** Wrong prefilled headcount (mild if editable) — or, if the guest line leaks into items/printedAmounts, a corrupted bill (serious; the repair/reconcile pipeline `reconcileScannedBill.ts` / `repairScannedPrices.ts` may "fix" prices around it).
+**Prevention:**
+- Add a separate optional top-level field (`guestCount: integer | null`) to the schema with strict instructions: only a labeled count of diners (Pax, Covers, Guests, Persons, Kişi, Coperti, Comensales, Gäste, Couverts); never table/check/server numbers; null when unsure; and explicitly "do NOT include this line in items or printedAmountsCents".
+- Server-side sanity clamp in TS (the app already has `scanSanityChecks.ts`): accept only an integer 1..20 (the people cap), else null. Reject values equal to a table number heuristically? Not possible; rely on label + clamp.
+- Treat it ONLY as a prefill. The counter must always be editable, and the UI should visibly state the source ("From receipt: 4") so a wrong value is spottable. Default to a sensible fallback (1 = just me, or 2) when null — not 0.
+- Covers = 0 or 1 on a big-table receipt is common (POS defaults): a value of 1 should arguably prefill as 1 but not pretend certainty. No special logic needed; just editable.
+- Regression: run the existing item-checksum test fixtures to confirm adding the field does not change item extraction.
+**Detection:** Test receipts with "Table 12 Pax 4", "Covers: 0", "Coperti 4 x 2.00", and no guest line. Watch `printedAmountsCents` length changes.
+**Phase:** OCR phase. Needs a small real-receipt test set; flag for phase-specific research (cheap to run, high value).
+
+## Moderate Pitfalls
+
+### Pitfall 10: The scanner creates N-1 empty seats but session POST/validation assumes named people
+**What goes wrong:** `POST /api/session` `isValidPeople` accepts `name: ''` today, but client code in Setup (`SetupStep`, `createSession.ts`) may filter blank names before posting, silently turning the headcount into a 1-person session. Also the Setup "remove person" path (retained from v2.0) may conflict with counter semantics (removing a person vs decrementing the counter should be the same operation).
+**Prevention:** One representation for Setup: counter drives the number of seats; the scanner's name fills seat 1; remaining seats created with `name: ''` and posted as-is. Check `createSession.ts` for trimming/filtering. Decrementing the counter below the number of NAMED people (if Setup also lets her type other names) must be blocked or must warn.
+**Phase:** Setup/headcount phase.
+
+### Pitfall 11: "Who are you?" picker semantics: empty vs named seats, and "+ I'm not listed" race
+**What goes wrong:** The v2.0 picker lists every person and lets you pick any (no lock). Now it must list EMPTY seats as the primary action ("claim a seat + type name") and named seats as a secondary "that's me" path (returning user on a new device). If both are shown equally, a returning friend taps an empty seat instead of their own named seat and duplicates themselves. "+ I'm not listed" appends a new seat then names it: two requests (add, then claim) can be split by a failure leaving a nameless seat the user never owns, leaking empty seats. Two friends tapping "+ I'm not listed" simultaneously each add a seat — fine — but headcount creeps if a user retries after a timeout (double-add).
+**Prevention:** Make "+ I'm not listed" a single atomic op: `add_person` with name (already exists; reuse it — it appends with the name in one script) rather than add_seat + claim. Add an idempotency token (client-generated personId is passed to Lua already: ARGV[2]) so a retry with the same id is a no-op. Keep the named-seat "that's me" path visually distinct. Debounce submit buttons.
+**Detection:** Seat count growing over a session without matching names.
+**Phase:** Identity phase.
+
+### Pitfall 12: colorIndex duplicates after remove/add
+**What goes wrong:** `colorIndex = #people % 6` is computed at add time. After removing seat 2 of 5 and adding another, two people can share a colour; chips/avatars then look identical. With empty seats added by headcount, colours are assigned at creation, which is fine, but live add/remove cycles collide.
+**Prevention:** Compute colorIndex as (max existing colorIndex + 1) % 6, or the least-used colour, inside the Lua script. Cosmetic only; low priority but cheap in the same script.
+**Phase:** Seat-management phase.
+
+### Pitfall 13: Seat label numbering instability
+**What goes wrong:** If empty seats are labeled by array position ("Seat 3") and a middle seat is removed, "Seat 4" becomes "Seat 3" under people's feet; a friend told "take Seat 3" claims the wrong one. Also two empty seats are indistinguishable except by number.
+**Prevention:** Number empty seats only among EMPTY seats for display ("Empty seat 1, 2…") or store an optional monotonic `seat` number assigned at creation (optional field, fall back to index for old sessions — see Pitfall 8). Prefer not asking people to coordinate by number at all; pick-any-empty-seat is the locked design, so which empty seat is irrelevant and labels merely need to be non-confusing.
+**Phase:** Seat model phase.
+
+### Pitfall 14: Polling staleness hides the race outcome
+**What goes wrong:** The session is polled (SWR `refreshInterval`). A picker that renders "empty seats" from a stale snapshot shows seats already taken. Combined with Pitfall 1 prevention, this just yields `seat_taken` errors — acceptable if handled — but if the mutation optimistic-updates the local cache and the server rejects, the UI may keep showing the rejected name.
+**Prevention:** On any non-OK response from seat ops, call `mutate()` to refetch before re-rendering; do not optimistically mark a seat claimed. Show the picker's empty list from fresh data (revalidate when the modal opens).
+**Phase:** Identity phase.
+
+### Pitfall 15: Anyone-can-remove-empty-seat griefing and empty-seat inflation
+**What goes wrong:** Flat model means anyone can add seats (cap 20) and remove empty ones. A bored guest can push headcount up, lowering everyone's equal tax/service share and making the total look wrong; or remove an empty seat a friend is about to take. There is no host to arbitrate (by decision).
+**Prevention:** Accept as a product trade-off (trusted group, no nudge by decision) but limit damage: cap at 20 server-side, keep seat add/remove visible in the UI as an explicit headcount change ("Headcount: 5"), and ensure Results shows the headcount used for the tax split ("tax split across 5 people") so an inflated count is visible. No auth work.
+**Phase:** Seat-management / results phase (display only).
+
+### Pitfall 16: "Done" and tips for empty seats
+**What goes wrong:** `donePeople` / `tips` are per personId. Empty seats never press Done and have no tip; any "everyone is done" logic or tip-confirm indicator (`tips` absent = "not yet confirmed") will treat empty seats as perpetually not-done, blocking or warning forever. The warn-but-allow done flow may count empty seats among "people not done".
+**Prevention:** Exclude empty (nameless, claimless) seats from done/tip completion counts. Audit any `session.people.every/filter` on done/tip state.
+**Phase:** Results phase.
+
+## Minor Pitfalls
+
+### Pitfall 17: Counter UX edge cases
+Decrement below named-people count, below 1, above 20; counter prefilled by OCR then changed after the user already typed names; rescanning (a second photo) overwriting a manually edited headcount. **Prevention:** floor at max(1, named count), ceiling 20; only prefill from OCR if the user has not touched the counter; keep the user's edit on rescan.
+
+### Pitfall 18: Duplicate names
+Two friends type "Alex" into different seats; chips and results become ambiguous. Flat model allows same names already (rename). **Prevention:** none required (decision), but show seat colour alongside names.
+
+### Pitfall 19: Whitespace-only / long names for seat claim
+`add_person` validates trim and 50 chars; `claim_seat` must apply the same validation (reuse `validateOp` branch) — a whitespace-only name would leave the seat "empty" yet claimed by the device. **Prevention:** reuse trimmed non-empty validation; Lua checks `name ~= ''`.
+
+### Pitfall 20: Dead wizard code confusion
+Retired `AddPeopleStep` etc. still exist (audit tech debt). A developer may wire headcount into the dead component. **Prevention:** target `SetupStep` and the live picker only; optionally delete dead wizard files in an early cleanup task to reduce grep noise.
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Schema / seat model | Required new fields break old 24h sessions (8); blank names everywhere (6); numbering instability (13) | Additive optional fields only; `displayName` helper; fixture of v2.0 session |
+| Atomic prerequisites | `done`/`tip` clobber `people[]` (4); claim scripts accept ghost personId (2) | Convert done/tip to Lua field updates; add person-exists guard to claim scripts |
+| Seat claim API | Double-claim last-write-wins (1); retries double-add (11) | `claim_seat` with compare-and-set; idempotent personId |
+| Seat removal API | Remove vs claim race, orphan claims (2); untested Lua repeat of v2.0 (3) | Single atomic Lua with full claims check; REAL Redis execution tests as gate |
+| Identity picker | Stale localStorage / removed seat (5); stale poll data (14) | Continuous identity validity check; refetch on error |
+| Setup / headcount | Blank-filtering turns seats into 1 person (10); counter edge cases (17) | Counter drives seats; post empty names as-is |
+| OCR guest count | Pax vs table number/price, guest line leaking into items (9) | Separate nullable field, clamp 1..20, editable prefill, small receipt fixture set |
+| Billing math | Rounding/remainder, headcount drift (7); done/tip counts (16) | Seats are people[]; property tests sum==charge; exclude empty seats from done logic |
+| Results | Unnamed rows and broken copy text (6); inflated-headcount visibility (15) | Shared label helper; show headcount used for tax split |
+
+## Research Flags
+- Needs deeper phase research: OCR guest count (9) with real receipts; Lua execution test harness choice (3).
+- Standard patterns, unlikely to need research: label helper, counter UI, rounding tests.
 
 ## Sources
-
-- Direct inspection of `lib/sessionSchema.ts` — confirmed 6 host-specific fields (`hostToken`, `hostPersonId`, `editRequests`, `disputes`, `ClaimEntry.assignedBy`, `ClaimEntry.accepted`)
-- Direct inspection of `app/api/session/[sessionId]/claim/route.ts` — confirmed Lua string literal host references at lines 26, 97-99; `hostToken` in TypeScript body at lines 112, 135, 158, 170, 188
-- Direct inspection of `lib/billMath.ts` — confirmed `formatCents` hardcodes `$` symbol and `toFixed(2)`; `parseCents` uses float multiply; regex rejects 3-decimal input
-- Direct inspection of `app/split/[sessionId]/CollaborativeClaimingView.tsx` — confirmed 17+ host references including URL fragment parsing, `hasUnacceptedHostItems`, `ReviewHostAssignedScreen` import
-- Blast radius analysis: `grep -rn "hostToken\|hostPersonId\|editRequests\|disputes"` — 253 lines across 31 files; 59 test assertions in shared test files
-- Test file line counts: 923 lines across 6 host-specific test files; partial host references in 11 additional test files
-- `app/api/session/route.ts` lines 58-65 — confirmed `assignedBy: 'host'` pre-population code that must be removed
-- cjson Lua behavior: extra fields in decoded JSON objects are preserved on re-encode; missing fields return nil (not an error) — confirms old sessions with extra fields will not crash Lua scripts, but new code reading absent new fields must null-guard
-- JavaScript floating point: `parseFloat("1.005") * 100` = 100.49999... — browser console verified; string-split construction is the canonical workaround (MDN: Number.toFixed rounding is implementation-dependent for midpoint values)
-- Upstash Redis atomicity: `redis.multi()` is NOT atomic on Upstash REST API — already documented in existing codebase comments (`claim/route.ts` line 9); `redis.eval()` with Lua is the required pattern
-- `.planning/research/FEATURES.md` (2026-06-04) — confirmed last-write-wins is the accepted product decision for item edits; attribution label is mandatory accompaniment
-
----
-*Pitfalls research for: easy-billsy v2.0 — live bill-splitter host removal, wizard collapse, currency, flat model*
-*Researched: 2026-06-04*
+- Codebase (read directly, HIGH): `app/api/session/[sessionId]/edit/route.ts`, `claim/route.ts`, `done/route.ts`, `tip/route.ts`, `app/api/session/route.ts`, `app/api/ocr/route.ts`, `lib/billMath.ts` (`computeEqualChargeShares`), `lib/sessionSchema.ts`, `app/split/[sessionId]/CollaborativeClaimingView.tsx`, `components/split/PersonResultsScreen.tsx`
+- `.planning/milestones/v2.0-MILESTONE-AUDIT.md` (PART-01/02/06 descope rationale)
+- `.planning/PROJECT.md` (v2.1 locked decisions)
+- cjson empty-table-as-array behavior: already worked around in `claim/route.ts` comments (HIGH, in-repo); general Lua/cjson knowledge (MEDIUM, training data, not re-verified against Redis docs)
+- OCR label variants / POS behavior: training knowledge (LOW; verify with real receipts)
