@@ -205,3 +205,4 @@ Full assessment in `milestones/v2.0-MILESTONE-AUDIT.md` (status `tech_debt`, 0 b
 | 2026-10-01 | fast | Header border = footer warm border-border (3657ad2) | ✅ |
 | 2026-10-01 | fast | Whole wordmark coral-500 (35f35cf) | ✅ |
 | 2026-10-01 | fast | Wordmark stone (70e17cc) | ✅ |
+| 2026-10-06 | fast | Page background stone mist #f7f6f4 (3e5b064) | ✅ |
