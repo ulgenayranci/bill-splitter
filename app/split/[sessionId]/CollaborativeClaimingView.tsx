@@ -21,6 +21,7 @@ import { useBillStore } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
 import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { IdentityModal } from '@/components/split/IdentityModal'
+import type { ClaimSeatResult } from '@/components/split/PersonSlotPicker'
 import { BillViewHeader } from '@/components/split/BillViewHeader'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
@@ -159,7 +160,9 @@ export function CollaborativeClaimingView({
 
     if (stored && session.people.some((p) => p.id === stored)) {
       setSelectedPersonId(stored as PersonId)
-      setPhase(derivePhase(stored as PersonId, session))
+      // v2.1: the scanner is pre-identified at bill creation — keep her on the
+      // "Invite your group" step instead of skipping straight to claiming.
+      setPhase((current) => (current === 'invite' ? current : derivePhase(stored as PersonId, session)))
     } else {
       setIdentityModalOpen(true) // no (valid) stored identity — show modal
     }
@@ -256,6 +259,35 @@ export function CollaborativeClaimingView({
       }
     } catch {
       await mutate()
+    }
+  }
+
+  // v2.1: claim an empty "Guest N" seat. The server is a compare-and-set, so if another
+  // phone claimed this seat a moment earlier we get 409 seat_taken and refresh the list.
+  async function handleClaimSeat(personId: PersonId, name: string): Promise<ClaimSeatResult> {
+    try {
+      const res = await fetch(`/api/session/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'claim_seat', personId, name }),
+      })
+      if (res.status === 409) {
+        await mutate()
+        return 'taken'
+      }
+      if (!res.ok) {
+        await mutate()
+        return 'error'
+      }
+      await mutate()
+      setSelectedPersonId(personId)
+      setPhase(derivePhase(personId, session as SessionPayload))
+      setIdentityModalOpen(false)
+      setChangingIdentity(false)
+      return 'ok'
+    } catch {
+      await mutate()
+      return 'error'
     }
   }
 
@@ -572,6 +604,7 @@ export function CollaborativeClaimingView({
           onSelect={handleSelect}
           onAddPerson={handleAddPerson}
           onRenamePerson={handleRenamePerson}
+          onClaimSeat={handleClaimSeat}
           onOpenChange={setIdentityModalOpen}
         />
       </main>

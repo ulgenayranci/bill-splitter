@@ -13,15 +13,21 @@ const QTY_CLAIM_SCRIPT = `
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 'session_not_found' end
 local ok, session = pcall(cjson.decode, raw)
-if not ok then return 'invalid_session' end
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
 
 local itemId = ARGV[1]
 local personId = ARGV[2]
 local qty = tonumber(ARGV[3])
+if type(session.people) ~= 'table' then return 'invalid_session' end
+local personFound = false
+for _, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == personId then personFound = true break end
+end
+if not personFound then return 'person_not_found' end
 
-if not session.claims then session.claims = {} end
-if not session.claims.items then session.claims.items = {} end
-if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
+if type(session.claims) ~= 'table' then session.claims = {} end
+if type(session.claims.items) ~= 'table' then session.claims.items = {} end
+if type(session.claims.items[itemId]) ~= 'table' then session.claims.items[itemId] = {} end
 
 -- CR-03: Atomic bounds check — compute totalClaimed for this item inside Lua so the
 -- check and the write are a single atomic operation. A pre-Lua GET check would allow
@@ -29,7 +35,7 @@ if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
 if qty > 0 then
   -- Find item.quantity from the live session state
   local itemQuantity = 0
-  for _, item in ipairs(session.items or {}) do
+  for _, item in ipairs(type(session.items) == 'table' and session.items or {}) do
     if item.id == itemId then itemQuantity = item.quantity or 1; break end
   end
   -- Sum all current claims for this item across all people.
@@ -75,15 +81,21 @@ const SHARE_CLAIM_SCRIPT = `
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 'session_not_found' end
 local ok, session = pcall(cjson.decode, raw)
-if not ok then return 'invalid_session' end
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
 
 local itemId = ARGV[1]
 local personId = ARGV[2]
 local joining = ARGV[3]
+if type(session.people) ~= 'table' then return 'invalid_session' end
+local personFound = false
+for _, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == personId then personFound = true break end
+end
+if not personFound then return 'person_not_found' end
 
-if not session.claims then session.claims = {} end
-if not session.claims.items then session.claims.items = {} end
-if not session.claims.items[itemId] then session.claims.items[itemId] = {} end
+if type(session.claims) ~= 'table' then session.claims = {} end
+if type(session.claims.items) ~= 'table' then session.claims.items = {} end
+if type(session.claims.items[itemId]) ~= 'table' then session.claims.items[itemId] = {} end
 
 if joining == 'true' then
   session.claims.items[itemId][personId] = { qty = 1 }
@@ -110,12 +122,18 @@ const SLOT_CLAIM_SCRIPT = `
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 'session_not_found' end
 local ok, session = pcall(cjson.decode, raw)
-if not ok then return 'invalid_session' end
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
 
 local personId = ARGV[1]
+if type(session.people) ~= 'table' then return 'invalid_session' end
+local personFound = false
+for _, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == personId then personFound = true break end
+end
+if not personFound then return 'person_not_found' end
 
-if not session.claims then session.claims = {} end
-if not session.claims.personSlots then session.claims.personSlots = {} end
+if type(session.claims) ~= 'table' then session.claims = {} end
+if type(session.claims.personSlots) ~= 'table' then session.claims.personSlots = {} end
 
 -- GAP-09-NOLOCK: no slot_taken guard — personSlots is a presence marker only (not an exclusive lock)
 session.claims.personSlots[personId] = true
@@ -193,6 +211,9 @@ export async function POST(
       if (result === 'invalid_session') {
         return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
       }
+      if (result === 'person_not_found') {
+        return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
+      }
       return NextResponse.json({ ok: true })
     }
 
@@ -212,6 +233,9 @@ export async function POST(
       if (result === 'invalid_session') {
         return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
       }
+      if (result === 'person_not_found') {
+        return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
+      }
       if (result === 'qty_exceeded') {
         return NextResponse.json({ error: 'qty exceeds available quantity' }, { status: 409 })
       }
@@ -230,6 +254,9 @@ export async function POST(
     }
     if (result === 'invalid_session') {
       return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+    }
+    if (result === 'person_not_found') {
+      return NextResponse.json({ error: 'Invalid personId: not in session' }, { status: 400 })
     }
     return NextResponse.json({ ok: true })
   } catch (err) {

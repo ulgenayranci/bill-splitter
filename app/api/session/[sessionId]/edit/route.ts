@@ -1,11 +1,16 @@
 import { nanoid } from 'nanoid'
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
-import type { SessionPayload } from '@/lib/sessionSchema'
+import {
+  CLAIM_SEAT_SCRIPT,
+  ITEM_ADD_SCRIPT,
+  ITEM_REMOVE_SCRIPT,
+  ITEM_EDIT_SCRIPT,
+} from '@/lib/sessionLua'
 
 export const maxDuration = 10
 
-const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency', 'rename_person'] as const
+const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency', 'rename_person', 'claim_seat'] as const
 type EditOp = (typeof VALID_OPS)[number]
 
 /**
@@ -72,7 +77,7 @@ return 'OK'
  *
  * ARGV[1] = personId to rename
  * ARGV[2] = new name (already trimmed and validated in TypeScript before eval)
- * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'person_not_found'
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'person_not_found' | 'seat_empty'
  *
  * Mirrors ADD_PERSON_SCRIPT pattern. EX 86400 matches all other scripts in this file.
  */
@@ -85,10 +90,12 @@ if not ok then return 'invalid_session' end
 local personId = ARGV[1]
 local newName = ARGV[2]
 
-if not session.people then return 'person_not_found' end
+if type(session.people) ~= 'table' then return 'person_not_found' end
 local found = false
 for _, p in ipairs(session.people) do
-  if p.id == personId then
+  if type(p) == 'table' and p.id == personId then
+    -- An empty seat must be claimed via claim_seat (compare-and-set), not renamed.
+    if type(p.name) ~= 'string' or not string.match(p.name, '%S') then return 'seat_empty' end
     p.name = newName
     found = true
     break
@@ -108,7 +115,6 @@ return 'OK'
 function validateOp(
   op: EditOp,
   b: Record<string, unknown>,
-  session: SessionPayload
 ): { ok: true; normalizedName?: string } | { ok: false; error: string } {
   if (op === 'add_person') {
     // V5 input validation: name must be a non-empty string after trim, max 50 chars (T-09-04)
@@ -160,11 +166,9 @@ function validateOp(
     return { ok: true, normalizedName: trimmed }
   }
 
-  // All ops other than 'add', 'add_person', 'update_currency', 'rename_person' require itemId that exists in session.items
+  // Item ops other than 'add' require an itemId (its existence is checked inside Lua).
   if (typeof b.itemId !== 'string' || b.itemId.length === 0)
     return { ok: false, error: 'Invalid payload: itemId must be a non-empty string' }
-  if (!session.items.some((it) => it.id === b.itemId))
-    return { ok: false, error: 'Invalid payload: itemId not found in session' }
 
   if (op === 'remove') return { ok: true }
 
@@ -184,23 +188,7 @@ function validateOp(
   if (!Number.isInteger(b.newQuantity) || (b.newQuantity as number) <= 0)
     return { ok: false, error: 'Invalid edit_quantity: newQuantity must be a positive integer' }
 
-  // Pitfall 4 (T-08-06): reject if newQuantity < totalClaimed
-  const itemId = b.itemId as string
-  const newQuantity = b.newQuantity as number
-  const claimsForItem = session.claims?.items?.[itemId] ?? {}
-  let totalClaimed = 0
-  for (const claim of Object.values(claimsForItem)) {
-    if (claim && typeof claim === 'object') {
-      totalClaimed += (claim as { qty: number }).qty ?? 0
-    }
-  }
-  if (newQuantity < totalClaimed) {
-    return {
-      ok: false,
-      error: `Cannot reduce quantity to ${newQuantity}: ${totalClaimed} units are already claimed`,
-    }
-  }
-
+  // Pitfall 4 (T-08-06): newQuantity < units already claimed is refused inside ITEM_EDIT_SCRIPT.
   return { ok: true }
 }
 
@@ -227,7 +215,7 @@ export async function POST(
   // CR-01: runs BEFORE the GET→mutate→SET path so the field-level write cannot clobber
   // concurrent claim/tip/add-person writes that land between a GET and SET on the full session.
   if (op === 'update_currency') {
-    const validation = validateOp('update_currency', b, {} as SessionPayload)
+    const validation = validateOp('update_currency', b)
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
@@ -258,7 +246,7 @@ export async function POST(
     // WR-05: validateOp is the single source of truth for both the check AND the normalized
     // name. We persist validation.normalizedName (not a separate inline trim) so the value
     // validated is guaranteed identical to the value sent to Lua.
-    const validation = validateOp('rename_person', b, {} as SessionPayload)
+    const validation = validateOp('rename_person', b)
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
@@ -272,11 +260,41 @@ export async function POST(
       if (result === 'person_not_found') {
         return NextResponse.json({ error: 'person_not_found' }, { status: 404 })
       }
+      if (result === 'seat_empty') {
+        return NextResponse.json({ error: 'seat_empty' }, { status: 409 })
+      }
       if (result === 'invalid_session') {
         return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
       }
       // result === 'OK'
       return NextResponse.json({ ok: true })
+    } catch (err) {
+      console.error('Edit error:', err)
+      return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
+    }
+  }
+
+  // claim_seat: a friend names an EMPTY seat. CLAIM_SEAT_SCRIPT is a compare-and-set on
+  // the blank name, so when two phones tap the same seat exactly one wins (409 seat_taken).
+  if (op === 'claim_seat') {
+    if (typeof b.personId !== 'string' || b.personId.length === 0) {
+      return NextResponse.json({ error: 'Invalid claim_seat: personId must be a non-empty string' }, { status: 400 })
+    }
+    if (typeof b.name !== 'string') {
+      return NextResponse.json({ error: 'Invalid claim_seat: name must be a string' }, { status: 400 })
+    }
+    const trimmedName = b.name.trim()
+    if (trimmedName.length === 0 || trimmedName.length > 50) {
+      return NextResponse.json({ error: 'Invalid claim_seat: name must be 1-50 characters' }, { status: 400 })
+    }
+    try {
+      const result = await redis.eval(CLAIM_SEAT_SCRIPT, [`session:${sessionId}`], [b.personId, trimmedName])
+      if (result === 'OK') return NextResponse.json({ ok: true })
+      if (result === 'session_not_found') return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      if (result === 'person_not_found') return NextResponse.json({ error: 'person_not_found' }, { status: 404 })
+      if (result === 'seat_taken') return NextResponse.json({ error: 'seat_taken' }, { status: 409 })
+      if (result === 'invalid_args') return NextResponse.json({ error: 'Invalid claim_seat: name must be 1-50 characters' }, { status: 400 })
+      return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
     } catch (err) {
       console.error('Edit error:', err)
       return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
@@ -289,7 +307,7 @@ export async function POST(
     // WR-05: validateOp is the single source of truth for both the check AND the normalized
     // name. We persist validation.normalizedName (not a separate inline trim) so the value
     // validated is guaranteed identical to the value sent to Lua.
-    const validation = validateOp('add_person', b, {} as SessionPayload)
+    const validation = validateOp('add_person', b)
     if (!validation.ok) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
@@ -315,67 +333,42 @@ export async function POST(
     }
   }
 
+  // Item ops (add / remove / edit_*): each is ONE field-level Lua script, so an item edit
+  // can no longer revert a concurrent seat claim, done or tip (the old GET -> spread -> SET
+  // here rewrote the whole session). Item existence and the claimed-quantity floor are
+  // checked inside Lua, atomically with the write.
+  const validation = validateOp(op as EditOp, b)
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.error }, { status: 400 })
+  }
+
   try {
-    const session = await redis.get<SessionPayload>(`session:${sessionId}`)
-    if (!session) {
-      return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
-    }
-
-    const validation = validateOp(op as EditOp, b, session)
-    if (!validation.ok) {
-      return NextResponse.json({ error: validation.error }, { status: 400 })
-    }
-
-    // GET → mutate-in-JS → SET (last-write-wins; /edit has no concurrent-write invariant)
-    let updatedItems = [...session.items]
-    let updatedClaims = session.claims
-
+    const key = `session:${sessionId}`
+    let result: unknown
     if (op === 'add') {
-      const newItemId = nanoid()
-      updatedItems = [
-        ...updatedItems,
-        {
-          id: newItemId,
-          name: b.name as string,
-          priceCents: b.priceCents as number,
-          quantity: b.quantity as number,
-        },
-      ]
+      result = await redis.eval(ITEM_ADD_SCRIPT, [key], [nanoid(), b.name as string, String(b.priceCents), String(b.quantity)])
     } else if (op === 'remove') {
-      const removedItemId = b.itemId as string
-      updatedItems = updatedItems.filter((it) => it.id !== removedItemId)
-      // Purge claims for the removed item (D-01 inverse: on remove, claims are deleted)
-      const existingClaimItems = { ...(session.claims?.items ?? {}) }
-      delete existingClaimItems[removedItemId]
-      updatedClaims = {
-        ...session.claims,
-        items: existingClaimItems,
-      }
-    } else if (op === 'edit_price') {
-      const targetId = b.itemId as string
-      updatedItems = updatedItems.map((it) =>
-        it.id === targetId ? { ...it, priceCents: b.newPriceCents as number } : it
-      )
-      // D-01: claims for edited item are preserved (shares recalculate at render)
-    } else if (op === 'edit_name') {
-      const targetId = b.itemId as string
-      updatedItems = updatedItems.map((it) =>
-        it.id === targetId ? { ...it, name: b.newName as string } : it
-      )
-    } else if (op === 'edit_quantity') {
-      const targetId = b.itemId as string
-      updatedItems = updatedItems.map((it) =>
-        it.id === targetId ? { ...it, quantity: b.newQuantity as number } : it
-      )
+      result = await redis.eval(ITEM_REMOVE_SCRIPT, [key], [b.itemId as string])
+    } else {
+      const field = op === 'edit_price' ? 'priceCents' : op === 'edit_name' ? 'name' : 'quantity'
+      const value = op === 'edit_price' ? String(b.newPriceCents) : op === 'edit_name' ? (b.newName as string) : String(b.newQuantity)
+      result = await redis.eval(ITEM_EDIT_SCRIPT, [key], [b.itemId as string, field, value])
     }
 
-    const updated: SessionPayload = {
-      ...session,
-      items: updatedItems,
-      claims: updatedClaims,
+    if (result === 'OK') return NextResponse.json({ ok: true })
+    if (result === 'session_not_found') return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+    if (result === 'item_not_found') {
+      return NextResponse.json({ error: 'Invalid payload: itemId not found in session' }, { status: 400 })
     }
-    await redis.set(`session:${sessionId}`, JSON.stringify(updated), { ex: 86400 })
-    return NextResponse.json({ ok: true })
+    if (typeof result === 'string' && result.startsWith('qty_below_claimed:')) {
+      const claimed = result.slice('qty_below_claimed:'.length)
+      return NextResponse.json(
+        { error: `Cannot reduce quantity to ${b.newQuantity as number}: ${claimed} units are already claimed` },
+        { status: 400 },
+      )
+    }
+    if (result === 'invalid_args') return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
   } catch (err) {
     console.error('Edit error:', err)
     // T-08-04: generic error — never leak provider internals

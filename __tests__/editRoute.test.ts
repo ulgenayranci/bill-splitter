@@ -67,130 +67,74 @@ const baseSession = {
 
 describe('POST /api/session/[sessionId]/edit', () => {
   // --- op: add ---
-  it('Test 1 (add): appends new item with nanoid id and returns 200 { ok: true }', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOST('test-session', {
-      op: 'add',
-      name: 'Salad',
-      priceCents: 899,
-      quantity: 1,
-    })
+  // --- item ops: one field-level Lua script each (WR-01: no whole-session GET -> SET) ---
+  it('Test 1 (add): one ITEM_ADD_SCRIPT eval with [newId, name, price, qty]; never GET/SET', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status, json } = await callPOST('test-session', { op: 'add', name: 'Salad', priceCents: 899, quantity: 1 })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    expect(mockSet).toHaveBeenCalledTimes(1)
-    const [, savedPayload] = mockSet.mock.calls[0]
-    const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
-    expect(saved.items).toHaveLength(3)
-    const newItem = saved.items.find((it: { name: string }) => it.name === 'Salad')
-    expect(newItem).toBeDefined()
-    expect(newItem.priceCents).toBe(899)
-    expect(newItem.quantity).toBe(1)
-    expect(typeof newItem.id).toBe('string')
-    expect(newItem.id.length).toBeGreaterThan(0)
+    expect(json).toEqual({ ok: true })
+    expect(mockEval).toHaveBeenCalledTimes(1)
+    const [script, keys, args] = mockEval.mock.calls[0]
+    const { ITEM_ADD_SCRIPT } = await import('@/lib/sessionLua')
+    expect(script).toBe(ITEM_ADD_SCRIPT)
+    expect(keys).toEqual(['session:test-session'])
+    expect(typeof args[0]).toBe('string')
+    expect((args[0] as string).length).toBeGreaterThan(0)
+    expect(args.slice(1)).toEqual(['Salad', '899', '1'])
+    expect(mockGet).not.toHaveBeenCalled()
+    expect(mockSet).not.toHaveBeenCalled()
   })
 
-  // --- op: edit_name ---
-  it('Test 2 (edit_name): updates item.name in place and returns 200 { ok: true }', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOST('test-session', {
-      op: 'edit_name',
-      itemId: 'i1',
-      newName: 'Cheeseburger',
-    })
+  it('Test 2 (edit_name): ITEM_EDIT_SCRIPT with [itemId, "name", newName]', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status } = await callPOST('test-session', { op: 'edit_name', itemId: 'i1', newName: 'Cheeseburger' })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    const [, savedPayload] = mockSet.mock.calls[0]
-    const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
-    const edited = saved.items.find((it: { id: string }) => it.id === 'i1')
-    expect(edited.name).toBe('Cheeseburger')
+    const { ITEM_EDIT_SCRIPT } = await import('@/lib/sessionLua')
+    expect(mockEval).toHaveBeenCalledWith(ITEM_EDIT_SCRIPT, ['session:test-session'], ['i1', 'name', 'Cheeseburger'])
+    expect(mockSet).not.toHaveBeenCalled()
   })
 
-  // --- op: edit_price ---
-  it('Test 3 (edit_price): updates item.priceCents and returns 200; D-01 — claims for that item are preserved (not dropped)', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOST('test-session', {
-      op: 'edit_price',
-      itemId: 'i1',
-      newPriceCents: 1499,
-    })
+  it('Test 3 (edit_price): ITEM_EDIT_SCRIPT with [itemId, "priceCents", value]; script never touches claims', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status } = await callPOST('test-session', { op: 'edit_price', itemId: 'i1', newPriceCents: 1499 })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    const [, savedPayload] = mockSet.mock.calls[0]
-    const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
-    // price updated
-    const edited = saved.items.find((it: { id: string }) => it.id === 'i1')
-    expect(edited.priceCents).toBe(1499)
-    // D-01: claims for i1 must still exist (not purged)
-    expect(saved.claims.items['i1']).toBeDefined()
-    expect(saved.claims.items['i1']['p1']).toBeDefined()
-    expect(saved.claims.items['i1']['p2']).toBeDefined()
-    expect(saved.claims.items['i1']['p1'].qty).toBe(1)
-    expect(saved.claims.items['i1']['p2'].qty).toBe(1)
+    const { ITEM_EDIT_SCRIPT } = await import('@/lib/sessionLua')
+    expect(mockEval).toHaveBeenCalledWith(ITEM_EDIT_SCRIPT, ['session:test-session'], ['i1', 'priceCents', '1499'])
+    // D-01: claims for an edited item are preserved — the edit script only reads claims
+    expect(ITEM_EDIT_SCRIPT).not.toMatch(/session\.claims\.items\[ARGV\[1\]\]\s*=/)
   })
 
-  // --- op: edit_quantity ---
-  it('Test 4 (edit_quantity): updates item.quantity and returns 200 { ok: true }', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOST('test-session', {
-      op: 'edit_quantity',
-      itemId: 'i2',
-      newQuantity: 3,
-    })
+  it('Test 4 (edit_quantity): ITEM_EDIT_SCRIPT with [itemId, "quantity", value]', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status } = await callPOST('test-session', { op: 'edit_quantity', itemId: 'i1', newQuantity: 3 })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    const [, savedPayload] = mockSet.mock.calls[0]
-    const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
-    const edited = saved.items.find((it: { id: string }) => it.id === 'i2')
-    expect(edited.quantity).toBe(3)
+    const { ITEM_EDIT_SCRIPT } = await import('@/lib/sessionLua')
+    expect(mockEval).toHaveBeenCalledWith(ITEM_EDIT_SCRIPT, ['session:test-session'], ['i1', 'quantity', '3'])
   })
 
-  it('Test 5 (edit_quantity below claimed): returns 400 when newQuantity < totalAlreadyClaimed (Pitfall 4)', async () => {
-    // i1 has 2 claims (p1:1, p2:1) = totalClaimed=2; reducing to 1 should be rejected
-    mockGet.mockResolvedValue(baseSession)
-    const { status, json } = await callPOST('test-session', {
-      op: 'edit_quantity',
-      itemId: 'i1',
-      newQuantity: 1,
-    })
+  it('Test 5 (edit_quantity below claimed): Lua "qty_below_claimed:2" → 400 with the claimed count (Pitfall 4)', async () => {
+    mockEval.mockResolvedValue('qty_below_claimed:2')
+    const { status, json } = await callPOST('test-session', { op: 'edit_quantity', itemId: 'i1', newQuantity: 1 })
     expect(status).toBe(400)
-    expect(typeof (json as { error: string }).error).toBe('string')
+    expect((json as { error: string }).error).toBe('Cannot reduce quantity to 1: 2 units are already claimed')
   })
 
-  // --- op: remove ---
-  it('Test 6 (remove): deletes item from items[] AND purges claims.items[itemId], returns 200 { ok: true }', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    mockSet.mockResolvedValue('OK')
-    const { status, json } = await callPOST('test-session', {
-      op: 'remove',
-      itemId: 'i1',
-    })
+  it('Test 6 (remove): ITEM_REMOVE_SCRIPT with [itemId]; script purges claims.items[itemId]', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status } = await callPOST('test-session', { op: 'remove', itemId: 'i1' })
     expect(status).toBe(200)
-    expect((json as { ok: boolean }).ok).toBe(true)
-    const [, savedPayload] = mockSet.mock.calls[0]
-    const saved = typeof savedPayload === 'string' ? JSON.parse(savedPayload) : savedPayload
-    // item removed from items[]
-    expect(saved.items.find((it: { id: string }) => it.id === 'i1')).toBeUndefined()
-    // claims purged for that itemId
-    expect(saved.claims.items['i1']).toBeUndefined()
+    const { ITEM_REMOVE_SCRIPT } = await import('@/lib/sessionLua')
+    expect(mockEval).toHaveBeenCalledWith(ITEM_REMOVE_SCRIPT, ['session:test-session'], ['i1'])
+    expect(ITEM_REMOVE_SCRIPT).toContain('session.claims.items[ARGV[1]] = nil')
   })
 
-  // --- 404 path ---
-  it('Test 7: returns 404 { error: "session_not_found" } when session does not exist', async () => {
-    mockGet.mockResolvedValue(null)
-    const { status, json } = await callPOST('missing-session', {
-      op: 'edit_name',
-      itemId: 'i1',
-      newName: 'New Name',
-    })
+  it('Test 7: Lua "session_not_found" → 404 { error: "session_not_found" }', async () => {
+    mockEval.mockResolvedValue('session_not_found')
+    const { status, json } = await callPOST('missing', { op: 'remove', itemId: 'i1' })
     expect(status).toBe(404)
-    expect((json as { error: string }).error).toBe('session_not_found')
+    expect(json).toEqual({ error: 'session_not_found' })
   })
 
-  // --- 400 invalid op ---
   it('Test 8: returns 400 when op is invalid or missing', async () => {
     mockGet.mockResolvedValue(baseSession)
     const { status } = await callPOST('test-session', {
@@ -211,16 +155,54 @@ describe('POST /api/session/[sessionId]/edit', () => {
   })
 
   // --- 400 itemId not in session ---
-  it('Test 10: returns 400 when itemId is not found in session.items', async () => {
-    mockGet.mockResolvedValue(baseSession)
-    const { status } = await callPOST('test-session', {
-      op: 'remove',
-      itemId: 'nonexistent-item',
-    })
+  it('Test 10: Lua "item_not_found" → 400 itemId not found', async () => {
+    mockEval.mockResolvedValue('item_not_found')
+    const { status, json } = await callPOST('test-session', { op: 'edit_name', itemId: 'nope', newName: 'X' })
     expect(status).toBe(400)
+    expect((json as { error: string }).error).toBe('Invalid payload: itemId not found in session')
   })
 
-  // --- op: add_person ---
+  // --- op: claim_seat (compare-and-set on an empty seat) ---
+  it('claim_seat ok: CLAIM_SEAT_SCRIPT with [personId, trimmed name] → 200', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status, json } = await callPOST('test-session', { op: 'claim_seat', personId: 'g1', name: '  Deniz  ' })
+    expect(status).toBe(200)
+    expect(json).toEqual({ ok: true })
+    const { CLAIM_SEAT_SCRIPT } = await import('@/lib/sessionLua')
+    expect(mockEval).toHaveBeenCalledWith(CLAIM_SEAT_SCRIPT, ['session:test-session'], ['g1', 'Deniz'])
+  })
+
+  it('claim_seat taken: Lua "seat_taken" → 409 { error: "seat_taken" }', async () => {
+    mockEval.mockResolvedValue('seat_taken')
+    const { status, json } = await callPOST('test-session', { op: 'claim_seat', personId: 'g1', name: 'Deniz' })
+    expect(status).toBe(409)
+    expect(json).toEqual({ error: 'seat_taken' })
+  })
+
+  it('claim_seat unknown seat: Lua "person_not_found" → 404', async () => {
+    mockEval.mockResolvedValue('person_not_found')
+    const { status } = await callPOST('test-session', { op: 'claim_seat', personId: 'ghost', name: 'Deniz' })
+    expect(status).toBe(404)
+  })
+
+  it.each([
+    [{ op: 'claim_seat', name: 'Deniz' }],
+    [{ op: 'claim_seat', personId: 'g1', name: '   ' }],
+    [{ op: 'claim_seat', personId: 'g1', name: 'x'.repeat(51) }],
+    [{ op: 'claim_seat', personId: 'g1' }],
+  ])('claim_seat invalid body %j → 400, eval not called', async (body) => {
+    const { status } = await callPOST('test-session', body)
+    expect(status).toBe(400)
+    expect(mockEval).not.toHaveBeenCalled()
+  })
+
+  it('rename_person on an empty seat: Lua "seat_empty" → 409 (seats are claimed, not renamed)', async () => {
+    mockEval.mockResolvedValue('seat_empty')
+    const { status, json } = await callPOST('test-session', { op: 'rename_person', personId: 'g1', newName: 'Deniz' })
+    expect(status).toBe(409)
+    expect(json).toEqual({ error: 'seat_empty' })
+  })
+
   it('Test 11 (add_person ok): creates person atomically via Lua, returns 200 { ok:true, personId:<string> }; redis.eval called exactly once', async () => {
     mockEval.mockResolvedValue('OK')
     const { status, json } = await callPOST('test-session', {

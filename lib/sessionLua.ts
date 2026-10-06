@@ -82,3 +82,114 @@ session.tips[personId] = tip
 redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
 return 'OK'
 `
+
+/**
+ * CLAIM_SEAT_SCRIPT - names an EMPTY seat (compare-and-set on the blank name).
+ * Two phones tapping the same seat: the first wins, the second gets 'seat_taken'.
+ *
+ * KEYS[1] = session key
+ * ARGV[1] = personId of the seat
+ * ARGV[2] = name (trimmed + length-checked in TypeScript)
+ *
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'invalid_args'
+ *          | 'person_not_found' | 'seat_taken'
+ */
+export const CLAIM_SEAT_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
+if type(session.people) ~= 'table' then return 'invalid_session' end
+local name = ARGV[2]
+if type(name) ~= 'string' or not string.match(name, '%S') then return 'invalid_args' end
+for _, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == ARGV[1] then
+    if type(p.name) == 'string' and string.match(p.name, '%S') then return 'seat_taken' end
+    p.name = name
+    redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+    return 'OK'
+  end
+end
+return 'person_not_found'
+`
+
+/**
+ * ITEM_ADD_SCRIPT - appends one item. Field-level so it cannot revert a concurrent
+ * seat claim, done or tip (replaces the old /edit GET -> spread -> SET).
+ * ARGV[1] = new itemId, ARGV[2] = name, ARGV[3] = priceCents, ARGV[4] = quantity
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session'
+ */
+export const ITEM_ADD_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
+if type(session.items) ~= 'table' then session.items = {} end
+table.insert(session.items, { id = ARGV[1], name = ARGV[2], priceCents = tonumber(ARGV[3]), quantity = tonumber(ARGV[4]) })
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
+ * ITEM_REMOVE_SCRIPT - removes one item and the claims on it.
+ * ARGV[1] = itemId
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'item_not_found'
+ */
+export const ITEM_REMOVE_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
+if type(session.items) ~= 'table' then return 'item_not_found' end
+local idx = nil
+for i, it in ipairs(session.items) do
+  if type(it) == 'table' and it.id == ARGV[1] then idx = i break end
+end
+if not idx then return 'item_not_found' end
+table.remove(session.items, idx)
+if type(session.claims) == 'table' and type(session.claims.items) == 'table' then
+  session.claims.items[ARGV[1]] = nil
+end
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
+ * ITEM_EDIT_SCRIPT - changes one field of one item; claims are preserved.
+ * ARGV[1] = itemId, ARGV[2] = 'name' | 'priceCents' | 'quantity', ARGV[3] = value
+ * A quantity below the units already claimed is refused (checked atomically here).
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'invalid_args'
+ *          | 'item_not_found' | 'qty_below_claimed:<claimed>'
+ */
+export const ITEM_EDIT_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
+local field = ARGV[2]
+if field ~= 'name' and field ~= 'priceCents' and field ~= 'quantity' then return 'invalid_args' end
+if type(session.items) ~= 'table' then return 'item_not_found' end
+local target = nil
+for _, it in ipairs(session.items) do
+  if type(it) == 'table' and it.id == ARGV[1] then target = it break end
+end
+if not target then return 'item_not_found' end
+if field == 'name' then
+  target.name = ARGV[3]
+else
+  local n = tonumber(ARGV[3])
+  if n == nil or n <= 0 or n % 1 ~= 0 then return 'invalid_args' end
+  if field == 'quantity' then
+    local claimed = 0
+    if type(session.claims) == 'table' and type(session.claims.items) == 'table' and type(session.claims.items[ARGV[1]]) == 'table' then
+      for _, c in pairs(session.claims.items[ARGV[1]]) do
+        if type(c) == 'table' and type(c.qty) == 'number' then claimed = claimed + c.qty end
+      end
+    end
+    if n < claimed then return 'qty_below_claimed:' .. claimed end
+  end
+  target[field] = n
+end
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`

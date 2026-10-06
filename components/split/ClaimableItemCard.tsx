@@ -7,6 +7,7 @@ import { AVATAR_COLORS } from '@/stores/useBillStore'
 import { formatCents, computeQtyWeightedShares } from '@/lib/billMath'
 import type { ClaimEntry } from '@/lib/sessionSchema'
 import type { Item, Person, PersonId } from '@/stores/useBillStore'
+import { seatLabel, seatInitial } from '@/lib/seats'
 
 interface ClaimableItemCardProps {
   item: Item
@@ -239,9 +240,9 @@ export function ClaimableItemCard({
               <span
                 key={pid}
                 className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ${colorClass} ${isMe ? 'ring-2 ring-coral-500 ring-offset-1' : ''}`}
-                title={isMe ? 'You' : (person?.name ?? '')}
+                title={isMe ? 'You' : person ? seatLabel(person, Object.values(peopleById)) : ''}
               >
-                {isMe ? 'Y' : (person?.name ?? '?').charAt(0).toUpperCase()}
+                {isMe ? 'Y' : person ? seatInitial(person) : '?'}
               </span>
             )
           })}
@@ -250,8 +251,8 @@ export function ClaimableItemCard({
           )}
           <span className="ml-1 text-[13px] text-zinc-500" data-testid="claimant-names">
             {mine
-              ? `You + ${allClaimantEntries.filter(([pid]) => pid !== myPersonId).slice(0, 2).map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}${allClaimantEntries.length > 3 ? ` +${allClaimantEntries.length - 3} more` : ''}`
-              : `${visibleClaimants.map(([pid]) => peopleById[pid]?.name ?? 'someone').join(', ')}${overflowCount > 0 ? ` +${overflowCount} more` : ''}`
+              ? `You + ${allClaimantEntries.filter(([pid]) => pid !== myPersonId).slice(0, 2).map(([pid]) => (peopleById[pid] ? seatLabel(peopleById[pid], Object.values(peopleById)) : 'someone')).join(', ')}${allClaimantEntries.length > 3 ? ` +${allClaimantEntries.length - 3} more` : ''}`
+              : `${visibleClaimants.map(([pid]) => (peopleById[pid] ? seatLabel(peopleById[pid], Object.values(peopleById)) : 'someone')).join(', ')}${overflowCount > 0 ? ` +${overflowCount} more` : ''}`
             }
           </span>
         </div>

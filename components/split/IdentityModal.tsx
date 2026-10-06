@@ -16,6 +16,7 @@ import {
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
+import type { ClaimSeatResult } from '@/components/split/PersonSlotPicker'
 
 export interface IdentityModalProps {
   open: boolean
@@ -26,6 +27,7 @@ export interface IdentityModalProps {
   onSelect: (personId: PersonId) => Promise<void>
   onAddPerson: (name: string) => Promise<void>
   onRenamePerson?: (personId: PersonId, newName: string) => Promise<void>
+  onClaimSeat?: (personId: PersonId, name: string) => Promise<ClaimSeatResult>
   onOpenChange: (open: boolean) => void
 }
 
@@ -36,6 +38,7 @@ export function IdentityModal({
   onSelect,
   onAddPerson,
   onRenamePerson,
+  onClaimSeat,
   onOpenChange,
 }: IdentityModalProps) {
   // Reset key increments whenever the modal opens, so PersonSlotPicker's
@@ -62,7 +65,7 @@ export function IdentityModal({
             Who are you?
           </DialogTitle>
           <DialogDescription className="text-[16px] text-zinc-500">
-            Pick your name from the list below.
+            Pick your name, or tap a free seat and add your name.
           </DialogDescription>
         </DialogHeader>
         <PersonSlotPicker
@@ -71,6 +74,7 @@ export function IdentityModal({
           onSelect={onSelect}
           onAddPerson={onAddPerson}
           onRenamePerson={onRenamePerson}
+          onClaimSeat={onClaimSeat}
         />
       </DialogContent>
     </Dialog>

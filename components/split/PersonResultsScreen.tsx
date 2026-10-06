@@ -25,6 +25,7 @@ import type { PersonId } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
 import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { getUnclaimedCounts, getUnclaimedItems } from '@/lib/sessionUtils'
+import { seatLabel, seatInitial } from '@/lib/seats'
 
 export interface PersonResultsScreenProps {
   session: PublicSessionPayload
@@ -156,7 +157,7 @@ export function PersonResultsScreen({
         feeShares[p.id] ?? 0,
         taxShares[p.id] ?? 0
       )
-      return `${p.name} owes ${formatCents(share.itemSubtotal + share.serviceFee + share.tax, currencyCode)}`
+      return `${seatLabel(p, session.people)} owes ${formatCents(share.itemSubtotal + share.serviceFee + share.tax, currencyCode)}`
     })
     lines.push(`Total: ${formatCents(grandTotal, currencyCode)}`)
     const text = lines.join('\n')
@@ -261,7 +262,7 @@ export function PersonResultsScreen({
                   key={person.id}
                   className="relative rounded-xl border border-border bg-card"
                   onTouchStart={handleTouchStart}
-                  onTouchEnd={(e) => handleTouchEnd(e, person.id, person.name)}
+                  onTouchEnd={(e) => handleTouchEnd(e, person.id, seatLabel(person, session.people))}
                 >
                   {/* R3-4: "Paid" chip — top-right, shown after a swipe-right */}
                   {isPaid && (
@@ -277,7 +278,7 @@ export function PersonResultsScreen({
                     role="button"
                     tabIndex={0}
                     aria-expanded={isExpanded}
-                    aria-label={`${person.name}'s breakdown`}
+                    aria-label={`${seatLabel(person, session.people)}'s breakdown`}
                     onClick={() => handleCardTap(person.id)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') handleCardTap(person.id)
@@ -289,12 +290,12 @@ export function PersonResultsScreen({
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white font-semibold ${AVATAR_COLORS[person.colorIndex % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
                       aria-hidden="true"
                     >
-                      {person.name.charAt(0).toUpperCase()}
+                      {seatInitial(person)}
                     </div>
 
                     {/* Name — centered with the avatar */}
                     <span className="flex-1 truncate text-[14px] font-medium text-foreground">
-                      {person.name}
+                      {seatLabel(person, session.people)}
                     </span>
 
                     {/* Total — right-aligned */}

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Camera, Check, RotateCcw, Pencil, Receipt, Trash2, LoaderCircle, X, Plus } from 'lucide-react'
+import { Camera, Check, RotateCcw, Pencil, Receipt, LoaderCircle, X, Plus, Minus } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useBillStore, randomId, AVATAR_COLORS } from '@/stores/useBillStore'
+import { useBillStore, randomId } from '@/stores/useBillStore'
+import { buildSeatPeople } from '@/lib/seats'
+import { MIN_PEOPLE, MAX_PEOPLE } from '@/lib/sessionSchema'
 import { createSession } from '@/lib/createSession'
 import { reconcileScannedBill, itemsReconcileTarget, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
 import { flagScannedLines, shouldForceScanReview } from '@/lib/scanSanityChecks'
@@ -24,7 +26,7 @@ import { BillPhotoLightbox } from './BillPhotoLightbox'
  * badge + Retake / Edit buttons, no item list (D-10). Items are edited on the
  * separate ScanItemsEditor screen (store step 2), auto-opened after a doubtful scan
  * (mismatch, no printed total, or flagged lines).
- * Continue is gated on a scanned bill AND ≥2 people (D-11), then bridges to
+ * Continue is gated on a scanned bill, the scanner's name and a headcount ≥2, then bridges to
  * the existing Assign flow as a stopgap (D-12).
  */
 /** Items shown in the post-scan preview before "Show all". */
@@ -33,9 +35,10 @@ const PREVIEW_COUNT = 3
 export function SetupStep() {
   const router = useRouter()
   const items = useBillStore((s) => s.items)
-  const people = useBillStore((s) => s.people)
-  const addPerson = useBillStore((s) => s.addPerson)
-  const removePerson = useBillStore((s) => s.removePerson)
+  const headcount = useBillStore((s) => s.headcount)
+  const setHeadcount = useBillStore((s) => s.setHeadcount)
+  const hostName = useBillStore((s) => s.hostName)
+  const setHostName = useBillStore((s) => s.setHostName)
   const setSessionId = useBillStore((s) => s.setSessionId)
   const billImageUrl = useBillStore((s) => s.billImageUrl)
   const ocrStatus = useBillStore((s) => s.ocrStatus)
@@ -54,7 +57,6 @@ export function SetupStep() {
   const currencyCode = useBillStore((s) => s.currencyCode)
   const setCurrencyCode = useBillStore((s) => s.setCurrencyCode)
 
-  const [name, setName] = useState('')
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [itemsExpanded, setItemsExpanded] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -85,16 +87,10 @@ export function SetupStep() {
 
   // A successful scan is what populates items — gate the "after scan" UI on that.
   const billScanned = items.length > 0
-  // Continue requires a scanned bill AND at least two named people (deviation from
-  // D-11's "≥1" — splitting is only meaningful with two or more participants).
-  const canContinue = billScanned && people.length >= 2
-
-  const handleAddPerson = () => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    addPerson(trimmed)
-    setName('')
-  }
+  // v2.1: Continue requires a scanned bill, the scanner's own name and a headcount of
+  // at least two. Everyone else becomes an empty "Guest N" seat they claim from the link.
+  const hasHostName = hostName.trim().length > 0
+  const canContinue = billScanned && hasHostName && headcount >= MIN_PEOPLE
 
   // Scan-review gate: only when the receipt printed a truth figure AND the scanned
   // items don't reconcile to it (mismatch after the server's retry). The scan check is
@@ -129,13 +125,22 @@ export function SetupStep() {
     setIsCreating(true)
     setSessionCreateError(null)
     try {
-      const { people: p, items: it, currencyCode, serviceFeeCents: fee, taxCents: tax } = useBillStore.getState()
+      const { items: it, currencyCode, serviceFeeCents: fee, taxCents: tax, hostName: hn, headcount: hc } =
+        useBillStore.getState()
+      // Scanner = seat 1 (named); everyone else = empty "Guest N" seats.
+      const p = buildSeatPeople(hn, hc, randomId)
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const { sessionId } = await createSession(
         { people: p, items: it, currencyCode, serviceFeeCents: fee, taxCents: tax },
         abortRef.current.signal,
       )
+      // The scanner lands already identified — no "Who are you?" for her.
+      try {
+        localStorage.setItem(`split:${sessionId}:personId`, p[0].id)
+      } catch {
+        // localStorage unavailable in private browsing — she can pick her name instead
+      }
       setSessionId(sessionId)
       router.push(`/split/${sessionId}`)
     } catch (err) {
@@ -532,85 +537,65 @@ export function SetupStep() {
         </button>
       )}
 
-      {/* People — GAP 3: extra top margin (>=5px) separates the people section
-          from the scan hero, on top of the container's gap-5. */}
+      {/* v2.1 people setup: a headcount instead of typing every name. The scanner
+          enters only her own name; the rest become "Guest N" seats friends claim. */}
       <div className="mt-1.5 flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <span className="text-[13px] font-semibold uppercase tracking-[0.07em] text-foreground">
-            Who&apos;s involved in the split?
+            How many people?
           </span>
           <span className="h-px flex-1 bg-border" />
-          {/* GAP 4: count chip bound to people.length */}
-          <span
-            data-testid="people-count-chip"
-            className="inline-flex min-w-[22px] items-center justify-center rounded-full bg-coral-500 px-2.5 py-0.5 text-[12px] font-bold text-white"
-          >
-            {people.length}
-          </span>
         </div>
-
-        {/* G5 (redesign): always-visible inline "+" add button so the action is
-            obvious on every device (the keyboard's return/Done key varies). Tap
-            the + or press Enter to add; the box clears and keeps focus for the
-            next name. The + sits inside the box, staying visible above the
-            on-screen keyboard on phones. */}
-        <div className="relative">
-          <Input
-            ref={nameInputRef}
-            placeholder="Add a name…"
-            value={name}
-            enterKeyHint="done"
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                handleAddPerson()
-              }
-            }}
-            maxLength={100}
-            className="h-12 w-full rounded-lg pr-12 text-base"
-          />
+        <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white px-3 py-2">
           <button
             type="button"
-            aria-label="Add person"
-            onClick={() => {
-              handleAddPerson()
-              nameInputRef.current?.focus()
-            }}
-            className={`absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-colors ${
-              name.trim() ? 'bg-stone text-white' : 'text-muted-foreground'
-            }`}
+            aria-label="Fewer people"
+            onClick={() => setHeadcount(headcount - 1)}
+            disabled={headcount <= MIN_PEOPLE}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white text-zinc-900 disabled:opacity-40"
+          >
+            <Minus size={18} aria-hidden="true" />
+          </button>
+          <span data-testid="headcount" className="text-[24px] font-semibold tabular-nums text-zinc-900" aria-live="polite">
+            {headcount}
+          </span>
+          <button
+            type="button"
+            aria-label="More people"
+            onClick={() => setHeadcount(headcount + 1)}
+            disabled={headcount >= MAX_PEOPLE}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white text-zinc-900 disabled:opacity-40"
           >
             <Plus size={18} aria-hidden="true" />
           </button>
         </div>
+        <p className="text-[12px] text-n600">
+          Friends pick a seat and add their own name when they open the link.
+        </p>
 
-        {people.length > 0 && (
-          <ul className="flex flex-col gap-2">
-            {people.map((person) => (
-              <li
-                key={person.id}
-                className="flex h-12 items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3"
-              >
-                <div
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white ${AVATAR_COLORS[person.colorIndex]}`}
-                  aria-hidden="true"
-                >
-                  {person.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="flex-1 text-[15px] font-medium text-zinc-900">{person.name}</span>
-                <button
-                  type="button"
-                  aria-label={`Remove ${person.name}`}
-                  onClick={() => removePerson(person.id)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-white text-muted-foreground"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="mt-1 flex items-center gap-2">
+          <span className="text-[13px] font-semibold uppercase tracking-[0.07em] text-foreground">
+            Your name
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <Input
+          ref={nameInputRef}
+          aria-label="Your name"
+          placeholder="Your name"
+          value={hostName}
+          enterKeyHint="done"
+          autoComplete="given-name"
+          onChange={(e) => setHostName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              nameInputRef.current?.blur()
+            }
+          }}
+          maxLength={50}
+          className="h-12 w-full rounded-lg text-base"
+        />
       </div>
 
       {/* Continue (gated — D-11) */}
@@ -639,8 +624,8 @@ export function SetupStep() {
         {!canContinue && (
           <p className="mt-2 text-center text-[12px] text-n600">
             {billScanned
-              ? 'Add at least two people to continue'
-              : 'Scan a receipt and add at least two people to continue'}
+              ? 'Add your name to continue'
+              : 'Scan a receipt and add your name to continue'}
           </p>
         )}
         {sessionCreateError && (

@@ -454,8 +454,7 @@ describe('SetupStep — scanned bill review container + auto-open edit screen', 
   })
 
   it('"Confirm & continue" proceeds while a gap remains (soft gate, from persisted scanCheck)', () => {
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+    useBillStore.getState().setHostName('Alice')
     seedPriorScan()
     useBillStore.getState().setScanCheck({
       correctedCount: 0,
@@ -480,17 +479,25 @@ describe('SetupStep — GAPs 4/5/7 copy + chip + inline error', () => {
     cleanup()
   })
 
-  it('renders a people-count chip bound to people.length', () => {
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+  it('shows a "How many people?" counter that starts at 2', () => {
     renderInProvider(<SetupStep />)
-    const chip = screen.getByTestId('people-count-chip')
-    expect(chip.textContent).toBe('2')
+    expect(screen.getByText(/how many people\?/i)).toBeDefined()
+    expect(screen.getByTestId('headcount').textContent).toBe('2')
   })
 
-  it('the people-count chip renders 0 with no people', () => {
+  it('the counter goes up and down within 2..20', () => {
     renderInProvider(<SetupStep />)
-    expect(screen.getByTestId('people-count-chip').textContent).toBe('0')
+    const more = screen.getByRole('button', { name: /more people/i }) as HTMLButtonElement
+    const fewer = screen.getByRole('button', { name: /fewer people/i }) as HTMLButtonElement
+    expect(fewer.disabled).toBe(true)
+    fireEvent.click(more)
+    fireEvent.click(more)
+    expect(screen.getByTestId('headcount').textContent).toBe('4')
+    fireEvent.click(fewer)
+    expect(screen.getByTestId('headcount').textContent).toBe('3')
+    act(() => useBillStore.getState().setHeadcount(20))
+    expect(screen.getByTestId('headcount').textContent).toBe('20')
+    expect((screen.getByRole('button', { name: /more people/i }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('the Continue button label is "Start splitting" (retired "Continue to Assign")', () => {
@@ -524,16 +531,15 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
 
   it('Continue is disabled when billScanned is false (D-11 gate)', () => {
     // No items seeded → billScanned false
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+    useBillStore.getState().setHostName('Alice')
     renderInProvider(<SetupStep />)
     const btn = screen.getByRole('button', { name: /start splitting/i }) as HTMLButtonElement
     expect(btn.disabled).toBe(true)
   })
 
-  it('Continue is disabled when people.length < 2 (D-11 gate)', () => {
+  it('Continue is disabled until the scanner enters her own name', () => {
     seedPriorScan()
-    useBillStore.getState().addPerson('Alice')
+    useBillStore.getState().setHostName('   ')
     renderInProvider(<SetupStep />)
     const btn = screen.getByRole('button', { name: /start splitting/i }) as HTMLButtonElement
     expect(btn.disabled).toBe(true)
@@ -541,8 +547,7 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
 
   it('Continue calls createSession and router.push to /split/[sessionId]', async () => {
     seedPriorScan()
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+    useBillStore.getState().setHostName('Alice')
     createSession.mockResolvedValue({
       sessionId: 'sess-abc',
       guestUrl: 'http://localhost/split/sess-abc',
@@ -561,11 +566,27 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
     expect(useBillStore.getState().sessionId).toBe('sess-abc')
   })
 
+  it('creates the scanner plus (headcount - 1) empty "Guest N" seats and pre-identifies her', async () => {
+    seedPriorScan()
+    useBillStore.getState().setHostName('  Ayse ')
+    useBillStore.getState().setHeadcount(4)
+    createSession.mockResolvedValue({ sessionId: 'sess-seats', guestUrl: 'http://localhost/split/sess-seats' })
+    renderInProvider(<SetupStep />)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start splitting/i }))
+    })
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    const people = createSession.mock.calls[0][0].people as { id: string; name: string; guestNumber?: number }[]
+    expect(people.map((p) => p.name)).toEqual(['Ayse', '', '', ''])
+    expect(people.slice(1).map((p) => p.guestNumber)).toEqual([1, 2, 3])
+    expect(new Set(people.map((p) => p.id)).size).toBe(4)
+    expect(localStorage.getItem('split:sess-seats:personId')).toBe(people[0].id)
+  })
+
   it('Continue passes serviceFeeCents to createSession', async () => {
     seedPriorScan()
     useBillStore.getState().setServiceFeeCents(500)
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+    useBillStore.getState().setHostName('Alice')
     createSession.mockResolvedValue({
       sessionId: 'sess-fee',
       guestUrl: 'http://localhost/split/sess-fee',
@@ -581,8 +602,7 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
   it('Continue passes taxCents to createSession', async () => {
     seedPriorScan()
     useBillStore.getState().setTaxCents(800)
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+    useBillStore.getState().setHostName('Alice')
     createSession.mockResolvedValue({
       sessionId: 'sess-tax',
       guestUrl: 'http://localhost/split/sess-tax',
@@ -597,8 +617,7 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
 
   it('failed createSession shows inline error and does NOT navigate', async () => {
     seedPriorScan()
-    useBillStore.getState().addPerson('Alice')
-    useBillStore.getState().addPerson('Bob')
+    useBillStore.getState().setHostName('Alice')
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     createSession.mockRejectedValue(new Error('Session creation failed: 500'))
 
@@ -617,7 +636,7 @@ describe('SetupStep — Continue creates session and navigates to /split/[sessio
   })
 })
 
-describe('SetupStep — G5 name entry (inline + button + Enter)', () => {
+describe('SetupStep — "Your name" input (v2.1)', () => {
   beforeEach(() => {
     useBillStore.getState().reset()
   })
@@ -626,25 +645,11 @@ describe('SetupStep — G5 name entry (inline + button + Enter)', () => {
     vi.restoreAllMocks()
   })
 
-  it('shows an always-visible "Add person" button next to the name input', () => {
+  it('typing in "Your name" stores the scanner name; the old add-a-name list is gone', () => {
     renderInProvider(<SetupStep />)
-    expect(screen.getByPlaceholderText('Add a name…')).toBeDefined()
-    expect(screen.getByRole('button', { name: /add person/i })).toBeDefined()
-  })
-
-  it('tapping the + button adds the person', () => {
-    renderInProvider(<SetupStep />)
-    fireEvent.change(screen.getByPlaceholderText('Add a name…'), { target: { value: 'Dave' } })
-    fireEvent.click(screen.getByRole('button', { name: /add person/i }))
-    expect(useBillStore.getState().people.some((p) => p.name === 'Dave')).toBe(true)
-  })
-
-  it('pressing Enter in the name input also adds the person', () => {
-    renderInProvider(<SetupStep />)
-    const input = screen.getByPlaceholderText('Add a name…')
-    fireEvent.change(input, { target: { value: 'Carol' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(useBillStore.getState().people.some((p) => p.name === 'Carol')).toBe(true)
+    expect(screen.queryByPlaceholderText('Add a name…')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Dave' } })
+    expect(useBillStore.getState().hostName).toBe('Dave')
   })
 })
 

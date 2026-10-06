@@ -6,6 +6,7 @@ import {
   nextGuestNumber,
   isValidGuestNumber,
   MAX_GUEST_NUMBER,
+  buildSeatPeople,
 } from '@/lib/seats'
 import { MAX_PEOPLE, MIN_PEOPLE } from '@/lib/sessionSchema'
 import type { Person } from '@/stores/useBillStore'
@@ -129,5 +130,20 @@ describe('WR-05: seatInitial is locale-independent and one character', () => {
   })
   it('keeps a single character when upper case expands (ß -> S)', () => {
     expect(seatInitial({ name: 'ßeta' })).toBe('S')
+  })
+})
+
+describe('buildSeatPeople', () => {
+  let n = 0
+  const makeId = () => `id${++n}`
+  it('scanner first (trimmed name), then headcount-1 empty Guest seats numbered 1..', () => {
+    const people = buildSeatPeople('  Ayse ', 4, makeId)
+    expect(people.map((x) => x.name)).toEqual(['Ayse', '', '', ''])
+    expect(people.map((x) => x.guestNumber)).toEqual([undefined, 1, 2, 3])
+    expect(people.slice(1).map((x) => seatLabel(x, people))).toEqual(['Guest 1', 'Guest 2', 'Guest 3'])
+    expect(new Set(people.map((x) => x.id)).size).toBe(4)
+  })
+  it('headcount 2 gives the scanner plus one guest', () => {
+    expect(buildSeatPeople('A', 2, makeId)).toHaveLength(2)
   })
 })

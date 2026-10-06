@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ScanFlagReason } from '@/lib/scanSanityChecks'
+import { MAX_PEOPLE, MIN_PEOPLE } from '@/lib/sessionSchema'
 
 // randomId() requires a secure context (HTTPS/localhost).
 // Plain-HTTP LAN dev (e.g. http://192.168.x.x) exposes an undefined API.
@@ -103,6 +104,12 @@ interface BillState {
   setServiceFeeCents: (cents: number | null) => void
   taxCents: number | null
   setTaxCents: (cents: number | null) => void
+  // v2.1 headcount setup: how many people are splitting (2..20) and the scanner's own name.
+  // The other people become empty "Guest N" seats when the bill is created.
+  headcount: number
+  setHeadcount: (n: number) => void
+  hostName: string
+  setHostName: (name: string) => void
   setBillImage: (url: string | null) => void
   setCurrencyCode: (code: string) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
@@ -125,6 +132,8 @@ interface BillState {
 
 const INITIAL_STATE = {
   step: 1 as const,
+  headcount: MIN_PEOPLE,
+  hostName: '',
   people: [],
   items: [],
   assignments: {},
@@ -150,6 +159,9 @@ export const useBillStore = create<BillState>()(
   setScanCheck: (check) => set({ scanCheck: check }),
   setServiceFeeCents: (cents) => set({ serviceFeeCents: cents }),
   setTaxCents: (cents) => set({ taxCents: cents }),
+  setHeadcount: (n) =>
+    set({ headcount: Math.min(MAX_PEOPLE, Math.max(MIN_PEOPLE, Math.round(Number.isFinite(n) ? n : MIN_PEOPLE))) }),
+  setHostName: (name) => set({ hostName: name }),
   addPerson: (name) =>
     set((s) => ({
       people: [
@@ -248,6 +260,8 @@ export const useBillStore = create<BillState>()(
         scanCheck: s.scanCheck,
         serviceFeeCents: s.serviceFeeCents,
         taxCents: s.taxCents,
+        headcount: s.headcount,
+        hostName: s.hostName,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)

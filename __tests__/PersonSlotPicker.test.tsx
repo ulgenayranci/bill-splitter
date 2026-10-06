@@ -207,3 +207,70 @@ describe('PersonSlotPicker', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 })
+
+describe('PersonSlotPicker — v2.1 empty "Guest N" seats', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  const seatSession: SessionPayload = {
+    ...mockSession,
+    people: [
+      { id: 'g1', name: '', colorIndex: 1, guestNumber: 1 },
+      { id: 'h', name: 'Ayse', colorIndex: 0 },
+      { id: 'g2', name: '', colorIndex: 2, guestNumber: 2 },
+    ],
+  }
+
+  it('shows empty seats as "Guest N" (never blank), after named people, without a rename pencil', () => {
+    render(<PersonSlotPicker session={seatSession} onSelect={vi.fn()} onRenamePerson={vi.fn()} />)
+    const seats = screen.getAllByTestId('empty-seat')
+    expect(seats.map((s) => s.textContent)).toEqual([
+      expect.stringContaining('Guest 1'),
+      expect.stringContaining('Guest 2'),
+    ])
+    expect(screen.getByRole('button', { name: 'Claim slot Ayse' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: /rename guest/i })).toBeNull()
+    expect(screen.getAllByRole('button', { name: /rename/i })).toHaveLength(1)
+  })
+
+  it('tapping an empty seat asks for a name and claims it', async () => {
+    const onClaimSeat = vi.fn().mockResolvedValue('ok')
+    const onSelect = vi.fn()
+    render(<PersonSlotPicker session={seatSession} onSelect={onSelect} onClaimSeat={onClaimSeat} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Take seat Guest 2' }))
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: '  Deniz ' } })
+    fireEvent.click(screen.getByRole('button', { name: /that's me/i }))
+    await waitFor(() => expect(onClaimSeat).toHaveBeenCalledWith('g2', 'Deniz'))
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('requires a name before claiming', () => {
+    const onClaimSeat = vi.fn()
+    render(<PersonSlotPicker session={seatSession} onSelect={vi.fn()} onClaimSeat={onClaimSeat} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Take seat Guest 1' }))
+    fireEvent.click(screen.getByRole('button', { name: /that's me/i }))
+    expect(screen.getByRole('alert').textContent).toBe('Enter your name')
+    expect(onClaimSeat).not.toHaveBeenCalled()
+  })
+
+  it('shows "Someone just took that seat" when another phone claimed it first', async () => {
+    const onClaimSeat = vi.fn().mockResolvedValue('taken')
+    render(<PersonSlotPicker session={seatSession} onSelect={vi.fn()} onClaimSeat={onClaimSeat} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Take seat Guest 1' }))
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Mert' } })
+    fireEvent.click(screen.getByRole('button', { name: /that's me/i }))
+    await waitFor(() => expect(screen.getByTestId('seat-notice').textContent).toMatch(/someone just took that seat/i))
+  })
+
+  it('if another phone claims the seat while you type, the form closes with a notice', () => {
+    const { rerender } = render(<PersonSlotPicker session={seatSession} onSelect={vi.fn()} onClaimSeat={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Take seat Guest 1' }))
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: 'Deniz' } })
+    const taken = { ...seatSession, people: seatSession.people.map((p) => (p.id === 'g1' ? { ...p, name: 'Mert' } : p)) }
+    rerender(<PersonSlotPicker session={taken} onSelect={vi.fn()} onClaimSeat={vi.fn()} />)
+    expect(screen.queryByLabelText('Your name')).toBeNull()
+    expect(screen.getByTestId('seat-notice').textContent).toMatch(/someone just took that seat/i)
+    expect(screen.getByRole('button', { name: 'Claim slot Mert' })).toBeDefined()
+  })
+})

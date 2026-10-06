@@ -5,6 +5,7 @@ import { Share2, Check } from 'lucide-react'
 import { AVATAR_COLORS } from '@/stores/useBillStore'
 import type { PersonId } from '@/stores/useBillStore'
 import type { SessionPayload } from '@/lib/sessionSchema'
+import { seatLabel, seatInitial } from '@/lib/seats'
 
 /** Maximum number of "other people" circles shown before the +N overflow badge. */
 const MAX_STRIP_AVATARS = 3
@@ -139,10 +140,10 @@ export function BillViewHeader({
               className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold text-white ${AVATAR_COLORS[(myPerson.colorIndex ?? 0) % AVATAR_COLORS.length] ?? AVATAR_COLORS[0]}`}
               aria-hidden="true"
             >
-              {myPerson.name.charAt(0).toUpperCase()}
+              {seatInitial(myPerson)}
             </span>
             <span className="text-[14px] font-semibold text-zinc-900 whitespace-nowrap">
-              {myPerson.name}
+              {seatLabel(myPerson, session.people)}
             </span>
           </div>
         )}
@@ -155,12 +156,12 @@ export function BillViewHeader({
           return (
             <span
               key={person.id}
-              title={person.name}
+              title={seatLabel(person, session.people)}
               className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ring-2 ring-paper -ml-3 ${colorClass}`}
               style={{ zIndex: otherPeople.length + 1 - i, position: 'relative' }}
               aria-hidden="true"
             >
-              {person.name.charAt(0).toUpperCase()}
+              {seatInitial(person)}
             </span>
           )
         })}
