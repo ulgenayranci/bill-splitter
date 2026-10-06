@@ -26,6 +26,12 @@ export interface Person {
   id: PersonId
   name: string
   colorIndex: number
+  /**
+   * Stable 1-based guest number assigned once when an empty seat is created, never
+   * renumbered, and kept after the seat is claimed. Absent on named people created
+   * directly and on all v2.0 sessions.
+   */
+  guestNumber?: number
 }
 
 export interface Item {

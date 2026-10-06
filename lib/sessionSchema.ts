@@ -1,5 +1,12 @@
 import type { Item, ItemId, Person, PersonId } from '@/stores/useBillStore'
 
+/**
+ * Single shared people bounds for the Setup counter, POST /api/session,
+ * the OCR guest-count clamp, and seat Lua ARGV.
+ */
+export const MAX_PEOPLE = 20
+export const MIN_PEOPLE = 2
+
 /** A single person's claim on an item — quantity owned. Every claim is a self-claim in the flat model. */
 export interface ClaimEntry {
   qty: number
