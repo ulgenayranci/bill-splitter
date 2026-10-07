@@ -33,6 +33,7 @@ describe('IdentityModal', () => {
         session={mockSession}
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
+        onClaimSeat={vi.fn()}
         onOpenChange={vi.fn()}
       />
     )
@@ -50,6 +51,7 @@ describe('IdentityModal', () => {
         session={mockSession}
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
+        onClaimSeat={vi.fn()}
         onOpenChange={onOpenChange}
       />
     )
@@ -77,6 +79,7 @@ describe('IdentityModal', () => {
         session={mockSession}
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
+        onClaimSeat={vi.fn()}
         onOpenChange={onOpenChange}
       />
     )
@@ -96,6 +99,7 @@ describe('IdentityModal', () => {
         session={mockSession}
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
+        onClaimSeat={vi.fn()}
         onOpenChange={onOpenChange}
       />
     )
@@ -113,6 +117,7 @@ describe('IdentityModal', () => {
         session={mockSession}
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
+        onClaimSeat={vi.fn()}
         onOpenChange={vi.fn()}
       />
     )
@@ -127,6 +132,7 @@ describe('IdentityModal', () => {
         session={mockSession}
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
+        onClaimSeat={vi.fn()}
         onOpenChange={vi.fn()}
       />
     )

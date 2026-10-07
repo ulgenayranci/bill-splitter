@@ -919,6 +919,7 @@ export function CollaborativeClaimingView({
         onSelect={handleSelect}
         onAddPerson={handleAddPerson}
         onRenamePerson={handleRenamePerson}
+        onClaimSeat={handleClaimSeat}
         onOpenChange={(open) => {
           setIdentityModalOpen(open)
           if (!open) setChangingIdentity(false)

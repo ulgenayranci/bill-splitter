@@ -27,7 +27,8 @@ export interface IdentityModalProps {
   onSelect: (personId: PersonId) => Promise<void>
   onAddPerson: (name: string) => Promise<void>
   onRenamePerson?: (personId: PersonId, newName: string) => Promise<void>
-  onClaimSeat?: (personId: PersonId, name: string) => Promise<ClaimSeatResult>
+  /** Required: every "Who are you?" window must be able to claim an empty Guest seat. */
+  onClaimSeat: (personId: PersonId, name: string) => Promise<ClaimSeatResult>
   onOpenChange: (open: boolean) => void
 }
 
