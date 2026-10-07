@@ -84,17 +84,45 @@ return 'OK'
 `
 
 /**
+ * UNIQUE_NAME_LUA - Lua twin of lib/nameDedupe.ts uniqueName(). Defines a local
+ * function uniqueName(name, people, selfId, emojiCsv): returns the trimmed name, or
+ * name + ' ' + the first emoji from the comma-separated (caller-shuffled) list that makes
+ * it unique among the OTHER people (case-insensitive). Prepended to scripts that set names.
+ */
+export const UNIQUE_NAME_LUA = `
+local function trimName(s) return (string.gsub(s, '^%s*(.-)%s*$', '%1')) end
+local function uniqueName(name, people, selfId, emojiCsv)
+  local base = trimName(name)
+  local taken = {}
+  for _, p in ipairs(people) do
+    if type(p) == 'table' and p.id ~= selfId and type(p.name) == 'string' and string.match(p.name, '%S') then
+      taken[string.lower(trimName(p.name))] = true
+    end
+  end
+  if not taken[string.lower(base)] then return base end
+  for e in string.gmatch(emojiCsv or '', '[^,]+') do
+    local candidate = base .. ' ' .. e
+    if not taken[string.lower(candidate)] then return candidate end
+  end
+  local k = 2
+  while taken[string.lower(base .. ' ' .. k)] do k = k + 1 end
+  return base .. ' ' .. k
+end
+`
+
+/**
  * CLAIM_SEAT_SCRIPT - names an EMPTY seat (compare-and-set on the blank name).
  * Two phones tapping the same seat: the first wins, the second gets 'seat_taken'.
  *
  * KEYS[1] = session key
  * ARGV[1] = personId of the seat
  * ARGV[2] = name (trimmed + length-checked in TypeScript)
+ * ARGV[3] = comma-separated shuffled emoji list for duplicate names (see UNIQUE_NAME_LUA)
  *
  * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'invalid_args'
  *          | 'person_not_found' | 'seat_taken'
  */
-export const CLAIM_SEAT_SCRIPT = `
+export const CLAIM_SEAT_SCRIPT = `${UNIQUE_NAME_LUA}
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 'session_not_found' end
 local ok, session = pcall(cjson.decode, raw)
@@ -105,7 +133,7 @@ if type(name) ~= 'string' or not string.match(name, '%S') then return 'invalid_a
 for _, p in ipairs(session.people) do
   if type(p) == 'table' and p.id == ARGV[1] then
     if type(p.name) == 'string' and string.match(p.name, '%S') then return 'seat_taken' end
-    p.name = name
+    p.name = uniqueName(name, session.people, ARGV[1], ARGV[3])
     redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
     return 'OK'
   end
@@ -190,6 +218,45 @@ else
   end
   target[field] = n
 end
+redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
+return 'OK'
+`
+
+/**
+ * REMOVE_PERSON_SCRIPT - removes a card (named or empty) ONLY when nobody has picked
+ * items for it, and never below the minimum headcount. Their presence/done/tip entries
+ * go too (nothing else references them). A pick arriving afterwards for this person is
+ * rejected by the person_not_found guards in the claim scripts.
+ *
+ * ARGV[1] = personId, ARGV[2] = minimum people (MIN_PEOPLE)
+ * Returns: 'OK' | 'session_not_found' | 'invalid_session' | 'person_not_found'
+ *          | 'has_items' | 'too_few_people'
+ */
+export const REMOVE_PERSON_SCRIPT = `
+local raw = redis.call('GET', KEYS[1])
+if not raw then return 'session_not_found' end
+local ok, session = pcall(cjson.decode, raw)
+if not ok or type(session) ~= 'table' then return 'invalid_session' end
+if type(session.people) ~= 'table' then return 'invalid_session' end
+local personId = ARGV[1]
+local idx = nil
+for i, p in ipairs(session.people) do
+  if type(p) == 'table' and p.id == personId then idx = i break end
+end
+if not idx then return 'person_not_found' end
+local minPeople = tonumber(ARGV[2]) or 2
+if #session.people <= minPeople then return 'too_few_people' end
+if type(session.claims) == 'table' and type(session.claims.items) == 'table' then
+  for _, perItem in pairs(session.claims.items) do
+    if type(perItem) == 'table' and type(perItem[personId]) == 'table' then return 'has_items' end
+  end
+end
+table.remove(session.people, idx)
+if type(session.claims) == 'table' then
+  if type(session.claims.personSlots) == 'table' then session.claims.personSlots[personId] = nil end
+  if type(session.claims.donePeople) == 'table' then session.claims.donePeople[personId] = nil end
+end
+if type(session.tips) == 'table' then session.tips[personId] = nil end
 redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
 return 'OK'
 `

@@ -67,33 +67,34 @@ describe('PersonSlotPicker', () => {
     expect(aliceCard.getAttribute('aria-disabled')).not.toBe('true')
   })
 
-  it('Test 6: "I\'m not listed" link is present', () => {
+  it('Test 6: "Add person" link is present (was "I\'m not listed")', () => {
     render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
-    expect(screen.getByText("I'm not listed")).toBeDefined()
+    expect(screen.getByText('Add person')).toBeDefined()
+    expect(screen.queryByText("I'm not listed")).toBeNull()
   })
 
-  it('Test 7: Clicking "I\'m not listed" reveals input with placeholder "Your name" and "Add me" button', () => {
+  it('Test 7: Clicking "Add person" reveals a "Name" input and an "Add" button', () => {
     render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} />)
-    fireEvent.click(screen.getByText("I'm not listed"))
-    expect(screen.getByPlaceholderText('Your name')).toBeDefined()
-    expect(screen.getByText('Add me')).toBeDefined()
+    fireEvent.click(screen.getByText('Add person'))
+    expect(screen.getByPlaceholderText('Name')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Add' })).toBeDefined()
   })
 
   it('Test 8: Submitting inline add with a name calls onAddPerson with the trimmed name', async () => {
     const onAddPerson = vi.fn().mockResolvedValue(undefined)
     render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} onAddPerson={onAddPerson} />)
-    fireEvent.click(screen.getByText("I'm not listed"))
-    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: '  Dave  ' } })
-    fireEvent.click(screen.getByText('Add me'))
+    fireEvent.click(screen.getByText('Add person'))
+    fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: '  Dave  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(onAddPerson).toHaveBeenCalledWith('Dave')
   })
 
   it('Test 9: Submitting inline add with empty name does NOT call onAddPerson', () => {
     const onAddPerson = vi.fn()
     render(<PersonSlotPicker session={mockSession} onSelect={vi.fn()} onAddPerson={onAddPerson} />)
-    fireEvent.click(screen.getByText("I'm not listed"))
-    // Leave input empty, click Add me
-    fireEvent.click(screen.getByText('Add me'))
+    fireEvent.click(screen.getByText('Add person'))
+    // Leave input empty, click Add
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
     expect(onAddPerson).not.toHaveBeenCalled()
   })
 
@@ -272,5 +273,62 @@ describe('PersonSlotPicker — v2.1 empty "Guest N" seats', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull()
     expect(screen.getByTestId('seat-notice').textContent).toMatch(/someone just took that seat/i)
     expect(screen.getByRole('button', { name: 'Claim slot Mert' })).toBeDefined()
+  })
+})
+
+describe('PersonSlotPicker — v2.1 remove a card', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
+  const s3: SessionPayload = {
+    ...mockSession,
+    people: [
+      { id: 'h', name: 'Ayse', colorIndex: 0 },
+      { id: 'm', name: 'Mert', colorIndex: 1 },
+      { id: 'g2', name: '', colorIndex: 2, guestNumber: 2 },
+    ],
+    claims: { items: { i1: { m: { qty: 1 } } }, personSlots: {}, donePeople: {} },
+  }
+
+  it('shows ✕ only on cards nobody picked items for', () => {
+    render(<PersonSlotPicker session={s3} onSelect={vi.fn()} onRemovePerson={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Remove Ayse' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Remove Guest 2' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Remove Mert' })).toBeNull()
+  })
+
+  it('no ✕ at all when only 2 people are left', () => {
+    const two = { ...s3, people: s3.people.slice(0, 2) }
+    render(<PersonSlotPicker session={two} onSelect={vi.fn()} onRemovePerson={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: /^remove /i })).toBeNull()
+  })
+
+  it('✕ asks to confirm, then removes; tapping ✕ does not select the person', async () => {
+    const onRemovePerson = vi.fn().mockResolvedValue('ok')
+    const onSelect = vi.fn()
+    render(<PersonSlotPicker session={s3} onSelect={onSelect} onRemovePerson={onRemovePerson} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Ayse' }))
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(screen.getByText('Remove Ayse?')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(onRemovePerson).toHaveBeenCalledWith('h'))
+  })
+
+  it('Cancel keeps the card', () => {
+    const onRemovePerson = vi.fn()
+    render(<PersonSlotPicker session={s3} onSelect={vi.fn()} onRemovePerson={onRemovePerson} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Guest 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onRemovePerson).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Take seat Guest 2' })).toBeDefined()
+  })
+
+  it('explains when someone picked items for that card meanwhile', async () => {
+    const onRemovePerson = vi.fn().mockResolvedValue('has_items')
+    render(<PersonSlotPicker session={s3} onSelect={vi.fn()} onRemovePerson={onRemovePerson} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Ayse' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(screen.getByTestId('remove-notice').textContent).toMatch(/picked items for Ayse/))
   })
 })

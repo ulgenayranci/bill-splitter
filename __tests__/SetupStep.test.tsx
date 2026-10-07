@@ -645,6 +645,28 @@ describe('SetupStep — "Your name" input (v2.1)', () => {
     vi.restoreAllMocks()
   })
 
+  it('"Add the others\' names" opens one optional box per guest; typed names go to those seats', async () => {
+    const mod = await import('@/lib/createSession')
+    const createSession = mod.createSession as ReturnType<typeof vi.fn>
+    createSession.mockReset()
+    createSession.mockResolvedValue({ sessionId: 'sess-names', guestUrl: 'http://localhost/split/sess-names' })
+    seedPriorScan()
+    useBillStore.getState().setHostName('Ayse')
+    useBillStore.getState().setHeadcount(3)
+    renderInProvider(<SetupStep />)
+    fireEvent.click(screen.getByRole('button', { name: /add the others' names/i }))
+    expect(screen.getByLabelText('Guest 1 name')).toBeDefined()
+    expect(screen.getByLabelText('Guest 2 name')).toBeDefined()
+    fireEvent.change(screen.getByLabelText('Guest 2 name'), { target: { value: ' Mert ' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start splitting/i }))
+    })
+    await waitFor(() => expect(createSession).toHaveBeenCalled())
+    const people = createSession.mock.calls[0][0].people as { name: string; guestNumber?: number }[]
+    expect(people.map((p) => p.name)).toEqual(['Ayse', '', 'Mert'])
+    expect(people.map((p) => p.guestNumber)).toEqual([undefined, 1, 2])
+  })
+
   it('typing in "Your name" stores the scanner name; the old add-a-name list is gone', () => {
     renderInProvider(<SetupStep />)
     expect(screen.queryByPlaceholderText('Add a name…')).toBeNull()

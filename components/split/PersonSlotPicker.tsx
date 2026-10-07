@@ -9,7 +9,7 @@
 // Phase 11 (D-05): Added onRenamePerson optional prop with per-card inline rename form.
 
 import { useState, useEffect } from 'react'
-import { Pencil } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { AVATAR_COLORS } from '@/stores/useBillStore'
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
 import { isEmptySeat, seatLabel, seatInitial } from '@/lib/seats'
+import { MIN_PEOPLE } from '@/lib/sessionSchema'
 
 /** Result of claiming an empty seat: taken = another phone claimed it first. */
 export type ClaimSeatResult = 'ok' | 'taken' | 'error'
@@ -28,9 +29,14 @@ interface PersonSlotPickerProps {
   onRenamePerson?: (personId: PersonId, newName: string) => Promise<void>
   /** v2.1: claim an empty "Guest N" seat by typing your name. */
   onClaimSeat?: (personId: PersonId, name: string) => Promise<ClaimSeatResult>
+  /** v2.1: remove a card — only offered when nobody has picked items for it. */
+  onRemovePerson?: (personId: PersonId) => Promise<RemovePersonResult>
 }
 
-export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerson, onClaimSeat }: PersonSlotPickerProps) {
+/** Result of removing a card: has_items = someone picked items for it meanwhile. */
+export type RemovePersonResult = 'ok' | 'has_items' | 'too_few' | 'error'
+
+export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerson, onClaimSeat, onRemovePerson }: PersonSlotPickerProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null)
@@ -42,6 +48,70 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
   const [seatName, setSeatName] = useState('')
   const [seatError, setSeatError] = useState<string | null>(null)
   const [claimingSeat, setClaimingSeat] = useState(false)
+
+  // Remove (✕) is offered only for cards nobody has picked items for, and never below MIN_PEOPLE.
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null)
+  const [removing, setRemoving] = useState(false)
+  const [removeNotice, setRemoveNotice] = useState<string | null>(null)
+  const peopleWithItems = new Set<string>()
+  for (const perItem of Object.values(session.claims?.items ?? {})) {
+    if (perItem && typeof perItem === 'object') {
+      for (const [pid, claim] of Object.entries(perItem)) if (claim) peopleWithItems.add(pid)
+    }
+  }
+  const canRemove = (personId: string) =>
+    Boolean(onRemovePerson) && session.people.length > MIN_PEOPLE && !peopleWithItems.has(personId)
+
+  const handleRemove = async (personId: string, label: string) => {
+    if (removing || !onRemovePerson) return
+    setRemoving(true)
+    try {
+      const result = await onRemovePerson(personId as PersonId)
+      setConfirmRemoveId(null)
+      if (result === 'has_items') setRemoveNotice(`Someone just picked items for ${label}, so it can't be removed.`)
+      else if (result === 'too_few') setRemoveNotice('A bill needs at least 2 people.')
+      else if (result === 'error') setRemoveNotice("Couldn't remove. Try again")
+      else setRemoveNotice(null)
+    } finally {
+      setRemoving(false)
+    }
+  }
+
+  const removeButton = (personId: string, label: string) =>
+    canRemove(personId) ? (
+      <button
+        type="button"
+        aria-label={`Remove ${label}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          setRemoveNotice(null)
+          setConfirmRemoveId(personId)
+        }}
+        className="absolute top-1 left-1 flex h-11 w-11 items-center justify-center rounded-md text-coral-600"
+      >
+        <X size={16} aria-hidden="true" />
+      </button>
+    ) : null
+
+  const confirmCard = (personId: string, label: string) => (
+    <Card className="flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-3">
+      <p className="text-center text-[14px] font-semibold text-zinc-900">Remove {label}?</p>
+      <div className="flex w-full gap-2">
+        <Button type="button" variant="outline" className="h-11 flex-1 text-[14px]" onClick={() => setConfirmRemoveId(null)}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 flex-1 text-[14px] text-danger"
+          disabled={removing}
+          onClick={() => void handleRemove(personId, label)}
+        >
+          Remove
+        </Button>
+      </div>
+    </Card>
+  )
 
   // Named people first, then empty seats (stable within each group).
   const orderedPeople = [
@@ -124,6 +194,11 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
 
   return (
     <div className="flex flex-col gap-6">
+      {removeNotice && (
+        <p role="alert" data-testid="remove-notice" className="-mb-3 text-[14px] font-medium text-warn-strong">
+          {removeNotice}
+        </p>
+      )}
       {seatNotice && (
         <p role="alert" data-testid="seat-notice" className="-mb-3 text-[14px] font-medium text-warn-strong">
           {seatNotice}
@@ -137,7 +212,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
           if (empty) {
             const open = claimingSeatId === person.id
             return (
-              <li key={person.id} className={open ? 'col-span-2' : undefined}>
+              <li key={person.id} className={open || confirmRemoveId === person.id ? 'col-span-2' : undefined}>
                 {open ? (
                   <Card className="flex flex-col gap-2 px-3 py-3">
                     <p className="text-[14px] font-semibold text-zinc-900">{label}</p>
@@ -180,14 +255,17 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                       </Button>
                     </div>
                   </Card>
+                ) : confirmRemoveId === person.id ? (
+                  confirmCard(person.id, label)
                 ) : (
                   <Card
                     role="button"
                     aria-label={`Take seat ${label}`}
                     data-testid="empty-seat"
                     onClick={() => openSeat(person.id)}
-                    className="flex min-h-[72px] cursor-pointer flex-col items-center justify-center gap-2 border-dashed px-3 py-4"
+                    className="relative flex min-h-[72px] cursor-pointer flex-col items-center justify-center gap-2 border-dashed px-3 py-4"
                   >
+                    {removeButton(person.id, label)}
                     <div
                       className="flex h-10 w-10 items-center justify-center rounded-full border-[1.5px] border-dashed border-n400 bg-white font-semibold text-n500"
                       aria-hidden="true"
@@ -202,7 +280,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
             )
           }
           return (
-            <li key={person.id}>
+            <li key={person.id} className={confirmRemoveId === person.id ? 'col-span-2' : undefined}>
               {isEditing ? (
                 <Card className="flex flex-col gap-2 px-3 py-3">
                   <Input
@@ -244,6 +322,8 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                     </Button>
                   </div>
                 </Card>
+              ) : confirmRemoveId === person.id ? (
+                confirmCard(person.id, label)
               ) : (
                 <Card
                   role="button"
@@ -251,6 +331,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                   onClick={() => onSelect(person.id as PersonId)}
                   className="flex min-h-[72px] flex-col items-center justify-center gap-2 px-3 py-4 cursor-pointer relative"
                 >
+                  {removeButton(person.id, label)}
                   {/* Rename control — only render when callback is provided */}
                   {onRenamePerson && (
                     <div className="absolute top-1 right-1 flex gap-0.5">
@@ -289,14 +370,15 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
           onClick={() => setShowAddForm(true)}
           className="text-[14px] text-coral-600 underline self-start"
         >
-          I&apos;m not listed
+          Add person
         </button>
       )}
 
       {showAddForm && (
         <div className="flex flex-col gap-2">
           <Input
-            placeholder="Your name"
+            placeholder="Name"
+            aria-label="New person's name"
             maxLength={50}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -307,7 +389,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
             className="h-12 w-full"
             onClick={handleAddMe}
           >
-            Add me
+            Add
           </Button>
         </div>
       )}

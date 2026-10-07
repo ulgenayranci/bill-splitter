@@ -383,7 +383,7 @@ describe('CollaborativeClaimingView', () => {
     expect(localStorage.getItem('split:s1:personId')).toBe('p1')
   })
 
-  it("Test 22 (IDENT-03 add): I'm not listed → add_person POST, sets identity + localStorage, closes modal", async () => {
+  it("Test 22 (IDENT-03 add): Add person → add_person POST, sets identity + localStorage, closes modal", async () => {
     const addPersonFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ ok: true, personId: 'p9' }),
@@ -403,9 +403,9 @@ describe('CollaborativeClaimingView', () => {
       people: [...SESSION_FIXTURE.people, { id: 'p9', name: 'Charlie', colorIndex: 2 }],
     })
     render(<CollaborativeClaimingView sessionId="s1" />)
-    fireEvent.click(screen.getByText(/i.?m not listed/i))
-    fireEvent.change(screen.getByPlaceholderText('Your name'), { target: { value: 'Charlie' } })
-    fireEvent.click(screen.getByRole('button', { name: /add me/i }))
+    fireEvent.click(screen.getByText('Add person'))
+    fireEvent.change(screen.getByPlaceholderText('Name'), { target: { value: 'Charlie' } })
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }))
     await waitFor(() => expect(addPersonFetch).toHaveBeenCalled())
     const [url] = addPersonFetch.mock.calls[0]
     expect(url).toMatch(/\/api\/session\/s1\/edit$/)

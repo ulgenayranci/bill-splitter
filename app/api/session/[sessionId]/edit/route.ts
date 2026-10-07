@@ -1,7 +1,11 @@
 import { nanoid } from 'nanoid'
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
+import { shuffledEmojis } from '@/lib/nameDedupe'
+import { MIN_PEOPLE } from '@/lib/sessionSchema'
 import {
+  UNIQUE_NAME_LUA,
+  REMOVE_PERSON_SCRIPT,
   CLAIM_SEAT_SCRIPT,
   ITEM_ADD_SCRIPT,
   ITEM_REMOVE_SCRIPT,
@@ -10,7 +14,7 @@ import {
 
 export const maxDuration = 10
 
-const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency', 'rename_person', 'claim_seat'] as const
+const VALID_OPS = ['add', 'remove', 'edit_price', 'edit_name', 'edit_quantity', 'add_person', 'update_currency', 'rename_person', 'claim_seat', 'remove_person'] as const
 type EditOp = (typeof VALID_OPS)[number]
 
 /**
@@ -49,7 +53,7 @@ return 'OK'
  * Lua field paths use only current flat-schema fields confirmed in lib/sessionSchema.ts.
  * No stale v1 host-role fields referenced (Pitfall 4 audit — flat schema only).
  */
-const ADD_PERSON_SCRIPT = `
+const ADD_PERSON_SCRIPT = `${UNIQUE_NAME_LUA}
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 'session_not_found' end
 local ok, session = pcall(cjson.decode, raw)
@@ -65,7 +69,7 @@ if not session.claims.personSlots then session.claims.personSlots = {} end
 if #session.people >= 20 then return 'session_full' end
 
 local colorIndex = #session.people % 6
-table.insert(session.people, { id = newPersonId, name = name, colorIndex = colorIndex })
+table.insert(session.people, { id = newPersonId, name = uniqueName(name, session.people, nil, ARGV[3]), colorIndex = colorIndex })
 -- GAP-09-NOLOCK: no personSlots lock set — the flat model has no exclusive slot ownership
 
 redis.call('SET', KEYS[1], cjson.encode(session), 'EX', 86400)
@@ -81,7 +85,7 @@ return 'OK'
  *
  * Mirrors ADD_PERSON_SCRIPT pattern. EX 86400 matches all other scripts in this file.
  */
-const RENAME_PERSON_SCRIPT = `
+const RENAME_PERSON_SCRIPT = `${UNIQUE_NAME_LUA}
 local raw = redis.call('GET', KEYS[1])
 if not raw then return 'session_not_found' end
 local ok, session = pcall(cjson.decode, raw)
@@ -96,7 +100,7 @@ for _, p in ipairs(session.people) do
   if type(p) == 'table' and p.id == personId then
     -- An empty seat must be claimed via claim_seat (compare-and-set), not renamed.
     if type(p.name) ~= 'string' or not string.match(p.name, '%S') then return 'seat_empty' end
-    p.name = newName
+    p.name = uniqueName(newName, session.people, personId, ARGV[3])
     found = true
     break
   end
@@ -253,7 +257,7 @@ export async function POST(
     const trimmedName = validation.normalizedName ?? ''
 
     try {
-      const result = await redis.eval(RENAME_PERSON_SCRIPT, [`session:${sessionId}`], [b.personId as string, trimmedName])
+      const result = await redis.eval(RENAME_PERSON_SCRIPT, [`session:${sessionId}`], [b.personId as string, trimmedName, shuffledEmojis().join(',')])
       if (result === 'session_not_found') {
         return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
       }
@@ -288,12 +292,32 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid claim_seat: name must be 1-50 characters' }, { status: 400 })
     }
     try {
-      const result = await redis.eval(CLAIM_SEAT_SCRIPT, [`session:${sessionId}`], [b.personId, trimmedName])
+      const result = await redis.eval(CLAIM_SEAT_SCRIPT, [`session:${sessionId}`], [b.personId, trimmedName, shuffledEmojis().join(',')])
       if (result === 'OK') return NextResponse.json({ ok: true })
       if (result === 'session_not_found') return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
       if (result === 'person_not_found') return NextResponse.json({ error: 'person_not_found' }, { status: 404 })
       if (result === 'seat_taken') return NextResponse.json({ error: 'seat_taken' }, { status: 409 })
       if (result === 'invalid_args') return NextResponse.json({ error: 'Invalid claim_seat: name must be 1-50 characters' }, { status: 400 })
+      return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
+    } catch (err) {
+      console.error('Edit error:', err)
+      return NextResponse.json({ error: 'Edit failed' }, { status: 500 })
+    }
+  }
+
+  // remove_person: anyone may remove a card, but only when nobody has picked items for it
+  // and never below MIN_PEOPLE. Checked atomically inside REMOVE_PERSON_SCRIPT.
+  if (op === 'remove_person') {
+    if (typeof b.personId !== 'string' || b.personId.length === 0) {
+      return NextResponse.json({ error: 'Invalid remove_person: personId must be a non-empty string' }, { status: 400 })
+    }
+    try {
+      const result = await redis.eval(REMOVE_PERSON_SCRIPT, [`session:${sessionId}`], [b.personId, String(MIN_PEOPLE)])
+      if (result === 'OK') return NextResponse.json({ ok: true })
+      if (result === 'session_not_found') return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
+      if (result === 'person_not_found') return NextResponse.json({ error: 'person_not_found' }, { status: 404 })
+      if (result === 'has_items') return NextResponse.json({ error: 'has_items' }, { status: 409 })
+      if (result === 'too_few_people') return NextResponse.json({ error: 'too_few_people' }, { status: 409 })
       return NextResponse.json({ error: 'invalid_session' }, { status: 500 })
     } catch (err) {
       console.error('Edit error:', err)
@@ -315,7 +339,7 @@ export async function POST(
 
     try {
       const newPersonId = nanoid()
-      const result = await redis.eval(ADD_PERSON_SCRIPT, [`session:${sessionId}`], [trimmedName, newPersonId])
+      const result = await redis.eval(ADD_PERSON_SCRIPT, [`session:${sessionId}`], [trimmedName, newPersonId, shuffledEmojis().join(',')])
       if (result === 'session_not_found') {
         return NextResponse.json({ error: 'session_not_found' }, { status: 404 })
       }

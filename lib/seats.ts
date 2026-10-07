@@ -62,16 +62,23 @@ export function nextGuestNumber(people: readonly Person[]): number {
 }
 
 /**
- * People for a new bill: the scanner (named, seat 1) plus headcount − 1 empty seats
- * "Guest 1".."Guest N-1" with stable stored guest numbers. Pure: ids come from makeId.
+ * People for a new bill: the scanner (named, seat 1) plus headcount − 1 seats with stable
+ * guest numbers 1..N-1, named from guestNames when typed at setup, else empty ("Guest N").
+ * Pure: ids come from makeId.
  */
-export function buildSeatPeople(hostName: string, headcount: number, makeId: () => string): Person[] {
+export function buildSeatPeople(
+  hostName: string,
+  headcount: number,
+  makeId: () => string,
+  guestNames: readonly string[] = [],
+): Person[] {
   const guests = Math.max(0, Math.floor(headcount) - 1)
   return [
     { id: makeId(), name: hostName.trim(), colorIndex: 0 },
     ...Array.from({ length: guests }, (_, i) => ({
       id: makeId(),
-      name: '',
+      // Optional names typed at setup; blank stays an empty "Guest N" seat.
+      name: (guestNames[i] ?? '').trim(),
       colorIndex: (i + 1) % 6,
       guestNumber: i + 1,
     })),

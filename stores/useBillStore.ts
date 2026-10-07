@@ -110,6 +110,9 @@ interface BillState {
   setHeadcount: (n: number) => void
   hostName: string
   setHostName: (name: string) => void
+  // Optional names for the other seats typed at setup (index 0 = Guest 1); blank = empty seat.
+  guestNames: string[]
+  setGuestName: (index: number, name: string) => void
   setBillImage: (url: string | null) => void
   setCurrencyCode: (code: string) => void
   setOcrStatus: (status: 'idle' | 'loading' | 'done' | 'error') => void
@@ -134,6 +137,7 @@ const INITIAL_STATE = {
   step: 1 as const,
   headcount: MIN_PEOPLE,
   hostName: '',
+  guestNames: [] as string[],
   people: [],
   items: [],
   assignments: {},
@@ -162,6 +166,13 @@ export const useBillStore = create<BillState>()(
   setHeadcount: (n) =>
     set({ headcount: Math.min(MAX_PEOPLE, Math.max(MIN_PEOPLE, Math.round(Number.isFinite(n) ? n : MIN_PEOPLE))) }),
   setHostName: (name) => set({ hostName: name }),
+  setGuestName: (index, name) =>
+    set((s) => {
+      const next = [...s.guestNames]
+      while (next.length <= index) next.push('')
+      next[index] = name
+      return { guestNames: next }
+    }),
   addPerson: (name) =>
     set((s) => ({
       people: [
@@ -262,6 +273,7 @@ export const useBillStore = create<BillState>()(
         taxCents: s.taxCents,
         headcount: s.headcount,
         hostName: s.hostName,
+        guestNames: s.guestNames,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true)

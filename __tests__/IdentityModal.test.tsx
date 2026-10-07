@@ -34,6 +34,7 @@ describe('IdentityModal', () => {
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
         onClaimSeat={vi.fn()}
+        onRemovePerson={vi.fn()}
         onOpenChange={vi.fn()}
       />
     )
@@ -52,6 +53,7 @@ describe('IdentityModal', () => {
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
         onClaimSeat={vi.fn()}
+        onRemovePerson={vi.fn()}
         onOpenChange={onOpenChange}
       />
     )
@@ -80,6 +82,7 @@ describe('IdentityModal', () => {
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
         onClaimSeat={vi.fn()}
+        onRemovePerson={vi.fn()}
         onOpenChange={onOpenChange}
       />
     )
@@ -100,6 +103,7 @@ describe('IdentityModal', () => {
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
         onClaimSeat={vi.fn()}
+        onRemovePerson={vi.fn()}
         onOpenChange={onOpenChange}
       />
     )
@@ -118,6 +122,7 @@ describe('IdentityModal', () => {
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
         onClaimSeat={vi.fn()}
+        onRemovePerson={vi.fn()}
         onOpenChange={vi.fn()}
       />
     )
@@ -133,6 +138,7 @@ describe('IdentityModal', () => {
         onSelect={vi.fn()}
         onAddPerson={vi.fn()}
         onClaimSeat={vi.fn()}
+        onRemovePerson={vi.fn()}
         onOpenChange={vi.fn()}
       />
     )

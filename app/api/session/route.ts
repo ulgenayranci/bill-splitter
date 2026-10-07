@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { dedupePeopleNames, shuffledEmojis } from '@/lib/nameDedupe'
 import { NextResponse } from 'next/server'
 import { redis } from '@/lib/redis'
 import { MAX_PEOPLE, type SessionPayload } from '@/lib/sessionSchema'
@@ -85,12 +86,16 @@ export async function POST(request: Request) {
     // Flat model: claims start empty — no host pre-assignment, no approval queue (CLAIM-01/03)
     const payload: SessionPayload = {
       // T-12-02: whitelist person keys; unknown keys are stripped
-      people: b.people.map((p) => ({
-        id: p.id,
-        name: p.name,
-        colorIndex: p.colorIndex,
-        ...(p.guestNumber !== undefined ? { guestNumber: p.guestNumber } : {}),
-      })),
+      // Duplicate names get a random emoji tie-breaker ("Mert", "Mert 🦊").
+      people: dedupePeopleNames(
+        b.people.map((p) => ({
+          id: p.id,
+          name: p.name.trim(),
+          colorIndex: p.colorIndex,
+          ...(p.guestNumber !== undefined ? { guestNumber: p.guestNumber } : {}),
+        })),
+        shuffledEmojis(),
+      ),
       items: b.items,
       claims: { items: {}, personSlots: {}, donePeople: {} },
       tips: {},

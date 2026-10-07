@@ -39,6 +39,9 @@ export function SetupStep() {
   const setHeadcount = useBillStore((s) => s.setHeadcount)
   const hostName = useBillStore((s) => s.hostName)
   const setHostName = useBillStore((s) => s.setHostName)
+  const guestNames = useBillStore((s) => s.guestNames)
+  const setGuestName = useBillStore((s) => s.setGuestName)
+  const [showGuestNames, setShowGuestNames] = useState(() => guestNames.some((n) => n.trim() !== ''))
   const setSessionId = useBillStore((s) => s.setSessionId)
   const billImageUrl = useBillStore((s) => s.billImageUrl)
   const ocrStatus = useBillStore((s) => s.ocrStatus)
@@ -125,10 +128,10 @@ export function SetupStep() {
     setIsCreating(true)
     setSessionCreateError(null)
     try {
-      const { items: it, currencyCode, serviceFeeCents: fee, taxCents: tax, hostName: hn, headcount: hc } =
+      const { items: it, currencyCode, serviceFeeCents: fee, taxCents: tax, hostName: hn, headcount: hc, guestNames: gn } =
         useBillStore.getState()
-      // Scanner = seat 1 (named); everyone else = empty "Guest N" seats.
-      const p = buildSeatPeople(hn, hc, randomId)
+      // Scanner = seat 1 (named); everyone else = "Guest N" seats, named when typed at setup.
+      const p = buildSeatPeople(hn, hc, randomId, gn)
       abortRef.current?.abort()
       abortRef.current = new AbortController()
       const { sessionId } = await createSession(
@@ -596,6 +599,38 @@ export function SetupStep() {
           maxLength={50}
           className="h-12 w-full rounded-lg text-base"
         />
+
+        {/* Optional: type the others' names now (anyone can still name or rename later). */}
+        {!showGuestNames ? (
+          <button
+            type="button"
+            onClick={() => setShowGuestNames(true)}
+            className="self-start text-[14px] font-medium text-stone underline underline-offset-2"
+          >
+            Add the others&apos; names (optional)
+          </button>
+        ) : (
+          <div className="flex flex-col gap-2" data-testid="guest-names">
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-[13px] font-semibold uppercase tracking-[0.07em] text-foreground">
+                Others&apos; names <span className="font-normal normal-case tracking-normal text-n600">(optional)</span>
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            {Array.from({ length: Math.max(0, headcount - 1) }, (_, i) => (
+              <Input
+                key={i}
+                aria-label={`Guest ${i + 1} name`}
+                placeholder={`Guest ${i + 1}`}
+                value={guestNames[i] ?? ''}
+                onChange={(e) => setGuestName(i, e.target.value)}
+                maxLength={50}
+                className="h-11 w-full rounded-lg text-base"
+              />
+            ))}
+            <p className="text-[12px] text-n600">Leave a box empty and that friend can add their own name.</p>
+          </div>
+        )}
       </div>
 
       {/* Continue (gated — D-11) */}

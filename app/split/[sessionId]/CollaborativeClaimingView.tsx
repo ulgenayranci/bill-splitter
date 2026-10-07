@@ -21,7 +21,7 @@ import { useBillStore } from '@/stores/useBillStore'
 import { AppHeader } from '@/components/wizard/AppHeader'
 import { ProgressStrip } from '@/components/wizard/ProgressStrip'
 import { IdentityModal } from '@/components/split/IdentityModal'
-import type { ClaimSeatResult } from '@/components/split/PersonSlotPicker'
+import type { ClaimSeatResult, RemovePersonResult } from '@/components/split/PersonSlotPicker'
 import { BillViewHeader } from '@/components/split/BillViewHeader'
 import { ClaimableItemCard } from '@/components/split/ClaimableItemCard'
 import { SessionExpiredScreen } from '@/components/split/SessionExpiredScreen'
@@ -168,6 +168,22 @@ export function CollaborativeClaimingView({
     }
   }, [session, sessionId])
 
+  // v2.1: a card can be removed live. If this phone's person disappears (removed on another
+  // phone), forget it and ask "Who are you?" again instead of acting as a ghost.
+  useEffect(() => {
+    if (!session || !selectedPersonId) return
+    if (session.people.some((p) => p.id === selectedPersonId)) return
+    setSelectedPersonId(null)
+    setChangingIdentity(false)
+    try {
+      localStorage.removeItem(`split:${sessionId}:personId`)
+    } catch {
+      // private browsing — ignore
+    }
+    setPhase((current) => (current === 'invite' ? current : 'claiming'))
+    setIdentityModalOpen(true)
+  }, [session, selectedPersonId, sessionId])
+
   const peopleById = useMemo<Record<PersonId, Person>>(() => {
     if (!session) return {}
     return Object.fromEntries(session.people.map((p) => [p.id, p]))
@@ -285,6 +301,38 @@ export function CollaborativeClaimingView({
       setIdentityModalOpen(false)
       setChangingIdentity(false)
       return 'ok'
+    } catch {
+      await mutate()
+      return 'error'
+    }
+  }
+
+  // v2.1: remove a card (only offered when nobody has picked items for it; the server
+  // re-checks atomically). If it was this phone's own identity, ask "Who are you?" again.
+  async function handleRemovePerson(personId: PersonId): Promise<RemovePersonResult> {
+    try {
+      const res = await fetch(`/api/session/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'remove_person', personId }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      await mutate()
+      if (res.ok) {
+        if (personId === selectedPersonId) {
+          setSelectedPersonId(null)
+          setChangingIdentity(false)
+          try {
+            localStorage.removeItem(`split:${sessionId}:personId`)
+          } catch {
+            // private browsing — ignore
+          }
+        }
+        return 'ok'
+      }
+      if (data.error === 'has_items') return 'has_items'
+      if (data.error === 'too_few_people') return 'too_few'
+      return 'error'
     } catch {
       await mutate()
       return 'error'
@@ -605,6 +653,7 @@ export function CollaborativeClaimingView({
           onAddPerson={handleAddPerson}
           onRenamePerson={handleRenamePerson}
           onClaimSeat={handleClaimSeat}
+          onRemovePerson={handleRemovePerson}
           onOpenChange={setIdentityModalOpen}
         />
       </main>
@@ -920,6 +969,7 @@ export function CollaborativeClaimingView({
         onAddPerson={handleAddPerson}
         onRenamePerson={handleRenamePerson}
         onClaimSeat={handleClaimSeat}
+          onRemovePerson={handleRemovePerson}
         onOpenChange={(open) => {
           setIdentityModalOpen(open)
           if (!open) setChangingIdentity(false)

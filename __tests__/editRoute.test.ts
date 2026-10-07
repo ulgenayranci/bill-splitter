@@ -169,7 +169,13 @@ describe('POST /api/session/[sessionId]/edit', () => {
     expect(status).toBe(200)
     expect(json).toEqual({ ok: true })
     const { CLAIM_SEAT_SCRIPT } = await import('@/lib/sessionLua')
-    expect(mockEval).toHaveBeenCalledWith(CLAIM_SEAT_SCRIPT, ['session:test-session'], ['g1', 'Deniz'])
+    const [script, keys, args] = mockEval.mock.calls[0]
+    expect(script).toBe(CLAIM_SEAT_SCRIPT)
+    expect(keys).toEqual(['session:test-session'])
+    expect(args.slice(0, 2)).toEqual(['g1', 'Deniz'])
+    // ARGV[3]: shuffled emoji list for duplicate names (all 16, comma-separated)
+    const { NAME_EMOJIS } = await import('@/lib/nameDedupe')
+    expect((args[2] as string).split(',').sort()).toEqual([...NAME_EMOJIS].sort())
   })
 
   it('claim_seat taken: Lua "seat_taken" → 409 { error: "seat_taken" }', async () => {
@@ -192,6 +198,34 @@ describe('POST /api/session/[sessionId]/edit', () => {
     [{ op: 'claim_seat', personId: 'g1' }],
   ])('claim_seat invalid body %j → 400, eval not called', async (body) => {
     const { status } = await callPOST('test-session', body)
+    expect(status).toBe(400)
+    expect(mockEval).not.toHaveBeenCalled()
+  })
+
+  // --- op: remove_person (only cards nobody picked items for; floor MIN_PEOPLE) ---
+  it('remove_person ok: REMOVE_PERSON_SCRIPT with [personId, "2"] → 200', async () => {
+    mockEval.mockResolvedValue('OK')
+    const { status, json } = await callPOST('test-session', { op: 'remove_person', personId: 'g1' })
+    expect(status).toBe(200)
+    expect(json).toEqual({ ok: true })
+    const { REMOVE_PERSON_SCRIPT } = await import('@/lib/sessionLua')
+    expect(mockEval).toHaveBeenCalledWith(REMOVE_PERSON_SCRIPT, ['session:test-session'], ['g1', '2'])
+  })
+
+  it.each([
+    ['has_items', 409],
+    ['too_few_people', 409],
+    ['person_not_found', 404],
+    ['session_not_found', 404],
+  ])('remove_person: Lua "%s" → %i', async (lua, status) => {
+    mockEval.mockResolvedValue(lua)
+    const res = await callPOST('test-session', { op: 'remove_person', personId: 'g1' })
+    expect(res.status).toBe(status)
+    expect(res.json).toEqual({ error: lua })
+  })
+
+  it('remove_person without personId → 400, eval not called', async () => {
+    const { status } = await callPOST('test-session', { op: 'remove_person' })
     expect(status).toBe(400)
     expect(mockEval).not.toHaveBeenCalled()
   })

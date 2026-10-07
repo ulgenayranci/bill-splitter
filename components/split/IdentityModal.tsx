@@ -16,7 +16,7 @@ import {
 import { PersonSlotPicker } from '@/components/split/PersonSlotPicker'
 import type { PublicSessionPayload } from '@/lib/sessionSchema'
 import type { PersonId } from '@/stores/useBillStore'
-import type { ClaimSeatResult } from '@/components/split/PersonSlotPicker'
+import type { ClaimSeatResult, RemovePersonResult } from '@/components/split/PersonSlotPicker'
 
 export interface IdentityModalProps {
   open: boolean
@@ -29,6 +29,8 @@ export interface IdentityModalProps {
   onRenamePerson?: (personId: PersonId, newName: string) => Promise<void>
   /** Required: every "Who are you?" window must be able to claim an empty Guest seat. */
   onClaimSeat: (personId: PersonId, name: string) => Promise<ClaimSeatResult>
+  /** Required: remove a card nobody has picked items for. */
+  onRemovePerson: (personId: PersonId) => Promise<RemovePersonResult>
   onOpenChange: (open: boolean) => void
 }
 
@@ -40,6 +42,7 @@ export function IdentityModal({
   onAddPerson,
   onRenamePerson,
   onClaimSeat,
+  onRemovePerson,
   onOpenChange,
 }: IdentityModalProps) {
   // Reset key increments whenever the modal opens, so PersonSlotPicker's
@@ -76,6 +79,7 @@ export function IdentityModal({
           onAddPerson={onAddPerson}
           onRenamePerson={onRenamePerson}
           onClaimSeat={onClaimSeat}
+          onRemovePerson={onRemovePerson}
         />
       </DialogContent>
     </Dialog>
