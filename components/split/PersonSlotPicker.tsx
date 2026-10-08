@@ -251,7 +251,7 @@ export function PersonSlotPicker({ session, onSelect, onAddPerson, onRenamePerso
                         disabled={claimingSeat}
                         onClick={() => void handleClaimSeat(person.id)}
                       >
-                        That&apos;s me
+                        Save
                       </Button>
                     </div>
                   </Card>
