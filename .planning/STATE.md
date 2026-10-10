@@ -164,6 +164,7 @@ None.
 | 261007-thatsme | Fix: 'That's me' did nothing when claiming a Guest seat from the switch-person window (people chips) — onClaimSeat now wired and required. Verified at 375px. | 2026-10-07 | b9f4c2c | | — |
 | 261007-names | Optional guest names at setup; 'Add person' (was I'm not listed); ✕ remove card when nobody picked items for it (min 2, atomic server check); duplicate names get a random emoji (server-side). 679/679 tests; local-Redis + 375px checks. | 2026-10-07 | 241614f | | — |
 | 261008-save | Copy: Guest seat claim button 'That's me' -> 'Save'. 679/679 tests. | 2026-10-08 | 43231dc | | — |
+| 261010-retake | Retake photo button on the scan edit screen (receipt card); confirm only if items were edited; photo handed to setup scan via lib/pendingScan. 684/684 tests; 375px end-to-end. | 2026-10-10 | 02bc8e5 | | — |
 | fast | Split page Items claimed label ink (foreground) + bg-border divider, matching setup Who's involved. 458/458 tests. | 2026-10-01 | 075d293 | Complete | — |
 | fast | ProgressStrip empty segments white (all pages via shared component). 458/458 tests. | 2026-10-01 | c2a2506 | Complete | — |
 | fast | Setup people count chip coral-500 fill + white bold text (matches items-found badge). 458/458 tests. | 2026-10-01 | 92d3a08 | Complete | — |
