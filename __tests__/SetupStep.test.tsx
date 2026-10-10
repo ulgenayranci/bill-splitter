@@ -89,6 +89,19 @@ describe('SetupStep — GAP 6 failed/empty re-scan clears items', () => {
     fetchMock.mockRestore()
   })
 
+  it('a photo handed over by the edit screen "Retake" is scanned on mount', async () => {
+    seedPriorScan()
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    )
+    const { setPendingScanFile, takePendingScanFile } = await import('@/lib/pendingScan')
+    setPendingScanFile(new File(['x'], 'retake.jpg', { type: 'image/jpeg' }))
+    renderInProvider(<SetupStep />)
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/api/ocr'))).toBe(true))
+    expect(takePendingScanFile()).toBeNull()
+    fetchMock.mockRestore()
+  })
+
   it('error scan (rejected fetch) clears prior items via the catch path', async () => {
     seedPriorScan()
     expect(useBillStore.getState().items.length).toBe(2)

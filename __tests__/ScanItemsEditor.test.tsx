@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { ScanItemsEditor } from '@/components/wizard/ScanItemsEditor'
 import { useBillStore } from '@/stores/useBillStore'
@@ -210,5 +210,50 @@ describe('ScanItemsEditor', () => {
     seed()
     render(<ScanItemsEditor />)
     expect(screen.queryByTestId('scan-review-photo')).toBeNull()
+  })
+})
+
+describe('ScanItemsEditor — Retake photo', () => {
+  beforeEach(() => {
+    useBillStore.getState().reset()
+    useBillStore.getState().setItems([
+      { id: 'i1', name: 'Burger', priceCents: 1299, quantity: 1, confidence: 'high' },
+    ])
+    useBillStore.getState().setBillImage('data:image/jpeg;base64,PRIOR')
+    useBillStore.getState().setStep(2)
+  })
+  afterEach(() => cleanup())
+
+  it('shows a Retake button on the receipt card', () => {
+    render(<ScanItemsEditor />)
+    expect(screen.getByRole('button', { name: 'Retake photo' })).toBeDefined()
+  })
+
+  it('without edits, Retake opens the photo picker straight away (no confirm)', () => {
+    render(<ScanItemsEditor />)
+    const input = screen.getByTestId('retake-file-input') as HTMLInputElement
+    const clickSpy = vi.spyOn(input, 'click').mockImplementation(() => {})
+    fireEvent.click(screen.getByRole('button', { name: 'Retake photo' }))
+    expect(clickSpy).toHaveBeenCalled()
+    expect(screen.queryByTestId('scan-review-retake-confirm')).toBeNull()
+  })
+
+  it('after an edit, Retake asks first; Cancel keeps the items', () => {
+    render(<ScanItemsEditor />)
+    fireEvent.click(screen.getByRole('button', { name: /add item/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retake photo' }))
+    expect(screen.getByText('Retake photo?')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByTestId('scan-review-retake-confirm')).toBeNull()
+    expect(useBillStore.getState().items).toHaveLength(2)
+  })
+
+  it('choosing a photo hands it to setup (step 1) for scanning', async () => {
+    render(<ScanItemsEditor />)
+    const file = new File(['x'], 'new.jpg', { type: 'image/jpeg' })
+    fireEvent.change(screen.getByTestId('retake-file-input'), { target: { files: [file] } })
+    expect(useBillStore.getState().step).toBe(1)
+    const { takePendingScanFile } = await import('@/lib/pendingScan')
+    expect(takePendingScanFile()).toBe(file)
   })
 })

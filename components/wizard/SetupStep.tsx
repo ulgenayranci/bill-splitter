@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useBillStore, randomId } from '@/stores/useBillStore'
 import { buildSeatPeople } from '@/lib/seats'
+import { takePendingScanFile } from '@/lib/pendingScan'
 import { MIN_PEOPLE, MAX_PEOPLE } from '@/lib/sessionSchema'
 import { createSession } from '@/lib/createSession'
 import { reconcileScannedBill, itemsReconcileTarget, TOLERANCE_CENTS } from '@/lib/reconcileScannedBill'
@@ -154,11 +155,10 @@ export function SetupStep() {
     }
   }
 
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-      e.target.value = ''
+  // Runs the whole scan for one photo (from this screen's picker, or handed over by
+  // the edit screen's "Retake" via lib/pendingScan).
+  const processFile = useCallback(
+    async (file: File) => {
       setScanError(null)
       setScanCheck(null)
       setServiceFeeCents(null)
@@ -362,6 +362,22 @@ export function SetupStep() {
     },
     [setBillImage, setOcrStatus, setExpandStatus, setItems, setCurrencyCode, setScanCheck, setServiceFeeCents, setTaxCents, setStep],
   )
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      e.target.value = ''
+      void processFile(file)
+    },
+    [processFile],
+  )
+
+  // "Retake" on the edit screen parks the new photo and switches here — scan it now.
+  useEffect(() => {
+    const file = takePendingScanFile()
+    if (file) void processFile(file)
+  }, [processFile])
 
   return (
     <div className="flex flex-1 flex-col gap-5">

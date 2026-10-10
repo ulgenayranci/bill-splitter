@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Trash2, Plus, Lock, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Trash2, Plus, Lock, AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { BillPhotoLightbox } from "./BillPhotoLightbox";
 import { useBillStore } from "@/stores/useBillStore";
 import { TOLERANCE_CENTS } from "@/lib/reconcileScannedBill";
 import { formatCents, parseCents, centsToInput, computeSubtotalCents } from "@/lib/billMath";
+import { setPendingScanFile } from "@/lib/pendingScan";
 
 /**
  * Edit-scanned-items screen (store step 2). Counts as the Setup step in the
@@ -30,6 +31,13 @@ export function ScanItemsEditor() {
   const setStep = useBillStore((s) => s.setStep);
   const billImageUrl = useBillStore((s) => s.billImageUrl);
   const [photoOpen, setPhotoOpen] = useState(false);
+
+  // Retake: pick a new photo right here (phones only open the camera from a tap on the
+  // visible screen), hand it to the setup screen, which runs the normal scan.
+  const retakeInputRef = useRef<HTMLInputElement>(null);
+  const [confirmRetake, setConfirmRetake] = useState(false);
+  // Items as they were when this screen opened — "edited" = anything changed since.
+  const [itemsAtOpen] = useState(() => JSON.stringify(items));
 
   // Per-row edit drafts keyed by item id. Holds raw strings so the user can type
   // freely; committed to the store on blur/Enter.
@@ -105,6 +113,23 @@ export function ScanItemsEditor() {
     addItem("New item", 1, 1);
   };
 
+  const hasEdits = () =>
+    Object.keys(reviewDrafts).length > 0 || JSON.stringify(items) !== itemsAtOpen;
+
+  const handleRetakeTap = () => {
+    if (hasEdits()) setConfirmRetake(true);
+    else retakeInputRef.current?.click();
+  };
+
+  const handleRetakeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    setConfirmRetake(false);
+    if (!file) return;
+    setPendingScanFile(file);
+    setStep(1);
+  };
+
   const handleDone = () => {
     // Commit any pending un-blurred drafts before leaving.
     for (const item of items) {
@@ -120,25 +145,62 @@ export function ScanItemsEditor() {
       data-testid="scan-items-editor"
       className="flex flex-1 flex-col gap-5"
     >
-      {billImageUrl && (
+      <input
+        ref={retakeInputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={handleRetakeFile}
+        aria-hidden="true"
+        tabIndex={-1}
+        data-testid="retake-file-input"
+      />
+      <div className="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-border bg-white px-3 py-2">
+        {billImageUrl ? (
+          <button
+            type="button"
+            aria-label="View receipt photo"
+            data-testid="scan-review-photo"
+            onClick={() => setPhotoOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left text-zinc-900"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={billImageUrl}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-md object-cover"
+            />
+            <span className="flex flex-col">
+              <span className="text-[15px] font-semibold">View receipt</span>
+              <span className="text-[13px] text-zinc-500">Compare with your items</span>
+            </span>
+          </button>
+        ) : (
+          <span className="flex-1 text-[15px] font-semibold text-zinc-900">Receipt</span>
+        )}
         <button
           type="button"
-          aria-label="View receipt photo"
-          data-testid="scan-review-photo"
-          onClick={() => setPhotoOpen(true)}
-          className="flex min-h-[44px] w-full items-center gap-3 rounded-md border border-border bg-white px-3 py-2 text-left text-zinc-900"
+          aria-label="Retake photo"
+          data-testid="scan-review-retake"
+          onClick={handleRetakeTap}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-white text-zinc-700"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={billImageUrl}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-md object-cover"
-          />
-          <span className="flex flex-col">
-            <span className="text-[15px] font-semibold">View receipt</span>
-            <span className="text-[13px] text-zinc-500">Compare with your items</span>
-          </span>
+          <RotateCcw size={16} aria-hidden="true" />
         </button>
+      </div>
+      {confirmRetake && (
+        <Card data-testid="scan-review-retake-confirm" className="flex flex-col gap-3 px-4 py-3">
+          <p className="text-[15px] font-semibold text-zinc-900">Retake photo?</p>
+          <p className="text-[13px] text-n600">Your edits to the items will be replaced by the new scan.</p>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" className="h-11 flex-1" onClick={() => setConfirmRetake(false)}>
+              Cancel
+            </Button>
+            <Button type="button" className="h-11 flex-1" onClick={() => retakeInputRef.current?.click()}>
+              Retake
+            </Button>
+          </div>
+        </Card>
       )}
       <h1 className="text-[18px] font-semibold text-zinc-900">
         {isOff
